@@ -1,4 +1,4 @@
-ndhub-frontend-react@0.1.0 /home/quasiniusquaks/Dokumente/Notfalldepot/V42/ndhub-web/frontend-react
+ndhub-frontend-react@0.1.0 /home/quasiniusquaks/Dokumente/Notfalldepot/ndhub-web/frontend-react
 ├── @types/react-dom@18.3.7
 ├── @types/react@18.3.28
 ├── leaflet@1.9.4

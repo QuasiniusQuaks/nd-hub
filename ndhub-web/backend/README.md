@@ -207,7 +207,7 @@ PDF-Anhaenge:
 
 - Der Integrationspfad `offline write -> push -> pull apply` ist als Test vorhanden:
   - `backend/tests/test_sync_hybrid_e2e.py`
-- Ausfuehren (vom `V42`-Root):
+- Ausfuehren (vom **Repository-Root**, mit `ndhub-web/` und `desktop-client/` als Geschwister):
   - `PYTHONPATH="ndhub-web:desktop-client" python3 -m pytest "ndhub-web/backend/tests/test_sync_hybrid_e2e.py"`
 
 ## Stability/Acceptance Regression

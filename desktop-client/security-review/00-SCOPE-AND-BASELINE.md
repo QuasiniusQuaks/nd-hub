@@ -2,7 +2,7 @@
 
 ## Scope (in)
 
-- Gesamter Ordner **Desktop Client** inklusive eingebettetem FastAPI-Backend unter `backend/` (Python) und statischer SPA unter `backend/web/app.js`.
+- Gesamter Ordner **desktop-client** inklusive eingebettetem FastAPI-Backend unter `backend/` (Python) und statischer SPA unter `backend/web/app.js`.
 - **Out of scope** für dieses Artefakt-Paket: Betriebssystem-Härtung, Remote-Infrastruktur eines separaten Sync-Servers (nur Client-seitige Annahmen), rechtliche DSGVO-Folgenabschätzung.
 
 ## Reproduzierbare Audit-Baseline

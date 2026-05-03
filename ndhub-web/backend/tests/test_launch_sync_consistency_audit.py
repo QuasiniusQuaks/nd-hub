@@ -9,11 +9,11 @@ from fastapi.testclient import TestClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 NDHUB_WEB_DIR = PROJECT_ROOT / "ndhub-web"
-DESKTOP_CLIENT_DIR = PROJECT_ROOT / "Desktop Client"
+DESKTOP_CLIENT_DIR = PROJECT_ROOT / "desktop-client"
 
 
 def _prepare_sys_path() -> None:
-    """Ndhub-Web muss vor Desktop Client stehen: sonst importiert `backend` Desktop Client (ohne /sync/*)."""
+    """Ndhub-Web muss vor desktop-client stehen: sonst importiert `backend` das Desktop-Paket (ohne /sync/*)."""
     for p in (str(NDHUB_WEB_DIR), str(DESKTOP_CLIENT_DIR)):
         while p in sys.path:
             sys.path.remove(p)

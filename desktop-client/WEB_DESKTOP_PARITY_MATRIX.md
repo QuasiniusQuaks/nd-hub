@@ -1,6 +1,6 @@
 # Web/Desktop Parity Matrix
 
-This matrix tracks parity of `ndhub-web` features in the Desktop Client.
+This matrix tracks parity of `ndhub-web` features in the **desktop-client** (PySide6) application.
 
 ## Legend
 - `done`: implemented in desktop
