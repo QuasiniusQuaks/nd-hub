@@ -1,0 +1,2 @@
+# Local venv used for security-review reproducible scans (see security-review/README.md)
+.security-review-venv/

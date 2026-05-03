@@ -1,0 +1,27 @@
+import time: self [us] | cumulative | imported package
+import time:       455 |        455 |   _io
+import time:        73 |         73 |   marshal
+import time:       582 |        582 |   posix
+import time:       587 |       1696 | _frozen_importlib_external
+import time:       219 |        219 |   time
+import time:       202 |        420 | zipimport
+import time:        99 |         99 |     _codecs
+import time:       484 |        582 |   codecs
+import time:       907 |        907 |   encodings.aliases
+import time:      1140 |       2628 | encodings
+import time:       413 |        413 | encodings.utf_8
+import time:       202 |        202 | _signal
+import time:        63 |         63 |     _abc
+import time:       235 |        298 |   abc
+import time:       271 |        568 | io
+import time:        88 |         88 |       _stat
+import time:       124 |        211 |     stat
+import time:      1381 |       1381 |     _collections_abc
+import time:       101 |        101 |       genericpath
+import time:       154 |        254 |     posixpath
+import time:       579 |       2423 |   os
+import time:       164 |        164 |   _sitebuiltins
+import time:       383 |        383 |     apport_python_hook
+import time:       222 |        604 |   sitecustomize
+import time:      2487 |       5678 | site
+import time:      2388 |       2388 | run_notfalldepots

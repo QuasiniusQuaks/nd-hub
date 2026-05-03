@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ND-Hub Web MVP</title>
+    <link rel="icon" type="image/x-icon" href="/web/icon.ico" />
+    <link rel="shortcut icon" href="/web/icon.ico" />
+    <link rel="stylesheet" href="/web/styles.css?v=20260423a" />
+    <link rel="stylesheet" href="/web/react/ndhub-react.css?v=20260423a" />
+  </head>
+  <body>
+    <main class="container app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-logo" aria-hidden="true">
+            <img
+              src="/web/icon.ico"
+              alt="ND-Hub Logo"
+              onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"
+            />
+            <span class="brand-logo-fallback hidden">ND</span>
+          </div>
+          <p class="brand-kicker">ND-Hub</p>
+          <h1>Die Notfalldepot-Verwaltung</h1>
+        </div>
+        <nav class="sidebar-nav" aria-label="Bereiche">
+          <p class="sidebar-group-label">Uebersicht</p>
+          <a class="nav-link" href="#dashboard-section">Dashboard</a>
+
+          <p class="sidebar-group-label">Operativ</p>
+          <a class="nav-link" href="#bewegung-create-section">Bewegungen</a>
+          <a class="nav-link" href="#verfall-manager-section">Verfall</a>
+          <a class="nav-link" href="#email-section">E-Mail</a>
+          <a class="nav-link" href="#reports-section">Auswertungen</a>
+
+          <p class="sidebar-group-label">Verwaltung</p>
+          <button
+            type="button"
+            class="sidebar-shortcut"
+            data-sidebar-page="stammdaten-section"
+            data-required-permission="__admin__"
+          >
+            Stammdaten
+          </button>
+        </nav>
+      </aside>
+
+      <section class="workspace">
+        <header class="workspace-header">
+          <div class="workspace-title">
+            <img src="/web/icon.ico" alt="ND-Hub Icon" class="workspace-title-icon" />
+            <div class="workspace-title-content">
+              <h2>ND-Hub Web</h2>
+              <p id="workspace-context" class="muted">Desktop-UX mit moderner Web-UI</p>
+              <p id="workspace-area" class="workspace-area-pill">Arbeitsbereich</p>
+            </div>
+          </div>
+          <div class="actions">
+            <div id="notification-menu" class="account-menu hidden">
+              <button id="notification-button" type="button" class="account-pill" aria-haspopup="menu" aria-expanded="false">
+                <span class="account-pill-avatar" aria-hidden="true">!</span>
+                <span class="account-pill-name">Hinweise</span>
+                <span id="notification-count" class="status-pill">0</span>
+              </button>
+              <div id="notification-menu-panel" class="account-menu-panel hidden" role="menu">
+                <p class="muted">Neue kritische Verfallshinweise</p>
+                <ul id="notification-list"></ul>
+              </div>
+            </div>
+            <div id="header-account-menu" class="account-menu hidden">
+              <button id="header-account-button" type="button" class="account-pill" aria-haspopup="menu" aria-expanded="false">
+                <span id="header-account-avatar" class="account-pill-avatar" aria-hidden="true">U</span>
+                <span id="header-account-name" class="account-pill-name">Angemeldet</span>
+                <span class="account-pill-chevron" aria-hidden="true">▾</span>
+              </button>
+              <div id="header-account-menu-panel" class="account-menu-panel hidden" role="menu">
+                <button id="header-account-open" type="button" class="account-menu-item" role="menuitem">Mein Konto</button>
+                <button id="header-account-admin" type="button" class="account-menu-item hidden" role="menuitem">Adminbereich</button>
+                <button id="logout-button" type="button" class="account-menu-item danger hidden" role="menuitem">Abmelden</button>
+              </div>
+            </div>
+            <button id="theme-toggle" type="button" class="icon-toggle" aria-label="Dark Mode umschalten" title="Dark Mode umschalten">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1zm0 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm8-6a1 1 0 0 1 1 1h1a1 1 0 1 1 0 2h-1a1 1 0 1 1 0-2zM2 12a1 1 0 0 1 1-1H2a1 1 0 1 1 0 2h1a1 1 0 0 1-1-1zm16.95-6.36a1 1 0 0 1 1.41 0l.7.7a1 1 0 1 1-1.41 1.41l-.7-.7a1 1 0 0 1 0-1.41zM4.35 19.65a1 1 0 0 1 1.41 0l.7.7a1 1 0 0 1-1.41 1.41l-.7-.7a1 1 0 0 1 0-1.41zm14.6 1.41a1 1 0 0 1 0-1.41l.7-.7a1 1 0 1 1 1.41 1.41l-.7.7a1 1 0 0 1-1.41 0zM4.35 4.35a1 1 0 0 1 0 1.41l-.7.7A1 1 0 1 1 2.24 5.05l.7-.7a1 1 0 0 1 1.41 0z" />
+              </svg>
+            </button>
+            <p id="login-pill" class="status-pill">Nicht angemeldet</p>
+          </div>
+          <div class="mobile-quick-nav" aria-label="Schnellzugriff mobil">
+            <a class="mobile-quick-link" href="#bewegung-create-section" data-page-target="bewegung-create-section">Bewegungen</a>
+            <a class="mobile-quick-link" href="#verfall-manager-section" data-page-target="verfall-manager-section">Verfall</a>
+            <a class="mobile-quick-link" href="#reports-section" data-page-target="reports-section">Auswertungen</a>
+          </div>
+        </header>
+
+      <section id="login-section" class="card app-page active-page">
+        <h2>Login</h2>
+        <form id="login-form" class="grid">
+          <label>
+            Benutzername
+            <input id="username" name="username" type="text" value="admin" required />
+          </label>
+          <label>
+            Passwort
+            <input id="password" name="password" type="password" required />
+          </label>
+          <button id="login-button" data-ui-intent="primary" type="submit">Anmelden</button>
+        </form>
+        <p id="login-status" class="status"></p>
+      </section>
+
+      <section id="dashboard-section" class="card app-page">
+        <h2>Dashboard</h2>
+        <div id="react-dashboard-overview" data-react-island="dashboard-overview" class="hidden"></div>
+        <div id="dashboard-legacy-content">
+        <div class="dashboard-kpis">
+          <article class="kpi-card">
+            <h3>Depots</h3>
+            <p id="dashboard-kpi-depots" class="kpi-value">-</p>
+          </article>
+          <article class="kpi-card">
+            <h3>Praeparate</h3>
+            <p id="dashboard-kpi-praeparate" class="kpi-value">-</p>
+          </article>
+          <article class="kpi-card">
+            <h3>Bewegungen</h3>
+            <p id="dashboard-kpi-bewegungen" class="kpi-value">-</p>
+          </article>
+          <article class="kpi-card">
+            <h3>Kritisch verfallend</h3>
+            <p id="dashboard-kpi-kritisch" class="kpi-value">-</p>
+          </article>
+        </div>
+        <div class="toolbar">
+          <div class="actions">
+            <button id="dashboard-open-bewegungen" data-ui-intent="secondary" type="button">Bewegungen oeffnen</button>
+            <button id="dashboard-open-verfall" data-ui-intent="secondary" type="button">Verfallsmanager oeffnen</button>
+            <button id="dashboard-open-reports" data-ui-intent="secondary" type="button">Auswertungen oeffnen</button>
+          </div>
+          <div class="actions">
+            <button id="dashboard-refresh" data-ui-intent="primary" type="button">Dashboard aktualisieren</button>
+          </div>
+        </div>
+        <div class="split">
+          <div>
+            <h3>Naechste Verfaelle</h3>
+            <table id="dashboard-expiry-table">
+              <thead>
+                <tr>
+                  <th>Depot</th>
+                  <th>Praeparat</th>
+                  <th>Verfall</th>
+                  <th>Tage</th>
+                  <th>Kategorie</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div>
+            <h3>Letzte Aktivitaeten</h3>
+            <table id="dashboard-activity-table">
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Typ</th>
+                  <th>Depot</th>
+                  <th>Praeparat</th>
+                  <th>Anzahl</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <p id="dashboard-status" class="status"></p>
+        </div>
+      </section>
+
+      <section id="stammdaten-section" class="card app-page">
+        <h2>Stammdaten</h2>
+        <div id="react-admin-workspace" data-react-island="admin-workspace" class="hidden"></div>
+      </section>
+
+      <section id="onboarding-section" class="card app-page">
+        <h2>Einrichtungswizard</h2>
+        <p class="muted">Neue Institution mit Praeparaten, Notfalldepots und Zuordnungen Schritt fuer Schritt einrichten.</p>
+        <div class="onboarding-stepper">
+          <span id="onboarding-step-label" class="status-pill">Schritt 1 von 4</span>
+        </div>
+
+        <form id="onboarding-form-step-1" class="grid two-col onboarding-step">
+          <h3>1) Institution</h3>
+          <label>
+            Institutionsname
+            <input id="onboarding-institution-name" type="text" required />
+          </label>
+          <label>
+            Strasse
+            <input id="onboarding-institution-street" type="text" />
+          </label>
+          <label>
+            Hausnummer
+            <input id="onboarding-institution-house-number" type="text" />
+          </label>
+          <label>
+            Postleitzahl
+            <input id="onboarding-institution-postcode" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" />
+          </label>
+          <label>
+            Stadt
+            <input id="onboarding-institution-city" type="text" />
+          </label>
+          <div class="actions onboarding-geocode-actions">
+            <button id="onboarding-geocode" type="button">Koordinaten aus Adresse berechnen</button>
+          </div>
+          <label>
+            Latitude (automatisch)
+            <input id="onboarding-institution-latitude" type="number" step="any" readonly />
+          </label>
+          <label>
+            Longitude (automatisch)
+            <input id="onboarding-institution-longitude" type="number" step="any" readonly />
+          </label>
+        </form>
+
+        <form id="onboarding-form-step-2" class="grid onboarding-step hidden">
+          <h3>2) Praeparate</h3>
+          <p class="muted">Erfassen Sie alle Daten, die fuer ein Praeparat in der Datenbank hinterlegt werden koennen.</p>
+          <div class="actions">
+            <button id="onboarding-add-praeparat" type="button">Praeparat hinzufuegen</button>
+          </div>
+          <div id="onboarding-praeparate-list" class="onboarding-praeparate-list"></div>
+        </form>
+
+        <div id="onboarding-form-step-3" class="grid onboarding-step hidden">
+          <h3>3) Notfalldepots und Zuordnungen</h3>
+          <p class="muted">Depot anlegen und zugeordnete Praeparate auswaehlen.</p>
+          <div class="actions">
+            <button id="onboarding-add-depot" type="button">Depot hinzufuegen</button>
+          </div>
+          <div id="onboarding-depots-list" class="onboarding-depots-list"></div>
+        </div>
+
+        <div id="onboarding-form-step-4" class="grid onboarding-step hidden">
+          <h3>4) Pruefen und Abschluss</h3>
+          <pre id="onboarding-review" class="json-output"></pre>
+        </div>
+
+        <div class="actions">
+          <button id="onboarding-prev" type="button">Zurueck</button>
+          <button id="onboarding-next" type="button">Weiter</button>
+          <button id="onboarding-submit" type="button" class="hidden">Einrichtung abschliessen</button>
+        </div>
+        <p id="onboarding-status" class="status"></p>
+      </section>
+
+      <section id="bewegung-create-section" class="card app-page">
+        <h2>Bewegungen</h2>
+        <div class="subpage-nav">
+          <button type="button" class="subpage-link" data-page-target="bewegung-create-section">Erfassen</button>
+          <button type="button" class="subpage-link" data-page-target="bewegung-import-section">Import</button>
+          <button type="button" class="subpage-link" data-page-target="bewegung-history-section">Verlauf</button>
+        </div>
+        <h3>Neue Bewegung erfassen</h3>
+        <div id="react-bewegung-create-form" data-react-island="bewegung-create-form" class="hidden"></div>
+        <div id="bewegung-create-legacy-content">
+        <form id="bewegung-form" class="grid two-col">
+          <label>
+            Depot
+            <select id="bewegung-depot" required></select>
+          </label>
+          <label>
+            Praeparat
+            <select id="bewegung-praeparat" required></select>
+          </label>
+          <label>
+            Typ
+            <select id="bewegung-typ" required>
+              <option>Zugang</option>
+              <option>Abgang</option>
+              <option>Vernichtung</option>
+            </select>
+          </label>
+          <label>
+            Charge
+            <input id="bewegung-charge" type="text" required />
+          </label>
+          <label>
+            Verfall (YYYY-MM-DD)
+            <input id="bewegung-verfall" type="text" placeholder="2027-12-31" required />
+          </label>
+          <label>
+            Datum (YYYY-MM-DD)
+            <input id="bewegung-datum" type="text" placeholder="2026-04-22" required />
+          </label>
+          <label>
+            Anzahl
+            <input id="bewegung-anzahl" type="number" min="1" value="1" required />
+          </label>
+          <label>
+            Empfaenger (nur bei Abgang)
+            <input id="bewegung-empfaenger" type="text" />
+          </label>
+          <label>
+            PDF-Anhang (optional)
+            <input id="bewegung-attachment" type="file" accept="application/pdf,.pdf" />
+          </label>
+          <label class="checkbox-row">
+            <input id="bewegung-autofill-toggle" type="checkbox" checked />
+            Letzte Auswahl merken (Depot/Praeparat/Typ)
+          </label>
+          <button type="submit">Speichern</button>
+        </form>
+        <p id="bewegung-status" class="status"></p>
+        </div>
+      </section>
+
+      <section id="bewegung-history-section" class="card app-page">
+        <h2>Bewegungen</h2>
+        <div class="subpage-nav">
+          <button type="button" class="subpage-link" data-page-target="bewegung-create-section">Erfassen</button>
+          <button type="button" class="subpage-link" data-page-target="bewegung-import-section">Import</button>
+          <button type="button" class="subpage-link" data-page-target="bewegung-history-section">Verlauf</button>
+        </div>
+        <h3>Letzte Bewegungen</h3>
+        <div class="toolbar">
+          <label>
+            Suche
+            <input id="bewegung-search" type="text" placeholder="Charge, Verfall, Empfaenger" />
+          </label>
+          <label>
+            Depot
+            <select id="bewegung-filter-depot">
+              <option value="">Alle Depots</option>
+            </select>
+          </label>
+          <label>
+            Typ
+            <select id="bewegung-filter-typ">
+              <option value="">Alle</option>
+              <option>Zugang</option>
+              <option>Abgang</option>
+              <option>Vernichtung</option>
+            </select>
+          </label>
+          <label>
+            Praeparat
+            <select id="bewegung-filter-praeparat">
+              <option value="">Alle Praeparate</option>
+            </select>
+          </label>
+          <label class="checkbox-row">
+            <input id="bewegung-filter-has-attachment" type="checkbox" />
+            Nur mit PDF
+          </label>
+          <label>
+            Von
+            <input id="bewegung-filter-start-date" type="text" placeholder="YYYY-MM-DD" />
+          </label>
+          <label>
+            Bis
+            <input id="bewegung-filter-end-date" type="text" placeholder="YYYY-MM-DD" />
+          </label>
+          <div class="actions">
+            <button id="reload-bewegungen" type="button">Aktualisieren</button>
+            <button id="bewegung-export-csv" type="button">CSV Export</button>
+            <button id="bewegung-reset-filters" type="button">Filter zuruecksetzen</button>
+            <button id="bewegung-prev" type="button">Seite &lt;</button>
+            <button id="bewegung-next" type="button">Seite &gt;</button>
+          </div>
+        </div>
+        <div id="react-bewegungen-history" data-react-island="bewegungen-history" class="hidden"></div>
+        <table id="bewegungen-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Typ</th>
+              <th>Charge</th>
+              <th>Verfall</th>
+              <th>Anzahl</th>
+              <th>Depot-ID</th>
+              <th>Praeparat-ID</th>
+              <th>PDF</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="settings-section" class="card app-page">
+        <h2>Adminbereich</h2>
+        <div class="actions">
+          <button id="onboarding-start-admin" type="button">Neues Institution-Setup starten</button>
+        </div>
+        <div class="inline-tabs" data-inline-tabs="settings">
+          <button type="button" class="inline-tab active" data-tab-target="settings-desktop-sync-panel">Desktop Sync</button>
+          <button type="button" class="inline-tab" data-tab-target="settings-backup-panel">Backup & Restore</button>
+          <button type="button" class="inline-tab" data-tab-target="users-section">Benutzerverwaltung</button>
+          <button type="button" class="inline-tab" data-tab-target="audit-section">Audit</button>
+        </div>
+        <div id="settings-backup-panel" class="inline-tab-panel" data-tab-panel-group="settings">
+          <div id="react-backup-manager" data-react-island="backup-manager" class="hidden"></div>
+          <div id="backup-legacy-content">
+          <div>
+            <h3>Backup & Restore (Admin)</h3>
+            <p class="muted">Datenbank-Backup herunterladen oder aus einer Backup-Datei wiederherstellen.</p>
+            <div class="toolbar">
+              <div class="actions">
+                <button id="backup-download" type="button">Backup herunterladen</button>
+                <button id="backup-create" type="button">Backup erstellen</button>
+                <button id="backup-list-reload" type="button">Backup-Liste aktualisieren</button>
+              </div>
+            </div>
+            <table id="backup-table">
+              <thead>
+                <tr>
+                  <th>Datei</th>
+                  <th>Erstellt</th>
+                  <th>Groesse</th>
+                  <th>Aktion</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <form id="backup-restore-form" class="grid">
+              <label>
+                Backup-Datei
+                <input id="backup-restore-file" type="file" accept=".db,.sqlite,.sqlite3,.mariadb.json,.json" />
+              </label>
+              <div class="actions">
+                <button id="backup-restore-button" type="submit">Backup wiederherstellen</button>
+              </div>
+            </form>
+            <p id="backup-status" class="status"></p>
+          </div>
+          </div>
+        </div>
+
+        <div id="settings-desktop-sync-panel" class="inline-tab-panel" data-tab-panel-group="settings">
+          <div>
+            <h3>Desktop-Sync Zugangsdaten</h3>
+            <p class="muted">Hier koennen Sie die Backend-URL und ein Desktop-Token fuer den Desktop Client erzeugen.</p>
+            <div id="react-desktop-sync-form" data-react-island="desktop-sync-form" class="hidden"></div>
+            <div id="desktop-sync-form-legacy-content">
+            <form id="desktop-sync-form" class="grid">
+              <label>
+                Backend-URL
+                <input id="desktop-sync-backend-url" type="text" readonly />
+              </label>
+              <label>
+                Client-Bezeichnung
+                <input id="desktop-sync-client-label" type="text" placeholder="z. B. Rechner A" maxlength="120" />
+              </label>
+              <label>
+                Desktop-Token (neu erzeugt)
+                <input id="desktop-sync-token" type="text" readonly placeholder="Token wird nach Klick auf 'Token erzeugen' angezeigt" />
+              </label>
+              <label>
+                Gueltig bis
+                <input id="desktop-sync-expires-at" type="text" readonly />
+              </label>
+              <div class="actions">
+                <button id="desktop-sync-generate" type="button">Token erzeugen</button>
+                <button id="desktop-sync-copy-url" type="button">URL kopieren</button>
+                <button id="desktop-sync-copy-token" type="button">Token kopieren</button>
+              </div>
+            </form>
+            <p id="desktop-sync-status" class="status"></p>
+            </div>
+            <h4>Token-Archiv</h4>
+            <p class="muted">Bereits erzeugte Desktop-Tokens mit Gueltigkeit und maskierter Anzeige.</p>
+            <div id="react-desktop-sync-archive" data-react-island="desktop-sync-archive" class="hidden"></div>
+            <table id="desktop-sync-archive-table">
+              <thead>
+                <tr>
+                  <th>Erstellt</th>
+                  <th>Client</th>
+                  <th>Benutzer</th>
+                  <th>Rolle</th>
+                  <th>Gueltig bis</th>
+                  <th>Status</th>
+                  <th>Token (maskiert)</th>
+                  <th>Aktion</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="users-section" class="inline-tab-panel" data-tab-panel-group="settings">
+          <div class="toolbar">
+            <p class="muted">Nur Admins: Benutzer anlegen, aktualisieren, deaktivieren und Passwort zurücksetzen.</p>
+            <div class="actions">
+              <button id="users-reload" type="button">Liste aktualisieren</button>
+            </div>
+          </div>
+          <div id="react-users-table" data-react-island="users-table" class="hidden"></div>
+          <table id="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Benutzername</th>
+                <th>Rolle</th>
+                <th>E-Mail</th>
+                <th>Aktiv</th>
+                <th>Rechte</th>
+                <th>Fehlversuche</th>
+                <th>Gesperrt bis</th>
+                <th>Default-PW</th>
+                <th>Letzter Login</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="react-users-admin-form" data-react-island="users-admin-form" class="hidden"></div>
+          <div id="users-form-legacy-content">
+          <form id="users-form" class="grid two-col">
+            <input id="users-id" type="hidden" />
+            <label>
+              Benutzername
+              <input id="users-username" type="text" required />
+            </label>
+            <label>
+              Rolle
+              <select id="users-role">
+                <option value="User">User</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </label>
+            <label>
+              E-Mail
+              <input id="users-email" type="email" />
+            </label>
+            <label>
+              Berechtigungen
+              <select id="users-permissions" multiple size="8"></select>
+            </label>
+            <label>
+              Rechtevorlage
+              <select id="users-permission-template">
+                <option value="">Vorlage waehlen</option>
+              </select>
+            </label>
+            <div class="actions">
+              <button id="users-apply-template" type="button">Vorlage uebernehmen</button>
+            </div>
+            <label class="checkbox-row">
+              <input id="users-active" type="checkbox" checked />
+              Aktiv
+            </label>
+            <label>
+              Passwort (nur bei Neuanlage)
+              <input id="users-password" type="password" minlength="8" />
+            </label>
+            <label>
+              Neues Passwort (Reset fuer ausgewählten Benutzer)
+              <input id="users-reset-password" type="password" minlength="8" />
+            </label>
+            <div class="actions">
+              <button id="users-save" class="primary-action" type="submit">Benutzer speichern</button>
+              <details class="more-actions">
+                <summary>Weitere Aktionen</summary>
+                <div class="actions more-actions-panel">
+                  <button id="users-reset" type="button">Passwort zurücksetzen</button>
+                  <button id="users-unlock" type="button">Benutzer entsperren</button>
+                  <button id="users-delete" type="button">Benutzer löschen</button>
+                  <button id="users-clear" type="button">Eingabe leeren</button>
+                </div>
+              </details>
+            </div>
+          </form>
+          <p id="users-status" class="status"></p>
+          <h3>Benutzer-Aktivitaet</h3>
+          <table id="users-activity-table">
+            <thead>
+              <tr>
+                <th>Zeit</th>
+                <th>Aktion</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          </div>
+        </div>
+
+        <div id="audit-section" class="inline-tab-panel" data-tab-panel-group="settings">
+          <div class="toolbar">
+            <label>
+              Suche
+              <input id="audit-search" type="text" placeholder="Benutzer oder Details" />
+            </label>
+            <label>
+              Aktion
+              <select id="audit-filter-action">
+                <option value="">Alle</option>
+                <option value="create">create</option>
+                <option value="update">update</option>
+                <option value="delete">delete</option>
+              </select>
+            </label>
+            <label>
+              Ressource
+              <select id="audit-filter-resource">
+                <option value="">Alle</option>
+                <option value="depot">depot</option>
+                <option value="praeparat">praeparat</option>
+                <option value="bewegung">bewegung</option>
+                <option value="kontakt">kontakt</option>
+                <option value="bewegung_import">bewegung_import</option>
+                <option value="email">email</option>
+              </select>
+            </label>
+            <div class="actions">
+              <button id="audit-reload" type="button">Aktualisieren</button>
+              <button id="audit-prev" type="button">Seite &lt;</button>
+              <button id="audit-next" type="button">Seite &gt;</button>
+            </div>
+          </div>
+          <div id="react-audit-table" data-react-island="audit-table" class="hidden"></div>
+          <table id="audit-table">
+            <thead>
+              <tr>
+                <th>Zeit</th>
+                <th>Benutzer</th>
+                <th>Aktion</th>
+                <th>Ressource</th>
+                <th>ID</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="muted">Hinweis: Details werden als JSON formatiert dargestellt.</p>
+        </div>
+      </section>
+
+      <section id="bewegung-import-section" class="card app-page">
+        <h2>Bewegungen</h2>
+        <div class="subpage-nav">
+          <button type="button" class="subpage-link" data-page-target="bewegung-create-section">Erfassen</button>
+          <button type="button" class="subpage-link" data-page-target="bewegung-import-section">Import</button>
+          <button type="button" class="subpage-link" data-page-target="bewegung-history-section">Verlauf</button>
+        </div>
+        <h3>Import (CSV/Excel)</h3>
+        <div id="react-import-manager" data-react-island="import-manager" class="hidden"></div>
+        <div id="import-legacy-content">
+        <div class="inline-tabs" data-inline-tabs="import">
+          <button type="button" class="inline-tab active" data-tab-target="import-upload-panel">Datei & Vorschau</button>
+          <button type="button" class="inline-tab" data-tab-target="import-errors-panel">Fehler</button>
+        </div>
+
+        <div id="import-upload-panel" class="inline-tab-panel active" data-tab-panel-group="import">
+          <p class="muted">Pflichtspalten: Depot, Praeparat, Typ, Charge, Verfall, Datum, Anzahl</p>
+          <div class="toolbar">
+            <label>
+              Datei
+              <input id="import-file" type="file" accept=".csv,.xlsx,.xls" />
+            </label>
+            <div class="actions">
+              <button id="import-preview" type="button">Vorschau laden</button>
+              <button id="import-execute" type="button" disabled>Import starten</button>
+              <button id="import-template" type="button">Excel-Vorlage</button>
+            </div>
+          </div>
+          <label class="checkbox-row">
+            <input id="import-dry-run" type="checkbox" />
+            Dry-Run (nur pruefen, nicht schreiben)
+          </label>
+          <p id="import-status" class="status"></p>
+          <table id="import-preview-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div id="import-errors-panel" class="inline-tab-panel" data-tab-panel-group="import">
+          <h3>Importfehler</h3>
+          <p class="muted">Hier sehen Sie Validierungsfehler aus Vorschau und Import.</p>
+          <pre id="import-errors" class="audit-details hidden"></pre>
+        </div>
+        </div>
+      </section>
+
+      <section id="email-section" class="card app-page">
+        <h2>E-Mail-Kommunikation</h2>
+        <div id="react-email-manager" data-react-island="email-manager" class="hidden"></div>
+        <div id="email-legacy-content">
+        <div class="inline-tabs" data-inline-tabs="email">
+          <button type="button" class="inline-tab active" data-tab-target="email-compose-panel">Neue E-Mail</button>
+          <button type="button" class="inline-tab" data-tab-target="email-history-panel">Verlauf</button>
+        </div>
+
+        <div id="email-compose-panel" class="inline-tab-panel active" data-tab-panel-group="email">
+          <h3>Neue E-Mail (Entwurf)</h3>
+          <p id="email-delivery-mode" class="muted">Versandmodus wird geladen...</p>
+          <div>
+            <label>
+              Depots (Mehrfachauswahl)
+              <select id="email-depots" multiple size="7"></select>
+            </label>
+            <div class="actions">
+              <button id="email-select-all" type="button">Alle auswaehlen</button>
+              <button id="email-select-none" type="button">Alle abwaehlen</button>
+              <button id="email-preview-recipients" type="button">Empfaenger-Vorschau</button>
+            </div>
+            <p id="email-recipient-status" class="status"></p>
+            <pre id="email-recipient-preview" class="audit-details"></pre>
+            <form id="email-draft-form" class="grid">
+              <label>
+                Betreff
+                <input id="email-subject" type="text" required />
+              </label>
+              <label>
+                Nachricht
+                <textarea id="email-message" rows="6"></textarea>
+              </label>
+              <label>
+                <input id="email-send-now" type="checkbox" />
+                Sofort versenden (wenn SMTP aktiv)
+              </label>
+              <button type="submit">E-Mail-Entwurf erstellen</button>
+            </form>
+            <p id="email-draft-status" class="status"></p>
+          </div>
+        </div>
+
+        <div id="email-history-panel" class="inline-tab-panel" data-tab-panel-group="email">
+          <h3>E-Mail-Verlauf</h3>
+          <div class="actions">
+            <button id="email-history-reload" type="button">Aktualisieren</button>
+          </div>
+          <table id="email-history-table">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Betreff</th>
+                <th>Depots</th>
+                <th>Empfaenger</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="muted">Klick auf eine Zeile zeigt die Details unten.</p>
+          <pre id="email-history-detail" class="audit-details"></pre>
+        </div>
+        </div>
+      </section>
+
+      <section id="reports-section" class="card app-page">
+        <h2>Auswertungen & Exports</h2>
+        <div class="inline-tabs" data-inline-tabs="reports">
+          <button type="button" class="inline-tab active" data-tab-target="reports-builder-panel">Builder</button>
+          <button type="button" class="inline-tab" data-tab-target="reports-visual-panel">Visualisierung</button>
+          <button type="button" class="inline-tab" data-tab-target="reports-table-panel">Daten & KPIs</button>
+        </div>
+
+        <div id="reports-builder-panel" class="inline-tab-panel active" data-tab-panel-group="reports">
+          <div class="toolbar">
+            <label>
+              Perspektive
+              <select id="report-perspective">
+                <option value="depot">Depot</option>
+                <option value="praeparat">Praeparat</option>
+              </select>
+            </label>
+            <label>
+              Auswahl (Mehrfach)
+              <select id="report-ids" multiple size="6"></select>
+            </label>
+            <label>
+              Von
+              <input id="report-start-date" type="date" />
+            </label>
+            <label>
+              Bis
+              <input id="report-end-date" type="date" />
+            </label>
+            <label>
+              Typ
+              <select id="report-type">
+                <option value="bewegungen">Bewegungsanalyse</option>
+                <option value="bestand">Bestandsentwicklung</option>
+                <option value="ranking">Ranking</option>
+                <option value="matrix">Matrix</option>
+                <option value="verfall">Verfallsprognose</option>
+              </select>
+            </label>
+            <div class="actions">
+              <button id="report-load" class="primary-action" type="button">Auswertung laden</button>
+              <details class="more-actions">
+                <summary>Weitere Aktionen</summary>
+                <div class="actions more-actions-panel">
+                  <button id="report-export-csv" type="button">CSV Export</button>
+                  <button id="report-export-pdf" type="button">PDF Export</button>
+                  <button id="report-export-ppt" type="button">PPT Export</button>
+                </div>
+              </details>
+            </div>
+          </div>
+          <p id="report-status" class="status"></p>
+        </div>
+
+        <div id="reports-visual-panel" class="inline-tab-panel" data-tab-panel-group="reports">
+          <h3>Visualisierung</h3>
+          <div id="report-chart-legend" class="muted"></div>
+          <div id="report-charts" class="report-charts-grid"></div>
+        </div>
+
+        <div id="reports-table-panel" class="inline-tab-panel" data-tab-panel-group="reports">
+          <h3>Daten & KPIs</h3>
+          <pre id="report-kpis" class="audit-details"></pre>
+          <div id="react-report-table" data-react-island="report-table" class="hidden"></div>
+          <table id="report-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="verfall-manager-section" class="card app-page">
+        <h2>Verfallsdatenmanager</h2>
+        <div id="react-verfall-overview" data-react-island="verfall-overview" class="hidden"></div>
+        <div id="verfall-legacy-content">
+        <div class="toolbar">
+          <label>
+            Perspektive
+            <select id="verfall-perspective">
+              <option value="depot">Depot</option>
+              <option value="praeparat">Praeparat</option>
+            </select>
+          </label>
+          <label>
+            Auswahl (Mehrfach)
+            <select id="verfall-ids" multiple size="5"></select>
+          </label>
+          <label>
+            Kategorie
+            <select id="verfall-category">
+              <option value="alle">Alle</option>
+              <option value="kritisch">Kritisch</option>
+              <option value="warnung">Warnung</option>
+              <option value="achtung">Achtung</option>
+              <option value="abgelaufen">Abgelaufen</option>
+            </select>
+          </label>
+          <label>
+            Suche
+            <input id="verfall-search" type="text" placeholder="Depot, Praeparat, Charge, Verfall" />
+          </label>
+          <div class="actions">
+            <button id="verfall-load" type="button">Laden</button>
+            <button id="verfall-export-csv" type="button">CSV Export</button>
+          </div>
+        </div>
+        <div class="dashboard-kpis">
+          <article class="kpi-card">
+            <h3>Kritisch</h3>
+            <p id="verfall-stat-kritisch" class="kpi-value">0</p>
+          </article>
+          <article class="kpi-card">
+            <h3>Warnung</h3>
+            <p id="verfall-stat-warnung" class="kpi-value">0</p>
+          </article>
+          <article class="kpi-card">
+            <h3>Achtung</h3>
+            <p id="verfall-stat-achtung" class="kpi-value">0</p>
+          </article>
+          <article class="kpi-card">
+            <h3>Gesamtmenge (Seite)</h3>
+            <p id="verfall-stat-gesamtmenge" class="kpi-value">0</p>
+          </article>
+        </div>
+        <table id="verfall-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Depot</th>
+              <th>Praeparat</th>
+              <th>Charge</th>
+              <th>Verfall</th>
+              <th>Tage</th>
+              <th>Kategorie</th>
+              <th>Anzahl</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p id="verfall-status" class="status"></p>
+        </div>
+      </section>
+
+      <section id="account-section" class="card app-page hidden">
+        <h2>Mein Konto</h2>
+        <p id="account-password-warning" class="status hidden">Sicherheitsregel: Bitte Standard-Passwort sofort aendern.</p>
+        <div id="react-account-manager" data-react-island="account-manager" class="hidden"></div>
+        <div id="account-legacy-content">
+        <div class="toolbar">
+          <div>
+            <h3>Profilbild</h3>
+            <img id="account-avatar-image" class="account-avatar hidden" alt="Profilbild" />
+            <p id="account-avatar-empty" class="muted">Noch kein Profilbild hinterlegt.</p>
+          </div>
+          <form id="account-avatar-form" class="actions">
+            <input id="account-avatar-file" type="file" accept=".png,.jpg,.jpeg,.webp,.bmp" />
+            <button id="account-avatar-upload" type="submit">Profilbild speichern</button>
+            <button id="account-avatar-remove" type="button">Profilbild entfernen</button>
+          </form>
+        </div>
+        <form id="account-password-form" class="grid two-col">
+          <label>
+            Altes Passwort
+            <input id="account-old-password" type="password" required />
+          </label>
+          <label>
+            Neues Passwort
+            <input id="account-new-password" type="password" minlength="8" required />
+          </label>
+          <div class="actions">
+            <button id="account-password-save" type="submit">Passwort aendern</button>
+          </div>
+        </form>
+        <p id="account-status" class="status"></p>
+        <h3>Letzte Aktivitaeten</h3>
+        <table id="account-activity-table">
+          <thead>
+            <tr>
+              <th>Zeit</th>
+              <th>Aktion</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </section>
+
+      </section>
+    </main>
+    <script src="/web/ui_utils.js?v=20260423a"></script>
+    <script type="module" src="/web/react/ndhub-react.js?v=20260423a"></script>
+    <script src="/web/app.js?v=20260423a"></script>
+  </body>
+</html>
+

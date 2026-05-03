@@ -1,0 +1,8 @@
+# Local tooling (security audit reproducibility)
+.audit-venv/
+
+# Dependencies
+frontend-react/node_modules/
+
+# Environment secrets (use .env.example as template only)
+.env

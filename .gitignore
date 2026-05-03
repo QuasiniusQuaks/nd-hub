@@ -1,0 +1,33 @@
+# --- Allgemein ---
+__pycache__/
+*.py[cod]
+*.pyc
+.Python
+*.so
+.DS_Store
+
+# --- desktop-client ---
+desktop-client/.security-review-venv/
+desktop-client/dist/
+desktop-client/build/
+desktop-client/.coverage
+desktop-client/backups/
+desktop-client/**/*.db
+desktop-client/.pytest_cache/
+
+# --- ndhub-web ---
+ndhub-web/.audit-venv/
+ndhub-web/frontend-react/node_modules/
+ndhub-web/__pycache__/
+ndhub-web/backend/__pycache__/
+ndhub-web/*.log
+ndhub-web/.backend-*.log
+ndhub-web/nd_hub_backend.db
+ndhub-web/backups/
+ndhub-web/.env
+
+# --- Lokal am Repo-Root ---
+.venv/
+.venv-sync-tests/
+node_modules/
+.coverage

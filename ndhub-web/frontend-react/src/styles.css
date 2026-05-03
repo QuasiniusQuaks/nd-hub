@@ -1,0 +1,329 @@
+:root {
+  --nd-react-border: var(--separator, #e1e8ed);
+  --nd-react-surface: var(--bg-secondary, #ffffff);
+  --nd-react-muted: var(--secondary-label, #7f8c8d);
+  --nd-react-surface-soft: var(--bg-tertiary, #f9fafb);
+  --nd-react-focus: var(--blue, #3498db);
+}
+
+.nd-react-shell {
+  border: 1px solid var(--nd-react-border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--nd-react-surface) 0%, var(--nd-react-surface-soft) 100%);
+  color: var(--label, #ffffff);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.nd-react-shell label,
+.nd-react-shell th,
+.nd-react-shell td,
+.nd-react-shell pre,
+.nd-react-shell li,
+.nd-react-shell p,
+.nd-react-shell span,
+.nd-react-shell h3,
+.nd-react-shell h4 {
+  color: var(--label, #ffffff);
+}
+
+.nd-react-shell input,
+.nd-react-shell textarea,
+.nd-react-shell select,
+.nd-react-shell button {
+  color: var(--label, #ffffff);
+}
+
+.nd-react-shell input::placeholder,
+.nd-react-shell textarea::placeholder {
+  color: var(--secondary-label, #aeaeb2);
+}
+
+.nd-react-shell .muted {
+  color: var(--nd-react-muted);
+  margin: 0;
+}
+
+.nd-react-shell .empty-cell {
+  color: var(--secondary-label, #aeaeb2);
+}
+
+.nd-react-shell .actions {
+  margin-top: 8px;
+}
+
+.nd-react-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nd-react-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--nd-react-muted);
+}
+
+.nd-react-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nd-react-toolbar button {
+  min-height: 36px;
+}
+
+.nd-react-shell table {
+  min-width: 700px;
+}
+
+.nd-react-shell .status {
+  margin: 0;
+}
+
+.nd-react-shell form {
+  border: 1px solid var(--nd-react-border);
+  border-radius: 12px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--nd-react-surface) 88%, var(--nd-react-surface-soft) 12%);
+}
+
+.nd-react-shell .table-shell {
+  border-radius: 12px;
+  border-color: color-mix(in srgb, var(--nd-react-border) 90%, var(--nd-react-focus));
+}
+
+.nd-react-kpis {
+  margin: 0;
+  max-height: 180px;
+}
+
+.nd-react-hero {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 12px;
+  border: 1px solid var(--nd-react-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--nd-react-surface) 88%, var(--nd-react-focus) 12%);
+}
+
+body.dark-mode .nd-react-hero {
+  background: color-mix(in srgb, var(--bg-secondary, #2c2c2e) 86%, #000 14%);
+  border-color: color-mix(in srgb, var(--separator, #44444a) 88%, #000 12%);
+}
+
+body.dark-mode .nd-react-hero .muted {
+  color: color-mix(in srgb, var(--label, #ffffff) 82%, var(--secondary-label, #aeaeb2));
+}
+
+body.dark-mode .nd-react-metric-label {
+  color: color-mix(in srgb, var(--label, #ffffff) 78%, var(--secondary-label, #aeaeb2));
+}
+
+.nd-react-hero h3 {
+  margin: 0 0 6px;
+}
+
+.nd-react-hero p {
+  margin: 0;
+}
+
+.nd-react-hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nd-react-metric {
+  border: 1px solid var(--nd-react-border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: var(--nd-react-surface);
+}
+
+.nd-react-metric-label {
+  display: block;
+  font-size: 12px;
+  color: var(--nd-react-muted);
+}
+
+.nd-react-metric-value {
+  display: block;
+  margin-top: 2px;
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 700;
+}
+
+.nd-react-grid-two {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.nd-react-panel {
+  border: 1px solid var(--nd-react-border);
+  border-radius: 12px;
+  background: var(--nd-react-surface);
+  padding: 10px;
+}
+
+.nd-react-panel h3 {
+  margin: 0 0 10px;
+  color: var(--label, #ffffff);
+}
+
+.nd-react-panel h4 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--label, #ffffff);
+}
+
+.nd-admin-workspace > .nd-react-heading h3 {
+  margin: 4px 0;
+  color: var(--label, #ffffff);
+}
+
+.nd-react-form {
+  border: 1px solid var(--nd-react-border);
+  border-radius: 12px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--nd-react-surface) 88%, var(--nd-react-surface-soft) 12%);
+}
+
+.nd-react-table-compact table {
+  min-width: 640px;
+}
+
+.nd-react-data-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nd-react-data-title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--label, #ffffff);
+}
+
+body.dark-mode .nd-react-shell {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-secondary, #2c2c2e) 94%, #000 6%) 0%,
+    color-mix(in srgb, var(--bg-tertiary, #3a3a3c) 90%, #000 10%) 100%
+  );
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .nd-react-panel,
+body.dark-mode .nd-react-metric,
+body.dark-mode .nd-react-summary-card,
+body.dark-mode .nd-react-badge {
+  background: color-mix(in srgb, var(--bg-secondary, #2c2c2e) 92%, #000 8%);
+}
+
+body.dark-mode .nd-react-shell form,
+body.dark-mode .nd-react-form {
+  background: color-mix(in srgb, var(--bg-secondary, #2c2c2e) 90%, #000 10%);
+}
+
+.nd-react-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--nd-react-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--nd-react-muted);
+  background: var(--nd-react-surface);
+}
+
+.nd-react-badge strong {
+  color: inherit;
+  font-size: 13px;
+}
+
+.nd-react-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.nd-react-quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nd-react-quick-actions .btn-secondary {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.nd-react-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.nd-react-summary-card {
+  border: 1px solid var(--nd-react-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--nd-react-surface);
+}
+
+.nd-react-summary-card .label {
+  display: block;
+  color: var(--nd-react-muted);
+  font-size: 12px;
+}
+
+.nd-react-summary-card .value {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.nd-react-clickable-row tbody tr {
+  cursor: pointer;
+}
+
+.nd-react-status-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nd-react-status-row .status {
+  flex: 1 1 260px;
+}
+
+.nd-react-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.nd-react-form-grid .actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .nd-react-hero {
+    grid-template-columns: 1fr;
+  }
+
+}

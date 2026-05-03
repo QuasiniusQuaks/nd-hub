@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+  "build",
+  "dist",
+  "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q -m 'not performance' --cov=security_manager --cov=db_manager --cov-report=term-missing --cov-fail-under=30"
+markers = [
+  "integration: tests spanning multiple components",
+  "performance: slower performance-oriented checks",
+]

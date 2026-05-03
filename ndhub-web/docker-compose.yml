@@ -1,0 +1,77 @@
+services:
+  ndhub-web:
+    build: .
+    container_name: ndhub-web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      ND_HUB_DB_PATH: /data/nd_hub_backend.db
+      ND_HUB_ATTACHMENTS_DIR: /data/uploads
+      ND_HUB_BACKUPS_DIR: /data/backups
+      ND_HUB_BACKEND_HOST: 0.0.0.0
+      ND_HUB_BACKEND_PORT: 8000
+      ND_HUB_INITIAL_ADMIN_PASSWORD: ${ND_HUB_INITIAL_ADMIN_PASSWORD:-ChangeMeToAStrongPassword_123!}
+      ND_HUB_FORCE_ADMIN_PASSWORD_SYNC: ${ND_HUB_FORCE_ADMIN_PASSWORD_SYNC:-0}
+      ND_HUB_AUTO_BACKUP_HOURS: ${ND_HUB_AUTO_BACKUP_HOURS:-24}
+      ND_HUB_MAX_BACKUP_RESTORE_MB: ${ND_HUB_MAX_BACKUP_RESTORE_MB:-200}
+      ND_HUB_DB_ENGINE: ${ND_HUB_DB_ENGINE:-mariadb}
+      ND_HUB_MARIADB_HOST: ${ND_HUB_MARIADB_HOST:-mariadb}
+      ND_HUB_MARIADB_PORT: ${ND_HUB_MARIADB_PORT:-3306}
+      ND_HUB_MARIADB_DATABASE: ${ND_HUB_MARIADB_DATABASE:-ndhub}
+      ND_HUB_MARIADB_USER: ${ND_HUB_MARIADB_USER:-ndhub}
+      ND_HUB_MARIADB_PASSWORD: ${ND_HUB_MARIADB_PASSWORD:-ChangeMe}
+      ND_HUB_DUAL_WRITE_SQLITE: ${ND_HUB_DUAL_WRITE_SQLITE:-0}
+      ND_HUB_FEATURE_MULTI_INSTITUTION: ${ND_HUB_FEATURE_MULTI_INSTITUTION:-1}
+      ND_HUB_FEATURE_INSTITUTION_MAP: ${ND_HUB_FEATURE_INSTITUTION_MAP:-1}
+      ND_HUB_EMAIL_DELIVERY_MODE: ${ND_HUB_EMAIL_DELIVERY_MODE:-draft}
+      ND_HUB_SMTP_HOST: ${ND_HUB_SMTP_HOST:-}
+      ND_HUB_SMTP_PORT: ${ND_HUB_SMTP_PORT:-587}
+      ND_HUB_SMTP_USERNAME: ${ND_HUB_SMTP_USERNAME:-}
+      ND_HUB_SMTP_PASSWORD: ${ND_HUB_SMTP_PASSWORD:-}
+      ND_HUB_SMTP_USE_TLS: ${ND_HUB_SMTP_USE_TLS:-1}
+      ND_HUB_SMTP_USE_SSL: ${ND_HUB_SMTP_USE_SSL:-0}
+      ND_HUB_SMTP_FROM_ADDRESS: ${ND_HUB_SMTP_FROM_ADDRESS:-}
+      ND_HUB_SMTP_FROM_NAME: ${ND_HUB_SMTP_FROM_NAME:-ND-Hub}
+      ND_HUB_SMTP_TIMEOUT_SECONDS: ${ND_HUB_SMTP_TIMEOUT_SECONDS:-10}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    volumes:
+      - ndhub_data:/data
+      - ndhub_uploads:/data/uploads
+      - ndhub_backups:/data/backups
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mariadb:
+    image: mariadb:11.4
+    container_name: ndhub-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${ND_HUB_MARIADB_DATABASE:-ndhub}
+      MARIADB_USER: ${ND_HUB_MARIADB_USER:-ndhub}
+      MARIADB_PASSWORD: ${ND_HUB_MARIADB_PASSWORD:-ChangeMe}
+      MARIADB_ROOT_PASSWORD: ${ND_HUB_MARIADB_ROOT_PASSWORD:-ChangeRootMe}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ndhub_mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  ndhub_data:
+  ndhub_uploads:
+  ndhub_backups:
+  ndhub_mariadb_data:
