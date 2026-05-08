@@ -1,7 +1,7 @@
 # ND-Hub
 
 <p align="center">
-  <img src="ndhub-web/backend/web/icon.svg" alt="ND-Hub Logo" width="96" />
+  <img src="new_logo.png" alt="ND-Hub Logo" width="220" />
 </p>
 
 <p align="center">
