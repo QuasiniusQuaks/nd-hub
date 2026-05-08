@@ -97,8 +97,10 @@ class SetupWizardDialog(QtWidgets.QDialog):
         self.setWindowTitle("Einrichtungswizard")
         self.setWindowModality(QtCore.Qt.WindowModal)
         self.setModal(True)
-        self.resize(1040, 760)
+        self.setProperty("embedded_fill_ratio", 0.92)
+        self.setProperty("embedded_aspect_ratio", "16:9")
         self.setMinimumSize(980, 720)
+        self._resize_for_screen_ratio()
         self._step_index = 0
         self._depot_rows: List[Dict[str, Any]] = []
 
@@ -400,7 +402,8 @@ class SetupWizardDialog(QtWidgets.QDialog):
         pr_header.setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
         pr_header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
         pr_header.setSectionResizeMode(2, QtWidgets.QHeaderView.Fixed)
-        self._depot_pr_table.verticalHeader().setDefaultSectionSize(38)
+        # Zeilenhöhe explizit größer, damit Sollbestand-SpinBox sauber in der Zeile sitzt.
+        self._depot_pr_table.verticalHeader().setDefaultSectionSize(56)
         self._depot_pr_table.setColumnWidth(0, 44)
         self._depot_pr_table.setColumnWidth(2, 140)
         self._depot_pr_table.setMinimumHeight(180)
@@ -758,6 +761,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
             lk = pname.lower()
             soll = assign_map.get(lk, 0)
             checked = lk in assign_map
+            self._depot_pr_table.setRowHeight(r, 56)
             chk = QtWidgets.QTableWidgetItem()
             chk.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
             chk.setCheckState(QtCore.Qt.Checked if checked else QtCore.Qt.Unchecked)
@@ -770,6 +774,19 @@ class SetupWizardDialog(QtWidgets.QDialog):
             spin.setValue(soll if checked else 0)
             spin.setEnabled(checked)
             spin.setMinimumWidth(110)
+            spin.setFixedHeight(34)
+            # Globales QDialog-Stylesheet setzt QSpinBox auf min-height/padding;
+            # fuer Tabellenzellen hier kompakt ueberschreiben, damit kein Ueberstand entsteht.
+            spin.setStyleSheet(
+                "QSpinBox {"
+                "min-height: 0px;"
+                "padding-top: 0px;"
+                "padding-bottom: 0px;"
+                "padding-left: 6px;"
+                "padding-right: 6px;"
+                "margin: 0px;"
+                "}"
+            )
             self._depot_pr_table.setCellWidget(r, 2, spin)
         self._depot_pr_table.blockSignals(False)
 
@@ -1155,6 +1172,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         super().showEvent(event)
+        self._resize_for_screen_ratio()
         if self.windowFlags() & QtCore.Qt.Widget:
             # Eingebettet im Overlay-Host: Verdunkelung übernimmt der Host.
             return
@@ -1166,6 +1184,38 @@ class SetupWizardDialog(QtWidgets.QDialog):
                 geo.x() + (geo.width() - self.width()) // 2,
                 geo.y() + (geo.height() - self.height()) // 2,
             )
+
+    def _resize_for_screen_ratio(self, ratio: float = 0.92) -> None:
+        ratio = min(max(ratio, 0.1), 1.0)
+        available_geo: Optional[QtCore.QRect] = None
+        parent = self.parentWidget()
+        if parent is not None and parent.windowHandle() is not None and parent.windowHandle().screen() is not None:
+            available_geo = parent.windowHandle().screen().availableGeometry()
+        elif self.windowHandle() is not None and self.windowHandle().screen() is not None:
+            available_geo = self.windowHandle().screen().availableGeometry()
+        else:
+            screen = QtGui.QGuiApplication.primaryScreen()
+            if screen is not None:
+                available_geo = screen.availableGeometry()
+        if available_geo is None:
+            return
+        max_width = int(available_geo.width() * ratio)
+        max_height = int(available_geo.height() * ratio)
+        if max_width <= 0 or max_height <= 0:
+            return
+
+        # Erzwinge ein breites 16:9-Layout und nutze dabei so viel Platz wie moeglich.
+        target_width = max_width
+        target_height = int(target_width * 9 / 16)
+        if target_height > max_height:
+            target_height = max_height
+            target_width = int(target_height * 16 / 9)
+
+        target_width = max(self.minimumWidth(), target_width)
+        target_height = max(self.minimumHeight(), target_height)
+        target_width = min(target_width, available_geo.width())
+        target_height = min(target_height, available_geo.height())
+        self.resize(target_width, target_height)
 
     def _show_backdrop(self) -> None:
         parent = self.parentWidget()

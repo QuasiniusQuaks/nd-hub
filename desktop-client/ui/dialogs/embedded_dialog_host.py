@@ -119,7 +119,27 @@ def exec_embedded_dialog(parent: QtWidgets.QWidget, dialog: QtWidgets.QDialog) -
     dialog.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
     dialog.setMinimumWidth(460)
     dialog.setStyleSheet(_embedded_card_stylesheet())
-    dialog.adjustSize()
+    fill_ratio = dialog.property("embedded_fill_ratio")
+    aspect_ratio = str(dialog.property("embedded_aspect_ratio") or "").strip()
+    if isinstance(fill_ratio, (float, int)):
+        ratio = min(max(float(fill_ratio), 0.1), 1.0)
+        margin_l, margin_t, margin_r, margin_b = layout.getContentsMargins()
+        avail_w = max(1, overlay.width() - margin_l - margin_r)
+        avail_h = max(1, overlay.height() - margin_t - margin_b)
+        max_w = max(1, int(avail_w * ratio))
+        max_h = max(1, int(avail_h * ratio))
+        target_w, target_h = max_w, max_h
+        if aspect_ratio == "16:9":
+            target_w = max_w
+            target_h = int(target_w * 9 / 16)
+            if target_h > max_h:
+                target_h = max_h
+                target_w = int(target_h * 16 / 9)
+        target_w = max(dialog.minimumWidth(), min(target_w, avail_w))
+        target_h = max(dialog.minimumHeight(), min(target_h, avail_h))
+        dialog.setFixedSize(target_w, target_h)
+    else:
+        dialog.adjustSize()
     layout.addWidget(dialog, alignment=Qt.AlignHCenter)
     layout.addStretch()
 

@@ -31,6 +31,10 @@ def _ensure_venv():
 _ensure_venv()
 # ---------------------------
 
+# Linux accessibility bridge abschalten (keine Screenreader-Nutzung):
+# verhindert wiederholte qt.accessibility.atspi-Warnungen im Terminal.
+os.environ.setdefault("NO_AT_BRIDGE", "1")
+
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
