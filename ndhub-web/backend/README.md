@@ -1,6 +1,6 @@
-# ND-Hub Backend (MVP)
+# ND-Hub Backend (MVP / v0.42)
 
-Minimal FastAPI backend for the solo migration path.
+FastAPI backend fuer ND-Hub Web mit SQLite- und MariaDB-Betriebsmodus.
 
 ## Start
 
@@ -26,7 +26,7 @@ Optional env vars:
 - `ND_HUB_SMTP_FROM_ADDRESS`, `ND_HUB_SMTP_FROM_NAME`
 - `ND_HUB_SMTP_TIMEOUT_SECONDS`
 
-Planned for MariaDB migration (not active yet):
+MariaDB-/Engine-Optionen:
 
 - `ND_HUB_DB_ENGINE` (`sqlite` or `mariadb`)
 - `ND_HUB_MARIADB_HOST`
@@ -44,14 +44,15 @@ Default (SQLite):
 docker compose up -d --build
 ```
 
-Mit MariaDB-Profil (Vorbereitung fuer Migration):
+Mit MariaDB-Profil:
 
 ```bash
 docker compose --profile mariadb up -d --build
 ```
 
-Hinweis: Das MariaDB-Profil startet die Datenbank bereits, der produktive
-DB-Umschaltpfad wird in der Migrationsphase umgesetzt.
+Hinweis: Das MariaDB-Profil startet die Datenbank und kann zusammen mit
+`ND_HUB_DB_ENGINE=mariadb` fuer den MariaDB-Betrieb genutzt werden.
+Fuer Umstieg/Betrieb gelten Runbook und Smoke-Checklist.
 
 ## Aktueller Cutover-Stand (inkrementell)
 

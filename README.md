@@ -42,7 +42,7 @@ ND-Hub ist eine spezialisierte Softwareloesung fuer Organisationen, die Notfalld
 Das Repository umfasst zwei Produktlinien mit demselben fachlichen Kern:
 
 - `desktop-client/`: lokale, performante Desktopanwendung mit moderner UI und integriertem Backend.
-- `ndhub-web/`: webbasierte Variante mit FastAPI-Backend, React-Frontend, Docker-Betrieb und MariaDB-Migrationspfad.
+- `ndhub-web/`: webbasierte Variante mit FastAPI-Backend, React-Frontend, Docker-Betrieb und unterstuetztem SQLite-/MariaDB-Betrieb.
 
 Beide Loesungen verfolgen dasselbe Ziel: **betriebliche Sicherheit erhoehen, manuelle Aufwaende reduzieren und revisionsfaehige Daten schaffen**.
 
@@ -99,7 +99,7 @@ Mehr Details: [`desktop-client/README.md`](desktop-client/README.md)
 
 ### 2) ND-Hub Webanwendung
 
-Die Webanwendung ist fuer Organisationen gedacht, die zentrale Bereitstellung, browserbasierten Zugriff und eine perspektivische Skalierung (inkl. MariaDB-Pfad) priorisieren.
+Die Webanwendung ist fuer Organisationen gedacht, die zentrale Bereitstellung, browserbasierten Zugriff und eine skalierbare Datenstrategie (SQLite oder MariaDB) priorisieren.
 
 **Ideal fuer Kunden, die ...**
 
@@ -130,7 +130,9 @@ Die Webanwendung ist fuer Organisationen gedacht, die zentrale Bereitstellung, b
 - FastAPI-Backend mit klar dokumentierten Endpunkten.
 - React/Vite-Frontend als moderne UI-Basis (inkrementeller Ausbau).
 - Docker- und Migrationsartefakte fuer standardisierten Betrieb.
-- Geplanter bzw. vorbereiteter Cutover von SQLite auf MariaDB.
+- Betriebsfaehig mit `ND_HUB_DB_ENGINE=sqlite` oder `ND_HUB_DB_ENGINE=mariadb`.
+- Docker-Profile fuer beide Varianten; in produktionsnahen Profilen ist MariaDB als Zielbild vorgesehen.
+- Kontrollierter Cutover-/Rollback-Pfad inkl. Smoke- und Go-Live-Checklisten.
 - Hybrid-Sync- und Stabilitaetstests fuer belastbare Releases.
 
 Mehr Details: [`ndhub-web/backend/README.md`](ndhub-web/backend/README.md)
@@ -202,7 +204,7 @@ ND-Hub ist besonders interessant fuer:
 | Betriebsmodell | Lokal installiert | Server-/Containerbasiert |
 | Staerken | Direktes UI-Feeling, geringe Abhaengigkeit | Zentrale Bereitstellung, API-zentriert |
 | Zielbild | Fokus auf operative Einzelstandorte | Fokus auf uebergreifende Verfuegbarkeit |
-| Datenstrategie | SQLite (optimiert) | SQLite heute, MariaDB-Pfad vorbereitet |
+| Datenstrategie | SQLite (optimiert) | SQLite oder MariaDB (umschaltbar ueber `ND_HUB_DB_ENGINE`) |
 
 ---
 
@@ -219,7 +221,7 @@ ND-Hub Plattform
     ├── API-zentrierte Fachlogik
     ├── Browser-UI (inkrementelle Islands-Strategie)
     ├── Containerbetrieb (Docker)
-    └── Datenpfad SQLite -> MariaDB (Migrationsvorbereitung)
+    └── Datenpfad SQLite <-> MariaDB (Cutover/Go-Live dokumentiert)
 ```
 
 ---
@@ -267,7 +269,7 @@ Ja. Das Produkt ist so aufgebaut, dass ein schrittweiser Ausbau vom lokalen Betr
 
 ### Welche Datenbankstrategie verfolgt ND-Hub?
 
-Der aktuelle stabile Pfad nutzt SQLite. Fuer die Webanwendung ist ein kontrollierter Migrationspfad in Richtung MariaDB vorbereitet.
+Die Webanwendung unterstuetzt SQLite und MariaDB. Fuer den produktiven MariaDB-Betrieb sind Cutover-, Smoke- und Rollback-Prozesse dokumentiert; optional steht ein kurzer Dual-Write-Uebergangsmodus zur Verfuegung.
 
 ### Wie unterstuetzt ND-Hub Compliance und Pruefbarkeit?
 
