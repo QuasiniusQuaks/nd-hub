@@ -82,8 +82,8 @@ python -m backend.tools.migrate_sqlite_to_mariadb --sqlite /data/nd_hub_backend.
 
 Cutover-Ablauf:
 
-- siehe [MariaDB Cutover Runbook](MARIADB_CUTOVER_RUNBOOK.md)
-- siehe [MariaDB Smoke Checklist](MARIADB_SMOKE_CHECKLIST.md)
+- Konsolidierter Pfad: [Migration & Sync / MariaDB-Cutover](../../docs/migration-and-sync/02-mariadb-cutover.md).
+- Originaldokumente sind unter [`docs/legacy/ndhub-web/`](../../docs/legacy/index.md) archiviert.
 
 Backup/Restore im MariaDB-Mode:
 
@@ -192,17 +192,19 @@ PDF-Anhaenge:
 
 ## Architekturartefakte und Betrieb
 
-- [Desktop/Web Paritaetsmatrix](DESKTOP_PARITY_PLAN.md)
-- [Docker Target Profile](DOCKER_TARGET_PROFILE.md)
-- [MariaDB Migration Specification](MARIADB_MIGRATION_SPEC.md)
-- [MariaDB Cutover Runbook](MARIADB_CUTOVER_RUNBOOK.md)
-- [MariaDB Smoke Checklist](MARIADB_SMOKE_CHECKLIST.md)
-- [Dual-Write Operations Note](DUAL_WRITE_OPERATIONS_NOTE.md)
-- [Sync Contract v1](SYNC_CONTRACT_V1.md)
-- [Session Strategy](SESSION_STRATEGY.md)
-- [Release and Acceptance Report](RELEASE_ACCEPTANCE_REPORT.md)
-- [Release Notes](RELEASE_NOTES.md)
-- [Release Notes (Short)](RELEASE_NOTES_SHORT.md)
+Die Detailartefakte wurden in die Enterprise-Dokumentation
+ueberfuehrt. Konsolidierte Einstiegspunkte:
+
+- Architektur und Datenmodell: [`docs/architecture/`](../../docs/architecture/index.md)
+- Deployment / Docker: [`docs/deployment/01-docker-stack.md`](../../docs/deployment/01-docker-stack.md)
+- Migration & Sync: [`docs/migration-and-sync/`](../../docs/migration-and-sync/index.md)
+- API-Referenz: [`docs/api-reference/01-rest-endpoints.md`](../../docs/api-reference/01-rest-endpoints.md)
+- Release Notes / Acceptance: [`docs/project/03-release-notes.md`](../../docs/project/03-release-notes.md), [`docs/quality/02-acceptance-suite.md`](../../docs/quality/02-acceptance-suite.md)
+
+Originaldokumente (Cutover-Runbook, Smoke-Checklist, Migration-Spec,
+Dual-Write Note, Sync-Contract, Session-Strategy, Docker-Target-Profile,
+Desktop-Parity-Plan, Release-Notes-Originale) befinden sich archiviert
+unter [`docs/legacy/ndhub-web/`](../../docs/legacy/index.md).
 
 ## Hybrid-Sync E2E Test
 

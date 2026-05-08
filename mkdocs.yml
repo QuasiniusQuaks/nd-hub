@@ -1,0 +1,149 @@
+site_name: ND-Hub Enterprise Documentation
+site_description: Enterprise-Dokumentation fuer den ND-Hub Desktop Client und die ND-Hub Webanwendung (v0.42).
+site_author: ND-Hub Team
+docs_dir: docs
+
+theme:
+  name: material
+  language: de
+  logo: assets/new_logo.png
+  favicon: assets/new_logo.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Dunkles Design aktivieren
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Helles Design aktivieren
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - content.tabs.link
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 4
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+
+nav:
+  - Start: index.md
+  - Overview:
+      - overview/index.md
+      - Produktbeschreibung: overview/01-product.md
+      - Zielgruppen: overview/02-target-audience.md
+      - Feature-Ueberblick: overview/03-feature-overview.md
+  - Architektur:
+      - architecture/index.md
+      - Systemarchitektur: architecture/01-system-architecture.md
+      - Datenmodell: architecture/02-data-model.md
+      - Diagramme: architecture/03-mermaid-diagrams.md
+  - Desktop Client:
+      - desktop-client/index.md
+      - Ueberblick: desktop-client/01-overview.md
+      - Installation: desktop-client/02-installation.md
+      - Konfiguration: desktop-client/03-configuration.md
+      - Funktionen: desktop-client/04-features.md
+      - UI-Seiten: desktop-client/05-ui-pages.md
+      - Build & Distribution: desktop-client/06-build-and-distribution.md
+  - Webanwendung:
+      - web-application/index.md
+      - Ueberblick: web-application/01-overview.md
+      - Frontend: web-application/02-frontend.md
+      - Backend: web-application/03-backend.md
+      - Funktionen: web-application/04-features.md
+  - Deployment:
+      - deployment/index.md
+      - Docker-Stack: deployment/01-docker-stack.md
+      - Umgebungen: deployment/02-environments.md
+      - Umgebungsvariablen: deployment/03-environment-variables.md
+      - Update & Rollback: deployment/04-update-rollback.md
+  - Operations:
+      - operations/index.md
+      - Runbooks: operations/01-runbooks.md
+      - Backup & Restore: operations/02-backup-restore.md
+      - Monitoring & Health: operations/03-monitoring-health.md
+      - Incident Response: operations/04-incident-response.md
+  - Security:
+      - security/index.md
+      - AuthN & AuthZ: security/01-authn-authz.md
+      - Datenschutz: security/02-data-protection.md
+      - Audit-Logs: security/03-audit-logs.md
+      - Security Review: security/04-security-review.md
+  - API Reference:
+      - api-reference/index.md
+      - REST-Endpunkte: api-reference/01-rest-endpoints.md
+      - Fehlerbehandlung: api-reference/02-error-model.md
+      - Pagination & Filter: api-reference/03-pagination-filtering.md
+  - Migration & Sync:
+      - migration-and-sync/index.md
+      - SQLite vs. MariaDB: migration-and-sync/01-sqlite-vs-mariadb.md
+      - MariaDB-Cutover: migration-and-sync/02-mariadb-cutover.md
+      - Hybrid-Sync: migration-and-sync/03-hybrid-sync.md
+  - Qualitaet & Tests:
+      - quality/index.md
+      - Teststrategie: quality/01-test-strategy.md
+      - Acceptance-Suite: quality/02-acceptance-suite.md
+      - Performance-Tests: quality/03-performance-tests.md
+  - Projekt & Roadmap:
+      - project/index.md
+      - Roadmap & PSP: project/01-roadmap.md
+      - Parity-Matrix: project/02-parity-matrix.md
+      - Release Notes: project/03-release-notes.md
+  - Referenz:
+      - reference/index.md
+      - Glossar: reference/01-glossary.md
+      - FAQ: reference/02-faq.md
+  - Archiv:
+      - legacy/index.md
+
+validation:
+  nav:
+    omitted_files: info
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: info
+    absolute_links: info
+    unrecognized_links: info
+
+extra:
+  generator: false
+
+copyright: Copyright &copy; ND-Hub Team

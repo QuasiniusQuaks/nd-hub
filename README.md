@@ -19,6 +19,7 @@
 
 ## Inhaltsverzeichnis
 
+- [Enterprise-Dokumentation](#enterprise-dokumentation)
 - [Was ist ND-Hub?](#was-ist-nd-hub)
 - [Produktstatus (aktuell)](#produktstatus-aktuell)
 - [Die zwei Software-Produkte im Ueberblick](#die-zwei-software-produkte-im-ueberblick)
@@ -34,6 +35,24 @@
 - [Warum jetzt starten?](#warum-jetzt-starten)
 - [Kontakt & Demo](#kontakt--demo)
 - [Historie](#historie)
+
+---
+
+## Enterprise-Dokumentation
+
+Die vollstaendige, konsolidierte Dokumentation von ND-Hub
+(Architektur, Desktop, Web, Deployment, Operations, Security,
+API-Referenz, Migration, Sync, Quality, Roadmap, Glossar) liegt unter
+[`docs/`](docs/index.md) und ist als MkDocs-Material-Site lokal lauffaehig:
+
+```bash
+pip install mkdocs-material
+mkdocs serve
+```
+
+Diese README hier dient als kompakter **Produktueberblick fuer
+Interessenten und Entscheider**. Fuer den technischen und operativen
+Stand bitte direkt die Doku-Site nutzen.
 
 ---
 
@@ -329,10 +348,9 @@ Hinweis: Bei Aenderungen an `.env` oder Abhaengigkeiten den Stack neu erzeugen (
 
 - Persistente Daten liegen in Volumes (DB, Uploads, Backups).
 - Backup/Restore-Endpunkte sind gehaertet (Format-/Groessenpruefung).
-- Fuer MariaDB-Cutover und produktive Freigabe gelten:
-  - `ndhub-web/backend/MARIADB_CUTOVER_RUNBOOK.md`
-  - `ndhub-web/backend/MARIADB_SMOKE_CHECKLIST.md`
-  - `ndhub-web/backend/DUAL_WRITE_OPERATIONS_NOTE.md`
+- Fuer MariaDB-Cutover und produktive Freigabe gilt der konsolidierte Pfad:
+  - [`docs/migration-and-sync/02-mariadb-cutover.md`](docs/migration-and-sync/02-mariadb-cutover.md)
+  - Originaldokumente sind unter [`docs/legacy/ndhub-web/`](docs/legacy/index.md) archiviert.
 
 ### 9) Produktionsnahe Mindest-Checkliste
 
@@ -433,7 +451,9 @@ Gern unterstuetzen wir mit einem strukturierten Demo- und Einfuehrungsprozess.
 - gewuenschtes Betriebsmodell (Desktop, Web oder Hybrid)
 
 > Hinweis: Diese README dient als Produktueberblick.  
-> Fuer technische Details und Betriebsdokumentation siehe die projektspezifischen READMEs in `desktop-client/` und `ndhub-web/`.
+> Fuer technische Details und Betriebsdokumentation siehe die
+> [Enterprise-Dokumentation unter `docs/`](docs/index.md) sowie die
+> projektspezifischen READMEs in `desktop-client/` und `ndhub-web/`.
 
 ---
 

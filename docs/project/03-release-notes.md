@@ -1,0 +1,77 @@
+# Release Notes
+
+Diese Seite buendelt die Releaseuebersicht von ND-Hub auf den
+aktuellen Stand v0.42 und gibt eine Kurzfassung der wesentlichen
+Aenderungen.
+
+## v0.42 (aktuell)
+
+### Highlights
+
+- Vollstaendige Enterprise-Dokumentation als MkDocs-Site
+  (diese Site).
+- MariaDB-Modus produktiv betreibbar; Engine-Switch via
+  `ND_HUB_DB_ENGINE`.
+- Hybrid-Sync v1 (Push/Pull/Cursor mit `batch_id`-Idempotenz).
+- Stability/Acceptance-Suite mit `28 passed` (Stand
+  Sprint-Abschluss).
+- E-Mail-Workflows mit Draft-/SMTP-Modus, Versandstatus und Verlauf.
+
+### Funktional
+
+- **Stammdaten**: Depots, Praeparate, Kontakte, Zuordnungen mit
+  Suche und Pagination.
+- **Bewegungen**: Filter (Typ, Depot, Praeparat, Datum, Anhang,
+  Volltext), persistent pro Benutzer; CSV-Export.
+- **PDF-Anhaenge**: max. 10 MB, Inline/Download-Routen.
+- **Reports**: Bestand, Bewegungen, Ranking, Matrix, Verfall in
+  CSV, PDF, PPTX.
+- **Imports**: Preview, Fehlerklassifizierung, Idempotenz,
+  Dry-Run, Excel-Vorlage.
+- **Verfall**: Uebersicht, CSV-Export, Polling-Notifications.
+
+### Plattform
+
+- **Docker Stack**: `ndhub-web` + `mariadb`, Healthchecks, Volumes,
+  `depends_on: service_healthy`.
+- **Backup/Restore**: Format-/Groessenpruefung, Pre-Restore-
+  Snapshot, Engine-Marker.
+- **Sicherheit**: bcrypt, Account-Sperre, Self-Toggle-Schutz,
+  letzter-Admin-Schutz, gehaerteter Admin-Backup-/Restore-Pfad.
+
+### Migration
+
+- `backend.tools.migrate_sqlite_to_mariadb` mit Dry-Run und
+  Tabellenfilter.
+- Cutover-Runbook, Smoke-Checklist, Dual-Write-Operations konsolidiert
+  unter [Migration & Sync](../migration-and-sync/02-mariadb-cutover.md).
+
+### Bekannte Grenzen
+
+- In-memory Token-Store (Prozess-grenzen).
+- Sync v1 ohne binaere Attachment-Synchronisation.
+- Frontend-E2E nicht im Backend-Quality-Gate.
+
+## v0.40 / v0.41
+
+- Einfuehrung MariaDB-Repository und Dual-Write-Modus.
+- Erweiterung der Filter und Exporte fuer Bewegungen.
+- Stabilisierung Backup-/Restore-Pfade und Pre-Restore-Snapshot.
+- Erweiterung der Audit-Log-Filter (Action, Resource-Type,
+  Volltext).
+
+## v0.39
+
+- Stand der Desktop-Erweiterung; Refactoring zur API-zentrierten
+  Architektur startet.
+- Einfuehrung des Setup-Wizards.
+
+## Historie (kompakt)
+
+- v0.36 - Konsolidierung der Desktop-Architektur.
+- v0.37 - Einfuehrung Sync-Service-Skelett.
+- v0.38 - Reportexporte vereinheitlicht.
+- v0.39 - Setup-Wizard und globaler Errorhandler.
+- v0.40 - MariaDB-Repository (Beta).
+- v0.41 - Dual-Write-Modus, gehaertete Admin-Pfade.
+- v0.42 - Enterprise-Doku, Hybrid-Sync v1, Acceptance-Suite-Konsolidierung.

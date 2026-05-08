@@ -29,5 +29,9 @@ ndhub-web/.env
 # --- Lokal am Repo-Root ---
 .venv/
 .venv-sync-tests/
+.mkdocs-venv/
 node_modules/
 .coverage
+
+# --- MkDocs ---
+site/
