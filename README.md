@@ -27,6 +27,7 @@
 - [Warum ND-Hub fuer potenzielle Kunden relevant ist](#warum-nd-hub-fuer-potenzielle-kunden-relevant-ist)
 - [Kurzvergleich Desktop vs. Web](#kurzvergleich-desktop-vs-web)
 - [Architektur auf einen Blick](#architektur-auf-einen-blick)
+- [Docker Deployment (ndhub-web)](#docker-deployment-ndhub-web)
 - [Schnellstart](#schnellstart)
 - [Wichtige Projektpfade](#wichtige-projektpfade)
 - [FAQ fuer Interessenten](#faq-fuer-interessenten)
@@ -131,7 +132,7 @@ Die Webanwendung ist fuer Organisationen gedacht, die zentrale Bereitstellung, b
 - React/Vite-Frontend als moderne UI-Basis (inkrementeller Ausbau).
 - Docker- und Migrationsartefakte fuer standardisierten Betrieb.
 - Betriebsfaehig mit `ND_HUB_DB_ENGINE=sqlite` oder `ND_HUB_DB_ENGINE=mariadb`.
-- Docker-Profile fuer beide Varianten; in produktionsnahen Profilen ist MariaDB als Zielbild vorgesehen.
+- Docker-Compose-Stack mit integrierter MariaDB und umschaltbarer DB-Engine per Environment.
 - Kontrollierter Cutover-/Rollback-Pfad inkl. Smoke- und Go-Live-Checklisten.
 - Hybrid-Sync- und Stabilitaetstests fuer belastbare Releases.
 
@@ -223,6 +224,124 @@ ND-Hub Plattform
     ├── Containerbetrieb (Docker)
     └── Datenpfad SQLite <-> MariaDB (Cutover/Go-Live dokumentiert)
 ```
+
+---
+
+## Docker Deployment (ndhub-web)
+
+Dieser Abschnitt beschreibt den **tatsaechlichen aktuellen Deployment-Stand** der Webanwendung mit Docker.
+
+### 1) Technischer Ist-Stand
+
+- Deployment erfolgt ueber `ndhub-web/docker-compose.yml`.
+- Der Stack besteht aus:
+  - `ndhub-web` (FastAPI + statische Webassets auf Port `8000`)
+  - `mariadb` (MariaDB 11.4 auf Port `3306`)
+- Die Datenbank-Engine im Backend wird ueber `ND_HUB_DB_ENGINE` gesteuert (`mariadb` oder `sqlite`).
+- Im Compose-Setup ist `ND_HUB_DB_ENGINE` standardmaessig auf `mariadb` gesetzt.
+- Persistenz wird ueber Docker-Volumes umgesetzt (`ndhub_data`, `ndhub_uploads`, `ndhub_backups`, `ndhub_mariadb_data`).
+
+### 2) Voraussetzungen
+
+- Docker Engine + Docker Compose Plugin installiert.
+- Port `8000` (Web/API) und bei externer DB-Nutzung optional `3306` verfuegbar.
+- Fuer produktionsnahen Einsatz: gepflegte `.env`-Datei mit sicheren Secrets.
+
+### 3) Konfiguration vorbereiten
+
+```bash
+cd ndhub-web
+cp .env.example .env
+```
+
+Wichtige Variablen in `.env`:
+
+- **Sicherheit/Initialbetrieb**
+  - `ND_HUB_INITIAL_ADMIN_PASSWORD`
+  - `ND_HUB_FORCE_ADMIN_PASSWORD_SYNC` (nur gezielt/temporar verwenden)
+- **DB-Engine**
+  - `ND_HUB_DB_ENGINE=sqlite|mariadb`
+  - `ND_HUB_DUAL_WRITE_SQLITE=0|1` (Uebergangsmodus fuer kontrollierte Cutover-Phasen)
+- **MariaDB**
+  - `ND_HUB_MARIADB_HOST`, `ND_HUB_MARIADB_PORT`
+  - `ND_HUB_MARIADB_DATABASE`, `ND_HUB_MARIADB_USER`, `ND_HUB_MARIADB_PASSWORD`
+  - `ND_HUB_MARIADB_ROOT_PASSWORD`
+- **Backups/Dateien**
+  - `ND_HUB_AUTO_BACKUP_HOURS`
+  - `ND_HUB_MAX_BACKUP_RESTORE_MB`
+  - `ND_HUB_ATTACHMENTS_DIR`, `ND_HUB_BACKUPS_DIR`
+- **E-Mail (optional live)**
+  - `ND_HUB_EMAIL_DELIVERY_MODE=draft|smtp`
+  - `ND_HUB_SMTP_*`
+
+### 4) Deployment starten
+
+```bash
+cd ndhub-web
+docker compose up -d --build
+```
+
+Danach verfuegbar:
+
+- App/API: `http://localhost:8000`
+- Health: `http://localhost:8000/health`
+
+### 5) Betriebsmodi: MariaDB vs. SQLite
+
+**MariaDB-Modus (empfohlen fuer staging/production-nahe Umgebungen)**
+
+- `.env`: `ND_HUB_DB_ENGINE=mariadb`
+- Compose startet `mariadb` automatisch mit.
+- In produktionsnahen Umgebungen ist dieser Modus das Zielbild.
+
+**SQLite-Modus (lokal/schneller Testbetrieb)**
+
+- `.env`: `ND_HUB_DB_ENGINE=sqlite`
+- Das Backend arbeitet dann gegen `ND_HUB_DB_PATH` (standardmaessig unter `/data`).
+- Der Compose-Stack beinhaltet weiterhin den MariaDB-Service; fachlich nutzt die App aber SQLite.
+
+### 6) Healthchecks und Verifikation
+
+```bash
+cd ndhub-web
+docker compose ps
+docker compose logs -f ndhub-web
+```
+
+Minimalpruefung:
+
+- `GET /health` liefert HTTP `200`.
+- Login erfolgreich.
+- Kernflows (z. B. Bewegungen, Reports, Backup-Liste) ohne Fehler.
+
+### 7) Update- und Restart-Operationen
+
+```bash
+cd ndhub-web
+docker compose pull
+docker compose up -d --build
+docker compose restart ndhub-web
+```
+
+Hinweis: Bei Aenderungen an `.env` oder Abhaengigkeiten den Stack neu erzeugen (`up -d --build`).
+
+### 8) Backup, Restore und Betriebssicherheit
+
+- Persistente Daten liegen in Volumes (DB, Uploads, Backups).
+- Backup/Restore-Endpunkte sind gehaertet (Format-/Groessenpruefung).
+- Fuer MariaDB-Cutover und produktive Freigabe gelten:
+  - `ndhub-web/backend/MARIADB_CUTOVER_RUNBOOK.md`
+  - `ndhub-web/backend/MARIADB_SMOKE_CHECKLIST.md`
+  - `ndhub-web/backend/DUAL_WRITE_OPERATIONS_NOTE.md`
+
+### 9) Produktionsnahe Mindest-Checkliste
+
+- Starke Passwoerter/Secrets in `.env` gesetzt.
+- `ND_HUB_DB_ENGINE=mariadb` fuer zentrale Umgebung aktiv.
+- `ND_HUB_DUAL_WRITE_SQLITE=0` ausserhalb kontrollierter Uebergangsfenster.
+- Healthchecks gruen, Kern-Smoketests bestanden.
+- Backup-Restore-Test einmal in Zielumgebung validiert.
+- E-Mail-Betrieb bewusst dokumentiert (`draft` oder `smtp`).
 
 ---
 
