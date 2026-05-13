@@ -278,7 +278,7 @@ docker compose up -d --no-build
 
 Ohne `NDHUB_WEB_IMAGE` wird wie bisher lokal gebaut (`docker compose up -d --build`).
 
-**Optional Docker Hub:** Repository-Variable `DOCKERHUB_PUSH` auf `true` setzen und die Secrets `DOCKERHUB_USERNAME` sowie `DOCKERHUB_TOKEN` in den Repository-Action-Secrets anlegen. Derselbe Workflow spiegelt das Image zusaetzlich nach `docker.io/quasiniusquaks/ndhub-web` (Tags entsprechen GHCR). Repository- oder Hub-Namen bei Forks im Workflow bzw. auf Docker Hub anpassen.
+**Optional Docker Hub:** Repository-Variable `Dockerhub_push` auf `true` setzen und die Secrets `DOCKERHUB_USERNAME` sowie `DOCKERHUB_TOKEN` in den Repository-Action-Secrets anlegen. Derselbe Workflow spiegelt das Image zusaetzlich nach `docker.io/spypanther/ndhub-web` (Tags entsprechen GHCR). Hub-Repository-Name bei Bedarf im Workflow anpassen.
 
 ### 2) Voraussetzungen
 
