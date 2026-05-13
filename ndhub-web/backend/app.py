@@ -237,13 +237,21 @@ class KontaktUpsertRequest(BaseModel):
 
 class EmailRecipientPreviewRequest(BaseModel):
     depot_ids: list[int] = Field(default_factory=list)
+    kontakt_ids: list[int] = Field(default_factory=list)
 
 
 class EmailDraftCreateRequest(BaseModel):
     depot_ids: list[int] = Field(default_factory=list)
+    kontakt_ids: list[int] = Field(default_factory=list)
     betreff: str = Field(min_length=1)
     nachricht: str = ""
     send_now: bool = False
+
+
+class EmailDeliveryStatusUpdateRequest(BaseModel):
+    versand_status: str = Field(min_length=1)
+    versand_kanal: Optional[str] = None
+    versand_fehler: Optional[str] = None
 
 
 class SyncPullRequest(BaseModel):
@@ -1357,7 +1365,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             security.close()
             token_store.close()
 
-    app = FastAPI(title="ND-Hub Backend", version="0.1.0", lifespan=_lifespan)
+    app = FastAPI(title="ND-Hub Backend", version="0.1.1", lifespan=_lifespan)
     app.state.repository = repository
     app.state.security = security
     app.state.token_store = token_store
@@ -2645,10 +2653,20 @@ def create_app(db_path: str | None = None) -> FastAPI:
     ) -> dict:
         _ = session
         if not payload.depot_ids:
-            return {"count": 0, "recipients": [], "depot_names": []}
+            return {"count": 0, "recipients": [], "depot_names": [], "selected_contact_count": 0}
         recipients = repository.get_kontakte_by_depot_ids(payload.depot_ids)
+        selected_contact_count = 0
+        if payload.kontakt_ids:
+            selected_ids = {int(item) for item in payload.kontakt_ids if int(item) > 0}
+            selected_contact_count = len(selected_ids)
+            recipients = [row for row in recipients if int(row.get("id") or 0) in selected_ids]
         depot_names = sorted({str(row["depot_name"]) for row in recipients})
-        return {"count": len(recipients), "recipients": recipients, "depot_names": depot_names}
+        return {
+            "count": len(recipients),
+            "recipients": recipients,
+            "depot_names": depot_names,
+            "selected_contact_count": selected_contact_count,
+        }
 
     @app.get("/emails/delivery/status")
     def get_email_delivery_status(
@@ -2674,6 +2692,9 @@ def create_app(db_path: str | None = None) -> FastAPI:
         if not payload.depot_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bitte mindestens ein Depot auswaehlen.")
         recipients = repository.get_kontakte_by_depot_ids(payload.depot_ids)
+        if payload.kontakt_ids:
+            selected_ids = {int(item) for item in payload.kontakt_ids if int(item) > 0}
+            recipients = [row for row in recipients if int(row.get("id") or 0) in selected_ids]
         if not recipients:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -2715,6 +2736,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             resource_id=log_id,
             details={
                 "depot_ids": payload.depot_ids,
+                "kontakt_ids": payload.kontakt_ids,
                 "recipient_count": len(unique_emails),
                 "send_now_requested": send_now_requested,
                 "delivery_status": delivery_status,
@@ -2749,6 +2771,41 @@ def create_app(db_path: str | None = None) -> FastAPI:
         if details is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="E-Mail-Eintrag nicht gefunden.")
         return details
+
+    @app.patch("/emails/history/{email_id}/delivery-status")
+    def update_email_history_delivery_status(
+        email_id: int,
+        payload: EmailDeliveryStatusUpdateRequest,
+        session: SessionInfo = Depends(require_permission("email_use")),
+    ) -> dict[str, Any]:
+        _ = session
+        current = repository.get_email_details(email_id)
+        if current is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="E-Mail-Eintrag nicht gefunden.")
+        try:
+            changed = repository.update_email_delivery_status(
+                email_id=email_id,
+                versand_status=payload.versand_status,
+                versand_kanal=payload.versand_kanal,
+                versand_fehler=payload.versand_fehler,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        if not changed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="E-Mail-Eintrag nicht gefunden.")
+        updated = repository.get_email_details(email_id) or {}
+        repository.log_audit(
+            username=session.username,
+            action="update",
+            resource_type="email",
+            resource_id=email_id,
+            details={
+                "versand_status": updated.get("versand_status"),
+                "versand_kanal": updated.get("versand_kanal"),
+                "versand_fehler": updated.get("versand_fehler"),
+            },
+        )
+        return {"id": email_id, "status": "updated", "delivery": updated}
 
     @app.get("/bewegungen")
     def list_bewegungen(
@@ -3475,7 +3532,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             return {"rows": [], "label": "praeparat" if safe_perspective == "depot" else "depot", "kpis": {"gesamtvolumen": 0}}
         safe_start_date, safe_end_date = _validated_report_date_range(start_date, end_date)
         if safe_perspective == "depot":
-            rows = repository.get_praeparat_ranking(
+            raw_rows = repository.get_praeparat_ranking(
                 depot_ids=scoped_depot_ids,
                 start_date=safe_start_date,
                 end_date=safe_end_date,
@@ -3483,15 +3540,48 @@ def create_app(db_path: str | None = None) -> FastAPI:
             )
             label = "praeparat"
         else:
-            rows = repository.get_depot_ranking(
+            raw_rows = repository.get_depot_ranking(
                 praeparat_ids=selected_ids,
                 start_date=safe_start_date,
                 end_date=safe_end_date,
                 limit=limit,
             )
             label = "depot"
-        total = int(sum(int(row["anzahl"]) for row in rows))
-        return {"rows": rows, "label": label, "kpis": {"gesamtvolumen": total}}
+        rows: list[dict[str, int | str]] = []
+        for row in raw_rows:
+            item = row if isinstance(row, dict) else {}
+            name = str(item.get("name") or item.get("depot") or item.get("praeparat") or "")
+            try:
+                anzahl = int(item.get("anzahl") or 0)
+            except (TypeError, ValueError):
+                anzahl = 0
+            rows.append({"name": name, "anzahl": anzahl})
+        ranking_basis = "abgang_vernichtung"
+        if not rows:
+            # Fallback: wenn es nur Zugangsbewegungen gibt, dennoch ein Ranking liefern.
+            fallback_rows = repository.get_bewegungen_analyse(
+                depot_ids=scoped_depot_ids if safe_perspective == "depot" else None,
+                praeparat_ids=selected_ids if safe_perspective == "praeparat" else None,
+                start_date=safe_start_date,
+                end_date=safe_end_date,
+            )
+            aggregate: dict[str, int] = {}
+            for item in fallback_rows:
+                key = str(item.get("praeparat") if safe_perspective == "depot" else item.get("depot") or "")
+                if not key:
+                    continue
+                try:
+                    amount = int(item.get("anzahl") or 0)
+                except (TypeError, ValueError):
+                    amount = 0
+                aggregate[key] = aggregate.get(key, 0) + amount
+            rows = [
+                {"name": key, "anzahl": value}
+                for key, value in sorted(aggregate.items(), key=lambda kv: kv[1], reverse=True)[: max(1, min(int(limit), 50))]
+            ]
+            ranking_basis = "alle_bewegungen"
+        total = int(sum(int(row.get("anzahl") or 0) for row in rows))
+        return {"rows": rows, "label": label, "kpis": {"gesamtvolumen": total, "ranking_basis": ranking_basis}}
 
     @app.get("/reports/ranking/export.csv")
     def export_report_ranking_csv(
@@ -3503,7 +3593,11 @@ def create_app(db_path: str | None = None) -> FastAPI:
         session: SessionInfo = Depends(require_permission("reports_view")),
     ) -> StreamingResponse:
         report = report_ranking(perspective, ids, start_date, end_date, limit, session)
-        rows = [[row["name"], row["anzahl"]] for row in report["rows"]]
+        rows = [
+            [str(row.get("name") or ""), int(row.get("anzahl") or 0)]
+            for row in report["rows"]
+            if isinstance(row, dict)
+        ]
         label_header = "Praeparat" if report["label"] == "praeparat" else "Depot"
         return _csv_response(
             filename=_build_report_export_filename(

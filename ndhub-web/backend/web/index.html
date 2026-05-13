@@ -151,8 +151,8 @@
                   <th>Depot</th>
                   <th>Praeparat</th>
                   <th>Verfall</th>
-                  <th>Tage</th>
-                  <th>Kategorie</th>
+                  <th>Tage bis Verfall</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -176,6 +176,11 @@
         </div>
         <p id="dashboard-status" class="status"></p>
         </div>
+      </section>
+
+      <section id="institutions-map-section" class="card app-page">
+        <h2>Deutschlandkarte</h2>
+        <div id="react-institutions-map" data-react-island="institutions-map" class="hidden"></div>
       </section>
 
       <section id="stammdaten-section" class="card app-page">
@@ -879,13 +884,12 @@
         <table id="verfall-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Depot</th>
               <th>Praeparat</th>
               <th>Charge</th>
               <th>Verfall</th>
-              <th>Tage</th>
-              <th>Kategorie</th>
+              <th>Tage bis Verfall</th>
+              <th>Status</th>
               <th>Anzahl</th>
             </tr>
           </thead>

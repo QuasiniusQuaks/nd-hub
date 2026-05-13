@@ -1183,6 +1183,41 @@ class MariaDbRepository:
                 row = cur.fetchone()
         return dict(row) if row else None
 
+    def update_email_delivery_status(
+        self,
+        email_id: int,
+        versand_status: str,
+        versand_kanal: str | None = None,
+        versand_fehler: str | None = None,
+    ) -> bool:
+        safe_status = (versand_status or "").strip().lower()
+        if safe_status not in {"draft", "sent", "send_failed"}:
+            raise ValueError("Ungueltiger Versandstatus.")
+        safe_channel = (versand_kanal or "").strip() or ("manual" if safe_status == "sent" else "draft")
+        safe_error = (versand_fehler or "").strip() or None
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE email_verlauf
+                    SET versand_status = %s,
+                        versand_kanal = %s,
+                        versand_fehler = %s
+                    WHERE id = %s
+                    """,
+                    (safe_status, safe_channel, safe_error, int(email_id)),
+                )
+                conn.commit()
+                changed = cur.rowcount > 0
+        self._mirror_write(
+            "update_email_delivery_status",
+            email_id=int(email_id),
+            versand_status=safe_status,
+            versand_kanal=safe_channel,
+            versand_fehler=safe_error,
+        )
+        return changed
+
     # ---- movements ---------------------------------------------------------
     def list_bewegungen(
         self,

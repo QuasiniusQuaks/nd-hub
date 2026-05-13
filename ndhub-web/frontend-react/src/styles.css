@@ -36,6 +36,14 @@
   color: var(--label, #ffffff);
 }
 
+.nd-react-shell input[type="checkbox"] {
+  min-height: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+}
+
 .nd-react-shell input::placeholder,
 .nd-react-shell textarea::placeholder {
   color: var(--secondary-label, #aeaeb2);
@@ -85,6 +93,11 @@
   min-width: 700px;
 }
 
+.nd-react-shell thead th {
+  background: color-mix(in srgb, var(--sidebar-bg-end, #1f2937) 88%, var(--sidebar-bg-start, #111827) 12%);
+  color: var(--sidebar-text-active, #ffffff);
+}
+
 .nd-react-shell .status {
   margin: 0;
 }
@@ -94,6 +107,37 @@
   border-radius: 12px;
   padding: 10px;
   background: color-mix(in srgb, var(--nd-react-surface) 88%, var(--nd-react-surface-soft) 12%);
+}
+
+.nd-react-shell .checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.nd-react-shell .checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.nd-react-email-recipient-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.nd-react-inline-checkbox {
+  width: fit-content;
+  margin-top: 2px;
+}
+
+.nd-react-movement-form .checkbox-row {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  align-self: center;
 }
 
 .nd-react-shell .table-shell {
@@ -295,6 +339,55 @@ body.dark-mode .nd-react-form {
   margin-top: 2px;
   font-size: 18px;
   font-weight: 700;
+}
+
+.nd-react-kpi-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.nd-react-kpi-visual-card {
+  border: 1px solid var(--nd-react-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--nd-react-surface);
+}
+
+.nd-react-kpi-visual-card .label {
+  display: block;
+  color: var(--nd-react-muted);
+  font-size: 12px;
+}
+
+.nd-react-kpi-visual-card .value {
+  display: block;
+  margin-top: 2px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.nd-react-kpi-meter {
+  margin-top: 8px;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nd-react-border) 70%, transparent);
+  overflow: hidden;
+}
+
+.nd-react-kpi-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green, #2ecc71);
+}
+
+.nd-react-kpi-visual-card.warning .value {
+  color: var(--orange, #f39c12);
+}
+
+.nd-react-kpi-visual-card.warning .nd-react-kpi-meter-fill {
+  background: var(--orange, #f39c12);
 }
 
 .nd-react-clickable-row tbody tr {

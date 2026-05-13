@@ -187,6 +187,7 @@ let permissionTemplates = [];
 let reportMasterDepots = [];
 let reportMasterPraeparate = [];
 let lastReportRows = [];
+let reportBestandShowAll = false;
 let maxBackupRestoreSizeMb = 200;
 let backupDbEngine = "sqlite";
 let onboardingStepIndex = 0;
@@ -2173,13 +2174,12 @@ function renderVerfallRows(rows) {
   if (!verfallTableBody) return;
   verfallTableBody.innerHTML = "";
   if (!rows.length) {
-    renderEmptyTableState(verfallTableBody, 8, "Keine Verfallspositionen fuer diese Filter.");
+    renderEmptyTableState(verfallTableBody, 7, "Keine Verfallspositionen fuer diese Filter.");
     return;
   }
   for (const row of rows) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHtml(String(row.id ?? ""))}</td>
       <td>${escapeHtml(row.depot || "")}</td>
       <td>${escapeHtml(row.praeparat || "")}</td>
       <td>${escapeHtml(row.charge || "")}</td>
@@ -2230,6 +2230,21 @@ function fillMultiSelect(select, rows, labelKey = "name") {
     option.textContent = `${row[labelKey]} (#${row.id})`;
     select.appendChild(option);
   }
+}
+
+function enableClickToggleMultiSelect(select) {
+  if (!(select instanceof HTMLSelectElement)) return;
+  if (!select.multiple) return;
+  if (select.dataset.clickToggleReady === "1") return;
+  select.dataset.clickToggleReady = "1";
+  select.addEventListener("mousedown", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLOptionElement)) return;
+    event.preventDefault();
+    target.selected = !target.selected;
+    select.focus();
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
 }
 
 function getSelectedReportIds() {
@@ -2288,22 +2303,116 @@ function createChartCanvasCard(title, minHeight = 240) {
   titleEl.textContent = title;
   const canvas = document.createElement("canvas");
   canvas.className = "chart-canvas";
-  canvas.height = minHeight;
+  canvas.dataset.chartHeight = String(minHeight);
+  canvas.style.height = `${minHeight}px`;
   card.appendChild(titleEl);
   card.appendChild(canvas);
   reportCharts.appendChild(card);
   return canvas;
 }
 
+function getChartContext(canvas, minWidth = 320) {
+  if (!(canvas instanceof HTMLCanvasElement)) return null;
+  const cssWidth = Math.max(minWidth, Math.round(canvas.clientWidth || minWidth));
+  const configuredHeight = Number(canvas.dataset.chartHeight || 0);
+  const cssHeight = Math.max(120, Math.round(configuredHeight || canvas.clientHeight || canvas.height || 240));
+  const dpr = Math.max(1, Math.min(3, Number(window.devicePixelRatio) || 1));
+
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${cssHeight}px`;
+
+  const backingWidth = Math.max(1, Math.round(cssWidth * dpr));
+  const backingHeight = Math.max(1, Math.round(cssHeight * dpr));
+  if (canvas.width !== backingWidth) canvas.width = backingWidth;
+  if (canvas.height !== backingHeight) canvas.height = backingHeight;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  return { ctx, width: cssWidth, height: cssHeight };
+}
+
+function appendChartLegendBelow(canvas, items) {
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  const card = canvas.parentElement;
+  if (!(card instanceof HTMLElement)) return;
+  const existing = card.querySelector(".chart-inline-legend");
+  if (existing) existing.remove();
+  if (!Array.isArray(items) || !items.length) return;
+  const legend = document.createElement("div");
+  legend.className = "chart-inline-legend";
+  legend.style.display = "flex";
+  legend.style.flexWrap = "wrap";
+  legend.style.gap = "10px";
+  legend.style.marginTop = "8px";
+  legend.style.fontSize = "12px";
+  legend.style.color = CHART_THEME.text;
+  for (const item of items) {
+    const entry = document.createElement("span");
+    entry.style.display = "inline-flex";
+    entry.style.alignItems = "center";
+    entry.style.gap = "6px";
+    const swatch = document.createElement("span");
+    swatch.style.display = "inline-block";
+    swatch.style.width = "10px";
+    swatch.style.height = "10px";
+    swatch.style.borderRadius = "2px";
+    swatch.style.background = item.color || CHART_THEME.neutral;
+    const label = document.createElement("span");
+    label.textContent = item.label || "";
+    entry.appendChild(swatch);
+    entry.appendChild(label);
+    legend.appendChild(entry);
+  }
+  card.appendChild(legend);
+}
+
+function splitLabelLines(ctx, text, maxWidth) {
+  const raw = String(text || "").trim();
+  if (!raw) return [""];
+  const tokens = raw
+    .replaceAll("/", "/ ")
+    .replaceAll(",", ", ")
+    .replaceAll("(", " (")
+    .replaceAll(")", ") ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!tokens.length) return [raw];
+  const lines = [];
+  let current = "";
+  for (const token of tokens) {
+    const next = current ? `${current} ${token}` : token;
+    if (ctx.measureText(next).width <= maxWidth) {
+      current = next;
+      continue;
+    }
+    if (current) lines.push(current);
+    if (ctx.measureText(token).width <= maxWidth) {
+      current = token;
+      continue;
+    }
+    let chunk = "";
+    for (const ch of token) {
+      const candidate = `${chunk}${ch}`;
+      if (ctx.measureText(candidate).width <= maxWidth) {
+        chunk = candidate;
+      } else {
+        if (chunk) lines.push(chunk);
+        chunk = ch;
+      }
+    }
+    current = chunk;
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [raw];
+}
+
 function drawGroupedBars(canvas, labels, seriesList, options = {}) {
   if (!(canvas instanceof HTMLCanvasElement)) return;
-  const cssWidth = Math.max(320, canvas.clientWidth || 320);
-  canvas.width = cssWidth;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const width = canvas.width;
-  const height = canvas.height;
-  ctx.clearRect(0, 0, width, height);
+  const prepared = getChartContext(canvas, 320);
+  if (!prepared) return;
+  const { ctx, width, height } = prepared;
   if (!labels.length || !seriesList.length) return;
 
   const allValues = [];
@@ -2316,7 +2425,66 @@ function drawGroupedBars(canvas, labels, seriesList, options = {}) {
   const left = 52;
   const right = 14;
   const top = 20;
-  const bottom = 50;
+  const splitLabelLines = (text, maxWidth) => {
+    const raw = String(text || "").trim();
+    if (!raw) return [""];
+    const tokens = raw
+      .replaceAll("/", "/ ")
+      .replaceAll(",", ", ")
+      .split(/\s+/)
+      .filter(Boolean);
+    if (!tokens.length) return [raw];
+    const lines = [];
+    let current = "";
+    for (const token of tokens) {
+      const next = current ? `${current} ${token}` : token;
+      if (ctx.measureText(next).width <= maxWidth) {
+        current = next;
+        continue;
+      }
+      if (current) lines.push(current);
+      if (ctx.measureText(token).width <= maxWidth) {
+        current = token;
+        continue;
+      }
+      let chunk = "";
+      for (const ch of token) {
+        const candidate = `${chunk}${ch}`;
+        if (ctx.measureText(candidate).width <= maxWidth) {
+          chunk = candidate;
+        } else {
+          if (chunk) lines.push(chunk);
+          chunk = ch;
+        }
+      }
+      current = chunk;
+    }
+    if (current) lines.push(current);
+    return lines.length ? lines : [raw];
+  };
+
+  const baseFont = "10px Inter, Arial, sans-serif";
+  ctx.font = baseFont;
+  const useVerticalLabels = options.labelOrientation === "vertical" || (options.labelOrientation !== "horizontal" && labels.length >= 8);
+  const provisionalPlotWidth = Math.max(40, width - left - right);
+  const provisionalGroupWidth = provisionalPlotWidth / Math.max(1, labels.length);
+  const labelWrapWidth = Math.max(34, provisionalGroupWidth * 0.92);
+  const labelLinesByIndex = labels.map((label) => splitLabelLines(label, labelWrapWidth));
+  const maxVerticalLabelWidth = Math.max(
+    1,
+    ...labels.map((label) => ctx.measureText(String(label || "")).width),
+  );
+  const maxLabelLines = Math.max(1, ...labelLinesByIndex.map((lines) => lines.length));
+  const labelLineHeight = 12;
+  const bottom = useVerticalLabels ? 24 + Math.ceil(maxVerticalLabelWidth) : 28 + maxLabelLines * labelLineHeight;
+  const minPlotHeight = 150;
+  const minHeightNeeded = top + bottom + minPlotHeight;
+  if (!options._resized && height < minHeightNeeded) {
+    canvas.dataset.chartHeight = String(minHeightNeeded);
+    canvas.style.height = `${minHeightNeeded}px`;
+    drawGroupedBars(canvas, labels, seriesList, { ...options, _resized: true });
+    return;
+  }
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
   const zeroY = top + ((maxValue / range) * plotHeight);
@@ -2377,12 +2545,30 @@ function drawGroupedBars(canvas, labels, seriesList, options = {}) {
   }
 
   ctx.fillStyle = CHART_THEME.text;
-  ctx.font = "10px Inter, Arial, sans-serif";
-  const labelStep = labels.length > 16 ? 2 : 1;
-  for (let idx = 0; idx < labels.length; idx += labelStep) {
-    const xCenter = left + idx * groupWidth + groupWidth / 2;
-    const shortLabel = String(labels[idx]).slice(0, 12);
-    ctx.fillText(shortLabel, xCenter - 18, height - bottom + 14);
+  ctx.font = baseFont;
+  if (useVerticalLabels) {
+    for (let idx = 0; idx < labels.length; idx += 1) {
+      const xCenter = left + idx * groupWidth + groupWidth / 2;
+      const label = String(labels[idx] || "");
+      const yBase = height - 8;
+      ctx.save();
+      ctx.translate(xCenter, yBase);
+      // Von unten nach oben lesbar.
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+  } else {
+    for (let idx = 0; idx < labels.length; idx += 1) {
+      const xCenter = left + idx * groupWidth + groupWidth / 2;
+      const lines = labelLinesByIndex[idx] || [String(labels[idx] || "")];
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx += 1) {
+        const line = lines[lineIdx];
+        const textWidth = ctx.measureText(line).width;
+        const y = height - bottom + 14 + lineIdx * labelLineHeight;
+        ctx.fillText(line, xCenter - textWidth / 2, y);
+      }
+    }
   }
 
   if (options.showLegend !== false && seriesList.length > 1) {
@@ -2401,22 +2587,31 @@ function drawGroupedBars(canvas, labels, seriesList, options = {}) {
 
 function drawHorizontalBars(canvas, labels, values, options = {}) {
   if (!(canvas instanceof HTMLCanvasElement)) return;
-  const cssWidth = Math.max(320, canvas.clientWidth || 320);
-  canvas.width = cssWidth;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const width = canvas.width;
-  const height = canvas.height;
-  ctx.clearRect(0, 0, width, height);
+  const prepared = getChartContext(canvas, 320);
+  if (!prepared) return;
+  const { ctx, width, height } = prepared;
   if (!labels.length || !values.length) return;
 
-  const left = 146;
+  ctx.font = "11px Inter, Arial, sans-serif";
   const right = 18;
   const top = 18;
   const bottom = 22;
+  const maxLabelArea = Math.max(160, Math.min(320, width * 0.42));
+  const labelWrapWidth = maxLabelArea - 14;
+  const wrappedLabels = labels.map((label) => splitLabelLines(ctx, label, labelWrapWidth));
+  const maxLabelWidth = Math.max(80, ...wrappedLabels.flat().map((line) => ctx.measureText(line).width));
+  const left = Math.min(maxLabelArea, maxLabelWidth + 16);
+  const lineHeight = 12;
+  const rowHeight = Math.max(26, wrappedLabels.reduce((max, lines) => Math.max(max, lines.length * lineHeight + 8), 26));
+  const minHeightNeeded = top + bottom + rowHeight * labels.length;
+  if (!options._resized && height < minHeightNeeded) {
+    canvas.dataset.chartHeight = String(minHeightNeeded);
+    canvas.style.height = `${minHeightNeeded}px`;
+    drawHorizontalBars(canvas, labels, values, { ...options, _resized: true });
+    return;
+  }
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const rowHeight = plotHeight / labels.length;
   const maxValue = Math.max(1, ...values.map((value) => Number(value || 0)));
   const barHeight = Math.max(10, rowHeight * 0.62);
 
@@ -2440,21 +2635,259 @@ function drawHorizontalBars(canvas, labels, values, options = {}) {
     ctx.fillRect(left, y, w, barHeight);
 
     ctx.fillStyle = CHART_THEME.text;
-    const label = String(labels[idx]).slice(0, 24);
-    ctx.fillText(label, 6, yCenter + 4);
+    const lines = wrappedLabels[idx] || [String(labels[idx] || "")];
+    const linesHeight = lines.length * lineHeight;
+    let yText = yCenter - linesHeight / 2 + lineHeight - 2;
+    for (const line of lines) {
+      ctx.fillText(line, 6, yText);
+      yText += lineHeight;
+    }
     ctx.fillText(`${Math.round(value)}`, left + w + 6, yCenter + 4);
+  }
+}
+
+function drawHorizontalPairBars(canvas, labels, firstValues, secondValues, options = {}) {
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  const prepared = getChartContext(canvas, 320);
+  if (!prepared) return;
+  const { ctx, width, height } = prepared;
+  if (!labels.length || !firstValues.length || !secondValues.length) return;
+
+  ctx.font = "11px Inter, Arial, sans-serif";
+  const right = 18;
+  const top = 18;
+  const bottom = 22;
+  const maxLabelArea = Math.max(170, Math.min(340, width * 0.45));
+  const labelWrapWidth = maxLabelArea - 14;
+  const wrappedLabels = labels.map((label) => splitLabelLines(ctx, label, labelWrapWidth));
+  const maxLabelWidth = Math.max(90, ...wrappedLabels.flat().map((line) => ctx.measureText(line).width));
+  const left = Math.min(maxLabelArea, maxLabelWidth + 16);
+  const lineHeight = 12;
+  const rowHeight = Math.max(34, wrappedLabels.reduce((max, lines) => Math.max(max, lines.length * lineHeight + 12), 34));
+  const minHeightNeeded = top + bottom + rowHeight * labels.length;
+  if (!options._resized && height < minHeightNeeded) {
+    canvas.dataset.chartHeight = String(minHeightNeeded);
+    canvas.style.height = `${minHeightNeeded}px`;
+    drawHorizontalPairBars(canvas, labels, firstValues, secondValues, { ...options, _resized: true });
+    return;
+  }
+
+  const plotWidth = width - left - right;
+  const maxValue = Math.max(
+    1,
+    ...firstValues.map((value) => Number(value || 0)),
+    ...secondValues.map((value) => Number(value || 0)),
+  );
+  const barHeight = Math.max(8, rowHeight * 0.28);
+
+  ctx.strokeStyle = CHART_THEME.axis;
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(left, height - bottom);
+  ctx.stroke();
+
+  for (let idx = 0; idx < labels.length; idx += 1) {
+    const yCenter = top + idx * rowHeight + rowHeight / 2;
+    const first = Number(firstValues[idx] || 0);
+    const second = Number(secondValues[idx] || 0);
+    const w1 = Math.max(1, (first / maxValue) * plotWidth);
+    const w2 = Math.max(1, (second / maxValue) * plotWidth);
+
+    const y1 = yCenter - barHeight - 2;
+    const y2 = yCenter + 2;
+    ctx.fillStyle = options.firstColor || "#3b82f6";
+    ctx.fillRect(left, y1, w1, barHeight);
+    ctx.fillStyle = options.secondColor || CHART_THEME.positive;
+    ctx.fillRect(left, y2, w2, barHeight);
+
+    ctx.fillStyle = CHART_THEME.text;
+    const lines = wrappedLabels[idx] || [String(labels[idx] || "")];
+    const linesHeight = lines.length * lineHeight;
+    let yText = yCenter - linesHeight / 2 + lineHeight - 2;
+    for (const line of lines) {
+      ctx.fillText(line, 6, yText);
+      yText += lineHeight;
+    }
+
+    ctx.fillText(`${Math.round(first)}`, left + w1 + 6, y1 + barHeight - 1);
+    ctx.fillText(`${Math.round(second)}`, left + w2 + 6, y2 + barHeight - 1);
+  }
+}
+
+function drawHorizontalDeltaBars(canvas, labels, values, options = {}) {
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  const prepared = getChartContext(canvas, 320);
+  if (!prepared) return;
+  const { ctx, width, height } = prepared;
+  if (!labels.length || !values.length) return;
+
+  ctx.font = "11px Inter, Arial, sans-serif";
+  const right = 18;
+  const top = 18;
+  const bottom = 22;
+  const maxLabelArea = Math.max(170, Math.min(340, width * 0.45));
+  const labelWrapWidth = maxLabelArea - 14;
+  const wrappedLabels = labels.map((label) => splitLabelLines(ctx, label, labelWrapWidth));
+  const maxLabelWidth = Math.max(90, ...wrappedLabels.flat().map((line) => ctx.measureText(line).width));
+  const left = Math.min(maxLabelArea, maxLabelWidth + 16);
+  const lineHeight = 12;
+  const rowHeight = Math.max(32, wrappedLabels.reduce((max, lines) => Math.max(max, lines.length * lineHeight + 10), 32));
+  const minHeightNeeded = top + bottom + rowHeight * labels.length;
+  if (!options._resized && height < minHeightNeeded) {
+    canvas.dataset.chartHeight = String(minHeightNeeded);
+    canvas.style.height = `${minHeightNeeded}px`;
+    drawHorizontalDeltaBars(canvas, labels, values, { ...options, _resized: true });
+    return;
+  }
+
+  const plotWidth = width - left - right;
+  const maxAbs = Math.max(1, ...values.map((value) => Math.abs(Number(value || 0))));
+  const zeroX = left + plotWidth / 2;
+  const halfWidth = plotWidth / 2;
+  const barHeight = Math.max(10, rowHeight * 0.6);
+
+  ctx.strokeStyle = CHART_THEME.axis;
+  ctx.beginPath();
+  ctx.moveTo(zeroX, top);
+  ctx.lineTo(zeroX, height - bottom);
+  ctx.stroke();
+
+  for (let idx = 0; idx < labels.length; idx += 1) {
+    const yCenter = top + idx * rowHeight + rowHeight / 2;
+    const y = yCenter - barHeight / 2;
+    const value = Number(values[idx] || 0);
+    const w = Math.max(1, (Math.abs(value) / maxAbs) * halfWidth);
+    const x = value >= 0 ? zeroX : zeroX - w;
+    ctx.fillStyle = value >= 0 ? (options.positiveColor || CHART_THEME.positive) : (options.negativeColor || CHART_THEME.negative);
+    ctx.fillRect(x, y, w, barHeight);
+
+    ctx.fillStyle = CHART_THEME.text;
+    const lines = wrappedLabels[idx] || [String(labels[idx] || "")];
+    const linesHeight = lines.length * lineHeight;
+    let yText = yCenter - linesHeight / 2 + lineHeight - 2;
+    for (const line of lines) {
+      ctx.fillText(line, 6, yText);
+      yText += lineHeight;
+    }
+
+    const valueX = value >= 0 ? x + w + 6 : x - 18;
+    ctx.fillText(`${Math.round(value)}`, valueX, yCenter + 4);
+  }
+}
+
+function drawMatrixHeatmap(canvas, rows, options = {}) {
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  const prepared = getChartContext(canvas, 520);
+  if (!prepared) return;
+  const { ctx, width, height } = prepared;
+  if (!Array.isArray(rows) || !rows.length) return;
+
+  const depots = Array.from(new Set(rows.map((row) => String(row.depot || "").trim()).filter(Boolean)));
+  const praeparate = Array.from(new Set(rows.map((row) => String(row.praeparat || "").trim()).filter(Boolean)));
+  if (!depots.length || !praeparate.length) return;
+
+  ctx.font = "11px Inter, Arial, sans-serif";
+  const maxDepotLabelWidth = Math.max(80, ...depots.map((label) => ctx.measureText(label).width));
+  const left = Math.min(220, maxDepotLabelWidth + 14);
+  const praeparatLabelMax = Math.max(40, ...praeparate.map((label) => ctx.measureText(String(label || "")).width));
+  const top = Math.min(180, Math.max(72, Math.ceil(praeparatLabelMax) + 12));
+  const right = 20;
+  const bottom = 24;
+  const plotWidth = Math.max(120, width - left - right);
+  const plotHeight = Math.max(100, height - top - bottom);
+  const cellWidth = plotWidth / Math.max(1, praeparate.length);
+  const cellHeight = plotHeight / Math.max(1, depots.length);
+
+  const matrix = new Map();
+  let maxAbs = 0;
+  for (const row of rows) {
+    const depot = String(row.depot || "").trim();
+    const praeparat = String(row.praeparat || "").trim();
+    if (!depot || !praeparat) continue;
+    const value = Number(row.differenz || 0);
+    matrix.set(`${depot}|||${praeparat}`, value);
+    maxAbs = Math.max(maxAbs, Math.abs(value));
+  }
+  maxAbs = Math.max(1, maxAbs);
+
+  const colorFor = (value) => {
+    if (!Number.isFinite(value) || value === 0) return "rgba(148, 163, 184, 0.15)";
+    const ratio = Math.min(1, Math.abs(value) / maxAbs);
+    const alpha = 0.2 + ratio * 0.7;
+    if (value > 0) return `rgba(34, 197, 94, ${alpha})`;
+    return `rgba(239, 68, 68, ${alpha})`;
+  };
+
+  // Grid cells
+  for (let yIdx = 0; yIdx < depots.length; yIdx += 1) {
+    const depot = depots[yIdx];
+    const y = top + yIdx * cellHeight;
+    for (let xIdx = 0; xIdx < praeparate.length; xIdx += 1) {
+      const praeparat = praeparate[xIdx];
+      const x = left + xIdx * cellWidth;
+      const value = Number(matrix.get(`${depot}|||${praeparat}`) || 0);
+      ctx.fillStyle = colorFor(value);
+      ctx.fillRect(x + 1, y + 1, Math.max(1, cellWidth - 2), Math.max(1, cellHeight - 2));
+    }
+  }
+
+  // Grid lines
+  ctx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+  ctx.lineWidth = 1;
+  for (let yIdx = 0; yIdx <= depots.length; yIdx += 1) {
+    const y = top + yIdx * cellHeight;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(left + plotWidth, y);
+    ctx.stroke();
+  }
+  for (let xIdx = 0; xIdx <= praeparate.length; xIdx += 1) {
+    const x = left + xIdx * cellWidth;
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, top + plotHeight);
+    ctx.stroke();
+  }
+
+  // Row labels (depots)
+  ctx.fillStyle = CHART_THEME.text;
+  ctx.textBaseline = "middle";
+  for (let yIdx = 0; yIdx < depots.length; yIdx += 1) {
+    const yCenter = top + yIdx * cellHeight + cellHeight / 2;
+    const label = depots[yIdx];
+    const trimmed = label.length > 28 ? `${label.slice(0, 27)}…` : label;
+    ctx.fillText(trimmed, 6, yCenter);
+  }
+
+  // Column labels (praeparate)
+  ctx.fillStyle = CHART_THEME.text;
+  ctx.textBaseline = "middle";
+  ctx.font = "10px Inter, Arial, sans-serif";
+  for (let xIdx = 0; xIdx < praeparate.length; xIdx += 1) {
+    const xCenter = left + xIdx * cellWidth + cellWidth / 2;
+    const labelRaw = String(praeparate[xIdx] || "");
+    const label = labelRaw.length > 28 ? `${labelRaw.slice(0, 27)}…` : labelRaw;
+    ctx.save();
+    ctx.translate(xCenter, top - 6);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
+
+  if (options.showSummary !== false) {
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "10px Inter, Arial, sans-serif";
+    ctx.fillText(`Praeparate: ${praeparate.length}`, left, height - 8);
+    ctx.fillText(`Depots: ${depots.length}`, left + 110, height - 8);
+    ctx.fillText(`Max |Differenz|: ${Math.round(maxAbs)}`, left + 190, height - 8);
   }
 }
 
 function drawLineAreaChart(canvas, labels, values, options = {}) {
   if (!(canvas instanceof HTMLCanvasElement)) return;
-  const cssWidth = Math.max(320, canvas.clientWidth || 320);
-  canvas.width = cssWidth;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const width = canvas.width;
-  const height = canvas.height;
-  ctx.clearRect(0, 0, width, height);
+  const prepared = getChartContext(canvas, 320);
+  if (!prepared) return;
+  const { ctx, width, height } = prepared;
   if (!labels.length || !values.length) return;
 
   const left = 50;
@@ -2550,8 +2983,13 @@ function renderReportCharts(rows) {
     const monthlyCanvas = createChartCanvasCard("Monatlicher Bewegungsverlauf");
     drawGroupedBars(monthlyCanvas, months, series, {
       numberFormatter: (value) => `${Math.round(value)}`,
-      showLegend: true,
+      showLegend: false,
     });
+    appendChartLegendBelow(monthlyCanvas, [
+      { label: "Zugang", color: CHART_THEME.positive },
+      { label: "Abgang", color: CHART_THEME.neutral },
+      { label: "Vernichtung", color: CHART_THEME.negative },
+    ]);
 
     const topActors = Array.from(actorMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10);
     const actorCanvas = createChartCanvasCard(`Top ${reportPerspective?.value === "depot" ? "Praeparate" : "Depots"}`);
@@ -2568,56 +3006,72 @@ function renderReportCharts(rows) {
   }
 
   if (typ === "bestand") {
-    const subset = rows
+    const sortedRows = rows
       .slice()
-      .sort((a, b) => Math.abs(Number(b.differenz || 0)) - Math.abs(Number(a.differenz || 0)))
-      .slice(0, 14);
-    const labels = subset.map((row) => `${row.depot}/${row.praeparat}`.slice(0, 18));
-    const balanceCanvas = createChartCanvasCard("Soll vs. Ist");
-    drawGroupedBars(balanceCanvas, labels, [
-      { label: "Soll", color: "#3b82f6", values: subset.map((row) => Number(row.sollbestand || 0)) },
-      { label: "Ist", color: CHART_THEME.positive, values: subset.map((row) => Number(row.ist_bestand || 0)) },
-    ], { showLegend: true });
-    const diffCanvas = createChartCanvasCard("Differenz je Position");
-    drawGroupedBars(diffCanvas, labels, [
-      {
-        label: "Differenz",
-        color: CHART_THEME.negative,
-        values: subset.map((row) => Number(row.differenz || 0)),
-      },
-    ], { showLegend: false });
+      .sort((a, b) => Math.abs(Number(b.differenz || 0)) - Math.abs(Number(a.differenz || 0)));
+    const subset = reportBestandShowAll ? sortedRows : sortedRows.slice(0, 10);
+    const labels = subset.map((row) => `${row.praeparat} (${row.depot})`);
+    const balanceCanvas = createChartCanvasCard(
+      reportBestandShowAll ? "Soll vs. Ist (Alle Positionen)" : "Soll vs. Ist (Top Abweichungen)",
+      320,
+    );
+    drawHorizontalPairBars(
+      balanceCanvas,
+      labels,
+      subset.map((row) => Number(row.sollbestand || 0)),
+      subset.map((row) => Number(row.ist_bestand || 0)),
+      { firstColor: "#3b82f6", secondColor: CHART_THEME.positive },
+    );
+    const diffCanvas = createChartCanvasCard(
+      reportBestandShowAll ? "Differenz je Position (Alle Positionen)" : "Differenz je Position (Top Abweichungen)",
+      320,
+    );
+    drawHorizontalDeltaBars(
+      diffCanvas,
+      labels,
+      subset.map((row) => Number(row.differenz || 0)),
+      { positiveColor: CHART_THEME.positive, negativeColor: CHART_THEME.negative },
+    );
     if (reportChartLegend) {
-      reportChartLegend.textContent = "Soll/Ist-Vergleich und Abweichung je Depot-Praeparat-Kombination.";
+      reportChartLegend.innerHTML = "";
+      const info = document.createElement("span");
+      info.textContent = reportBestandShowAll
+        ? "Vollansicht: Alle Positionen mit vollstaendigen Labels."
+        : "Fokusansicht: Top-10 Abweichungen mit vollstaendigen Labels.";
+      reportChartLegend.appendChild(info);
+      if (sortedRows.length > 10) {
+        const toggleBtn = document.createElement("button");
+        toggleBtn.type = "button";
+        toggleBtn.className = "btn-secondary";
+        toggleBtn.style.marginLeft = "8px";
+        toggleBtn.textContent = reportBestandShowAll ? "Top 10 anzeigen" : "Alle anzeigen";
+        toggleBtn.addEventListener("click", () => {
+          reportBestandShowAll = !reportBestandShowAll;
+          renderReportCharts(lastReportRows);
+        });
+        reportChartLegend.appendChild(toggleBtn);
+      }
     }
     return;
   }
 
   if (typ === "ranking") {
-    const labels = rows.map((row) => row.name).slice(0, 12);
+    const labels = rows.map((row) => row.name || row.depot || row.praeparat || "Unbekannt").slice(0, 12);
     const values = rows.map((row) => Number(row.anzahl || 0)).slice(0, 12);
     const rankingCanvas = createChartCanvasCard("Top Ranking (Horizontal)", 300);
     drawHorizontalBars(rankingCanvas, labels, values, { color: CHART_THEME.purple });
     if (reportChartLegend) {
-      reportChartLegend.textContent = "Ranking nach Abgaengen/Vernichtungen.";
+      reportChartLegend.textContent = "Ranking: primaer Abgaenge/Vernichtungen, bei fehlenden Daten Fallback auf alle Bewegungen.";
     }
     return;
   }
 
   if (typ === "matrix") {
-    const byDepot = new Map();
-    for (const row of rows) {
-      byDepot.set(row.depot, (byDepot.get(row.depot) || 0) + Number(row.differenz || 0));
-    }
-    const depotEntries = Array.from(byDepot.entries()).slice(0, 12);
-    const matrixCanvas = createChartCanvasCard("Matrix-Abweichung je Depot");
-    drawGroupedBars(
-      matrixCanvas,
-      depotEntries.map((entry) => entry[0]),
-      [{ label: "Differenz", color: "#ef4444", values: depotEntries.map((entry) => entry[1]) }],
-      { showLegend: false },
-    );
+    const maxRows = rows.slice(0, 220);
+    const matrixCanvas = createChartCanvasCard("Matrix-Heatmap Soll/Ist-Abweichung", 360);
+    drawMatrixHeatmap(matrixCanvas, maxRows);
     if (reportChartLegend) {
-      reportChartLegend.textContent = "Positive Werte = Ueberschuss, negative Werte = Fehlbestand.";
+      reportChartLegend.textContent = "Heatmap: Gruen = Ueberschuss, Rot = Fehlbestand, Intensitaet = Abweichungsstaerke.";
     }
     return;
   }
@@ -3010,7 +3464,7 @@ async function loadUsers() {
 }
 
 async function loadCurrentUserActivity() {
-  const rows = await (await apiFetch("/auth/activity?limit=50")).json();
+  const rows = await (await apiFetch("/auth/activity?limit=10")).json();
   renderActivityRows(accountActivityBody, rows);
 }
 
@@ -3852,9 +4306,77 @@ if (getToken()) {
 if (reportPerspective) {
   reportPerspective.addEventListener("change", () => {
     refreshReportSelectionOptions();
+    reportBestandShowAll = false;
     lastReportRows = [];
     if (reportCharts) reportCharts.innerHTML = "";
     if (reportChartLegend) reportChartLegend.textContent = "";
+  });
+}
+
+enableClickToggleMultiSelect(reportIdsSelect);
+enableClickToggleMultiSelect(verfallIdsSelect);
+
+if (reportType) {
+  reportType.addEventListener("change", () => {
+    reportBestandShowAll = false;
+  });
+}
+
+const reportLoadButton = document.getElementById("report-load");
+if (reportLoadButton) {
+  reportLoadButton.addEventListener("click", async () => {
+    if (reportStatus) reportStatus.textContent = "Auswertung wird geladen...";
+    try {
+      const payload = await loadReportData();
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      lastReportRows = rows;
+      renderReportTable(rows);
+      renderReportCharts(rows);
+      if (reportStatus) {
+        reportStatus.textContent = `Auswertung geladen (${rows.length} Zeilen).`;
+      }
+    } catch (error) {
+      if (reportStatus) reportStatus.textContent = `Auswertung fehlgeschlagen: ${error.message}`;
+    }
+  });
+}
+
+const reportExportCsvButton = document.getElementById("report-export-csv");
+if (reportExportCsvButton) {
+  reportExportCsvButton.addEventListener("click", async () => {
+    if (reportStatus) reportStatus.textContent = "CSV-Export wird erstellt...";
+    try {
+      await exportReportCsv();
+      if (reportStatus) reportStatus.textContent = "CSV-Export bereitgestellt.";
+    } catch (error) {
+      if (reportStatus) reportStatus.textContent = `CSV-Export fehlgeschlagen: ${error.message}`;
+    }
+  });
+}
+
+const reportExportPdfButton = document.getElementById("report-export-pdf");
+if (reportExportPdfButton) {
+  reportExportPdfButton.addEventListener("click", async () => {
+    if (reportStatus) reportStatus.textContent = "PDF-Export wird erstellt...";
+    try {
+      await exportReportFile("pdf");
+      if (reportStatus) reportStatus.textContent = "PDF-Export bereitgestellt.";
+    } catch (error) {
+      if (reportStatus) reportStatus.textContent = `PDF-Export fehlgeschlagen: ${error.message}`;
+    }
+  });
+}
+
+const reportExportPptButton = document.getElementById("report-export-ppt");
+if (reportExportPptButton) {
+  reportExportPptButton.addEventListener("click", async () => {
+    if (reportStatus) reportStatus.textContent = "PPT-Export wird erstellt...";
+    try {
+      await exportReportFile("pptx");
+      if (reportStatus) reportStatus.textContent = "PPT-Export bereitgestellt.";
+    } catch (error) {
+      if (reportStatus) reportStatus.textContent = `PPT-Export fehlgeschlagen: ${error.message}`;
+    }
   });
 }
 

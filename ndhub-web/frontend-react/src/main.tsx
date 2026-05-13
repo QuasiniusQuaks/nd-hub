@@ -110,6 +110,8 @@ type DepotRow = {
 };
 
 type EmailRecipientPreviewRow = {
+  id?: number;
+  depot_id?: number;
   depot_name?: string;
   name?: string;
   rolle?: string;
@@ -119,6 +121,9 @@ type EmailRecipientPreviewRow = {
 type EmailRecipientPreviewResponse = {
   count?: number;
   rows?: EmailRecipientPreviewRow[];
+  recipients?: EmailRecipientPreviewRow[];
+  depot_names?: string[];
+  selected_contact_count?: number;
 };
 
 type EmailDeliveryStatus = {
@@ -142,9 +147,11 @@ type EmailHistoryRow = {
   empfaenger_depots?: string;
   anzahl_empfaenger?: number;
   versand_status?: string;
+  versand_kanal?: string;
 };
 
 type EmailHistoryDetail = {
+  id?: number;
   datum?: string;
   betreff?: string;
   versand_status?: string;
@@ -155,6 +162,14 @@ type EmailHistoryDetail = {
   versand_fehler?: string;
   nachricht?: string;
 };
+
+function normalizeDepotRows(payload: unknown): DepotRow[] {
+  if (Array.isArray(payload)) return payload as DepotRow[];
+  if (payload && typeof payload === "object" && Array.isArray((payload as { rows?: unknown[] }).rows)) {
+    return (payload as { rows: DepotRow[] }).rows;
+  }
+  return [];
+}
 
 type MasterDepot = {
   id: number;
@@ -611,6 +626,10 @@ function ReportTableIsland() {
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [hasLoaded, setHasLoaded] = useState<boolean>(false);
+  const reportOptionsRef = useRef<{ depots: Array<{ id: number; name?: string }>; praeparate: Array<{ id: number; name?: string }> }>({
+    depots: [],
+    praeparate: [],
+  });
 
   const load = async () => {
     const filters = readReportFilters();
@@ -648,10 +667,133 @@ function ReportTableIsland() {
     return () => loadButton.removeEventListener("click", listener);
   }, []);
 
+  useEffect(() => {
+    const perspectiveSelect = document.getElementById("report-perspective");
+    const idsSelect = document.getElementById("report-ids");
+    if (!(perspectiveSelect instanceof HTMLSelectElement)) return;
+    if (!(idsSelect instanceof HTMLSelectElement)) return;
+
+    const applyOptions = () => {
+      const useDepots = perspectiveSelect.value === "depot";
+      const source = useDepots ? reportOptionsRef.current.depots : reportOptionsRef.current.praeparate;
+      const previous = new Set(Array.from(idsSelect.selectedOptions).map((option) => option.value));
+      idsSelect.innerHTML = "";
+      for (const row of source) {
+        const option = document.createElement("option");
+        option.value = String(row.id);
+        option.textContent = `${row.name || (useDepots ? `Depot #${row.id}` : `Praeparat #${row.id}`)} (#${row.id})`;
+        option.selected = previous.has(option.value);
+        idsSelect.appendChild(option);
+      }
+    };
+
+    const loadOptions = async () => {
+      try {
+        const [depots, praeparate] = await Promise.all([
+          apiFetch<Array<{ id: number; name?: string }>>("/depots?limit=500&offset=0&q="),
+          apiFetch<Array<{ id: number; name?: string }>>("/praeparate?limit=500&offset=0&q="),
+        ]);
+        reportOptionsRef.current.depots = Array.isArray(depots) ? depots : [];
+        reportOptionsRef.current.praeparate = Array.isArray(praeparate) ? praeparate : [];
+        applyOptions();
+      } catch {
+        // Legacy-Loader bleibt weiterhin aktiv; Fehler hier nicht hart anzeigen.
+      }
+    };
+
+    const onPerspectiveChange = () => applyOptions();
+    perspectiveSelect.addEventListener("change", onPerspectiveChange);
+    void loadOptions();
+    return () => perspectiveSelect.removeEventListener("change", onPerspectiveChange);
+  }, []);
+
+  useEffect(() => {
+    const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    const selectDepotId = (idsSelect: HTMLSelectElement, depotId: number): boolean => {
+      let found = false;
+      for (const option of idsSelect.options) {
+        const selected = option.value === String(depotId);
+        option.selected = selected;
+        if (selected) found = true;
+      }
+      return found;
+    };
+    const onOpenDepotStockReport = async (event: Event) => {
+      const customEvent = event as CustomEvent<{ depotId?: number }>;
+      const depotId = Number(customEvent.detail?.depotId || 0);
+      if (!Number.isFinite(depotId) || depotId <= 0) return;
+
+      const perspectiveSelect = document.getElementById("report-perspective");
+      const typeSelect = document.getElementById("report-type");
+      const idsSelect = document.getElementById("report-ids");
+      if (!(perspectiveSelect instanceof HTMLSelectElement)) return;
+      if (!(typeSelect instanceof HTMLSelectElement)) return;
+      if (!(idsSelect instanceof HTMLSelectElement)) return;
+
+      perspectiveSelect.value = "depot";
+      perspectiveSelect.dispatchEvent(new Event("change"));
+      typeSelect.value = "bestand";
+
+      let optionFound = false;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        optionFound = selectDepotId(idsSelect, depotId);
+        if (optionFound) break;
+        await sleep(100);
+      }
+      if (!optionFound) {
+        try {
+          const depots = await apiFetch<Array<{ id: number; name?: string }>>("/depots?limit=500");
+          const matchingDepot = (depots || []).find((item) => Number(item.id) === depotId);
+          if (matchingDepot) {
+            const injected = document.createElement("option");
+            injected.value = String(depotId);
+            injected.textContent = `${matchingDepot.name || `Depot #${depotId}`} (#${depotId})`;
+            idsSelect.appendChild(injected);
+            optionFound = selectDepotId(idsSelect, depotId);
+          }
+        } catch {
+          // Fehler wird unten ueber die Standardmeldung behandelt.
+        }
+        if (!optionFound) {
+          setError(`Depot #${depotId} ist in den Auswertungsfiltern nicht verfuegbar.`);
+          return;
+        }
+      }
+      void load();
+    };
+
+    window.addEventListener("ndhub-open-depot-stock-report", onOpenDepotStockReport as EventListener);
+    return () => {
+      window.removeEventListener("ndhub-open-depot-stock-report", onOpenDepotStockReport as EventListener);
+    };
+  }, []);
+
   const columns = useMemo(() => {
     if (!rows.length) return [];
     return Object.keys(rows[0]);
   }, [rows]);
+  const quoteValue = Number(kpis.bestandsquote ?? 0);
+  const quotePercent = Number.isFinite(quoteValue) ? Math.max(0, Math.min(100, quoteValue)) : 0;
+  const visualKpis = [
+    {
+      key: "bestandsquote",
+      label: "Bestandsquote",
+      value: `${quotePercent.toFixed(2)}%`,
+      tone: quotePercent < 90 ? "warning" : "success",
+    },
+    {
+      key: "kritische_luecken",
+      label: "Kritische Luecken",
+      value: String(Number(kpis.kritische_luecken ?? 0)),
+      tone: Number(kpis.kritische_luecken ?? 0) > 0 ? "warning" : "success",
+    },
+    {
+      key: "gesamtbestand",
+      label: "Gesamtbestand",
+      value: String(Number(kpis.gesamtbestand ?? 0)),
+      tone: "default",
+    },
+  ];
 
   return (
     <div className="nd-react-shell">
@@ -672,7 +814,21 @@ function ReportTableIsland() {
           <span className="value">{Object.keys(kpis).length}</span>
         </article>
       </div>
-      {Object.keys(kpis).length ? <pre className="audit-details nd-react-kpis">{JSON.stringify(kpis, null, 2)}</pre> : null}
+      {Object.keys(kpis).length ? (
+        <div className="nd-react-kpi-visual-grid">
+          {visualKpis.map((item) => (
+            <article key={item.key} className={`nd-react-kpi-visual-card ${item.tone}`}>
+              <span className="label">{item.label}</span>
+              <span className="value">{item.value}</span>
+              {item.key === "bestandsquote" ? (
+                <div className="nd-react-kpi-meter" aria-label="Bestandsquote">
+                  <div className="nd-react-kpi-meter-fill" style={{ width: `${quotePercent}%` }} />
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : null}
       <div className="table-shell table-scroll nd-react-table-compact">
         <table>
           <thead>
@@ -881,10 +1037,26 @@ function DashboardOverviewIsland() {
         </div>
       </section>
       <section className="nd-react-panel">
-        <h3>Deutschlandkarte</h3>
+        <div className="nd-react-heading" style={{ marginBottom: 14 }}>
+          <h3>Deutschlandkarte</h3>
+          <div className="nd-react-toolbar">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => (window.location.hash = "#institutions-map-section")}
+            >
+              Zur detaillierten Deutschlandkarte
+            </button>
+          </div>
+        </div>
         {mapError ? <p className={statusClass("error")}>{mapError}</p> : null}
-        <div id="institutions-map-dashboard" style={{ height: 420, width: "100%", borderRadius: 12 }} />
-        <p className="muted">Alle Notfalldepots mit Institutionszuordnung auf der Karte.</p>
+        <div
+          id="institutions-map-dashboard"
+          style={{ height: 420, width: "100%", borderRadius: 12, cursor: "pointer" }}
+          onClick={() => (window.location.hash = "#institutions-map-section")}
+          title="Zur detaillierten Deutschlandkarte wechseln"
+        />
+        <p className="muted">Alle Notfalldepots mit Institutionszuordnung auf der Karte. Klicken oeffnet die Detailkarte.</p>
       </section>
       <div className="nd-react-grid-two">
         <section className="nd-react-panel">
@@ -896,8 +1068,8 @@ function DashboardOverviewIsland() {
                   <th>Depot</th>
                   <th>Praeparat</th>
                   <th>Verfall</th>
-                  <th>Tage</th>
-                  <th>Kategorie</th>
+                  <th>Tage bis Verfall</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -1023,6 +1195,14 @@ function InstitutionsMapIsland() {
   const [institutionId, setInstitutionId] = useState<string>("");
   const mapRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
+  const germanyBounds = useMemo(
+    () =>
+      L.latLngBounds(
+        [47.2, 5.5],
+        [55.2, 15.6],
+      ),
+    [],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -1051,12 +1231,18 @@ function InstitutionsMapIsland() {
         const node = document.getElementById("institutions-map");
         if (!node) return;
         if (!mapRef.current) {
-          mapRef.current = L.map(node).setView([51.1657, 10.4515], 6);
+          mapRef.current = L.map(node, {
+            minZoom: 5,
+            maxZoom: 12,
+            maxBounds: germanyBounds,
+            maxBoundsViscosity: 1.0,
+          }).setView([51.1657, 10.4515], 6);
           L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             maxZoom: 18,
             attribution: "&copy; OpenStreetMap contributors",
           }).addTo(mapRef.current);
           markerLayerRef.current = L.layerGroup().addTo(mapRef.current);
+          mapRef.current.fitBounds(germanyBounds, { maxZoom: 6 });
         }
         ensureMapLayout();
         if (typeof ResizeObserver !== "undefined" && mapNode) {
@@ -1085,7 +1271,7 @@ function InstitutionsMapIsland() {
       mapRef.current = null;
       markerLayerRef.current = null;
     };
-  }, []);
+  }, [germanyBounds]);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1128,7 +1314,6 @@ function InstitutionsMapIsland() {
       const angle = (index * 45 * Math.PI) / 180;
       const lat = entry.latitude + Math.sin(angle) * radius;
       const lng = entry.longitude + Math.cos(angle) * radius;
-      const stockUrl = `/reports/bestand?perspective=depot&ids=${encodeURIComponent(String(entry.depotId))}`;
       const marker = L.marker([lat, lng], {
         title: `${entry.depotName} (${entry.institutionName})`,
       }).addTo(layer);
@@ -1138,15 +1323,81 @@ function InstitutionsMapIsland() {
         <span>${escapePopupHtml(entry.depotAddress)}</span><br/><br/>
         <span><strong>Institution:</strong> ${escapePopupHtml(entry.institutionName)}</span><br/>
         <span>${escapePopupHtml(entry.institutionAddress)}</span><br/><br/>
-        <a href="${stockUrl}" target="_blank" rel="noopener noreferrer">Aktuelle Bestaende anzeigen</a>`,
+        <button type="button" class="nd-map-open-stock" data-depot-id="${entry.depotId}" style="margin-top:6px;">
+          Aktuelle Bestaende anzeigen
+        </button>
+        <div class="nd-map-stock-preview" data-depot-id="${entry.depotId}" style="margin-top:8px; font-size:12px; color:#4b5563;">
+          Lade aktuellen Bestand...
+        </div>`,
       );
+      marker.on("popupopen", (event: L.PopupEvent) => {
+        const popupElement = event.popup.getElement();
+        const stockPreview = popupElement?.querySelector(".nd-map-stock-preview");
+        if (stockPreview instanceof HTMLElement) {
+          void (async () => {
+            try {
+              const payload = await apiFetch<ReportResponse>(
+                `/reports/bestand?perspective=depot&ids=${encodeURIComponent(String(entry.depotId))}`,
+              );
+              const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+              const kpis = payload?.kpis && typeof payload.kpis === "object" ? payload.kpis : {};
+              const gesamtbestand = Number(kpis.gesamtbestand ?? 0);
+              const kritischeLuecken = Number(kpis.kritische_luecken ?? 0);
+              const bestandsquote = Number(kpis.bestandsquote ?? 0);
+              const deviationRows = rows
+                .map((row) => ({
+                  praeparat: String(row.praeparat ?? "-"),
+                  ist: Number(row.ist_bestand ?? 0),
+                  soll: Number(row.sollbestand ?? 0),
+                  diff: Number(row.differenz ?? 0),
+                }))
+                .filter((row) => row.diff !== 0)
+                .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
+                .slice(0, 8);
+              const sample = deviationRows
+                .map((row) => {
+                  const signedDiff = row.diff > 0 ? `+${row.diff}` : `${row.diff}`;
+                  return `${escapePopupHtml(row.praeparat)}: Ist ${row.ist} / Soll ${row.soll} (Delta ${signedDiff})`;
+                })
+                .join("<br/>");
+              stockPreview.innerHTML = `
+                <strong>Aktueller Bestand</strong><br/>
+                Gesamt: ${gesamtbestand} | Quote: ${bestandsquote.toFixed(2)}% | Luecken: ${kritischeLuecken}
+                ${
+                  sample
+                    ? `<br/><strong>Abweichungen vom Soll:</strong><br/><span>${sample}</span>`
+                    : "<br/><span>Keine Soll-Ist-Abweichungen bei den Praeparaten.</span>"
+                }
+              `;
+            } catch (err) {
+              const message = err instanceof Error ? err.message : "Bestand konnte nicht geladen werden.";
+              stockPreview.textContent = message;
+            }
+          })();
+        }
+        const link = popupElement?.querySelector(".nd-map-open-stock");
+        if (!(link instanceof HTMLButtonElement)) return;
+        const handleClick = (clickEvent: Event) => {
+          clickEvent.preventDefault();
+          clickEvent.stopPropagation();
+          const depotId = Number(link.dataset.depotId || "0");
+          if (!Number.isFinite(depotId) || depotId <= 0) return;
+          window.location.hash = "#reports-section";
+          window.dispatchEvent(new CustomEvent("ndhub-open-depot-stock-report", { detail: { depotId } }));
+        };
+        link.addEventListener("click", handleClick, { once: true });
+      });
       bounds.extend([lat, lng]);
     });
-    if (bounds.isValid()) {
-      map.fitBounds(bounds.pad(0.2), { maxZoom: 11 });
+    if (query.trim() || institutionId) {
+      if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.2), { maxZoom: 11 });
+      }
+    } else {
+      map.fitBounds(germanyBounds, { maxZoom: 6 });
     }
     window.setTimeout(() => map.invalidateSize(), 0);
-  }, [filteredDepots]);
+  }, [filteredDepots, germanyBounds, institutionId, query]);
 
   return (
     <div className="nd-react-shell">
@@ -1966,13 +2217,12 @@ function VerfallOverviewIsland() {
         <table>
           <thead>
             <tr>
-              <th>ID</th>
               <th>Depot</th>
               <th>Praeparat</th>
               <th>Charge</th>
               <th>Verfall</th>
-              <th>Tage</th>
-              <th>Kategorie</th>
+              <th>Tage bis Verfall</th>
+              <th>Status</th>
               <th>Anzahl</th>
             </tr>
           </thead>
@@ -1980,7 +2230,6 @@ function VerfallOverviewIsland() {
             {rows.length ? (
               rows.map((row, idx) => (
                 <tr key={`vf-${idx}`}>
-                  <td>{String(row.id ?? "")}</td>
                   <td>{String(row.depot ?? "")}</td>
                   <td>{String(row.praeparat ?? "")}</td>
                   <td>{String(row.charge ?? "")}</td>
@@ -1992,7 +2241,7 @@ function VerfallOverviewIsland() {
               ))
             ) : (
               <tr>
-                <td colSpan={8} className="empty-cell">
+                <td colSpan={7} className="empty-cell">
                   Keine Verfallspositionen fuer diese Filter.
                 </td>
               </tr>
@@ -2311,7 +2560,7 @@ function ImportManagerIsland() {
               </button>
             </div>
           </div>
-          <label>
+          <label className="checkbox-row">
             <input type="checkbox" checked={dryRun} onChange={(event) => setDryRun(event.target.checked)} />
             Dry-Run (nur pruefen, nicht schreiben)
           </label>
@@ -2590,6 +2839,8 @@ function EmailManagerIsland() {
   const [activeTab, setActiveTab] = useState<"compose" | "history">("compose");
   const [depots, setDepots] = useState<DepotRow[]>([]);
   const [selectedDepotIds, setSelectedDepotIds] = useState<number[]>([]);
+  const [availableRecipients, setAvailableRecipients] = useState<EmailRecipientPreviewRow[]>([]);
+  const [selectedContactIds, setSelectedContactIds] = useState<number[]>([]);
   const [subject, setSubject] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [sendNow, setSendNow] = useState<boolean>(false);
@@ -2605,8 +2856,8 @@ function EmailManagerIsland() {
   const loadBaseData = async () => {
     setLoading(true);
     try {
-      const depotsPayload = await apiFetch<{ rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
-      setDepots(Array.isArray(depotsPayload.rows) ? depotsPayload.rows : []);
+      const depotsPayload = await apiFetch<DepotRow[] | { rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
+      setDepots(normalizeDepotRows(depotsPayload));
 
       const status = await apiFetch<EmailDeliveryStatus>("/emails/delivery/status");
       if (status.mode === "smtp") {
@@ -2637,16 +2888,50 @@ function EmailManagerIsland() {
     void loadBaseData();
   }, []);
 
+  const refreshRecipientsForSelectedDepots = async (depotIds: number[]) => {
+    if (!depotIds.length) {
+      setAvailableRecipients([]);
+      setSelectedContactIds([]);
+      return;
+    }
+    try {
+      const response = await apiFetch<EmailRecipientPreviewResponse>("/emails/recipients-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ depot_ids: depotIds }),
+      });
+      const rows = Array.isArray(response.recipients)
+        ? response.recipients
+        : (Array.isArray(response.rows) ? response.rows : []);
+      setAvailableRecipients(rows);
+      const availableIds = new Set(rows.map((row) => Number(row.id || 0)).filter((id) => Number.isFinite(id) && id > 0));
+      setSelectedContactIds((prev) => prev.filter((id) => availableIds.has(id)));
+    } catch (_err) {
+      setAvailableRecipients([]);
+      setSelectedContactIds([]);
+    }
+  };
+
+  useEffect(() => {
+    void refreshRecipientsForSelectedDepots(selectedDepotIds);
+  }, [selectedDepotIds]);
+
   const previewRecipients = async () => {
     setRecipientStatus("Lade Empfaenger...");
     try {
       const response = await apiFetch<EmailRecipientPreviewResponse>("/emails/recipients-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ depot_ids: selectedDepotIds }),
+        body: JSON.stringify({ depot_ids: selectedDepotIds, kontakt_ids: selectedContactIds }),
       });
-      const rows = Array.isArray(response.rows) ? response.rows : [];
-      setRecipientStatus(`${Number(response.count || 0)} Empfaenger gefunden.`);
+      const rows = Array.isArray(response.recipients)
+        ? response.recipients
+        : (Array.isArray(response.rows) ? response.rows : []);
+      setRecipientStatus(
+        `${Number(response.count || 0)} Empfaenger gefunden${
+          selectedContactIds.length ? ` (aus ${selectedContactIds.length} ausgewaehlten Kontakten)` : ""
+        }.`,
+      );
       if (!rows.length) {
         setRecipientPreviewText("Keine Ansprechpartner mit E-Mail gefunden.");
       } else {
@@ -2671,6 +2956,7 @@ function EmailManagerIsland() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           depot_ids: selectedDepotIds,
+          kontakt_ids: selectedContactIds,
           betreff: subject.trim(),
           nachricht: message,
           send_now: sendNow,
@@ -2683,6 +2969,19 @@ function EmailManagerIsland() {
             ? `Entwurf gespeichert, Versand fehlgeschlagen (${result.delivery_error || "unbekannter Fehler"})`
             : "Entwurf gespeichert";
       setDraftStatus(`${deliveryMessage} (ID ${Number(result.id || 0)}, ${Number(result.recipient_count || 0)} Empfaenger).`);
+      if (result.delivery_status === "draft" && Number(result.id || 0) > 0) {
+        const markedSent = window.confirm("Wurde der Entwurf versendet?");
+        if (markedSent) {
+          await apiFetch(`/emails/history/${Number(result.id)}/delivery-status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ versand_status: "sent", versand_kanal: "manual", versand_fehler: null }),
+          });
+          setDraftStatus(
+            `Entwurf gespeichert und manuell als gesendet markiert (ID ${Number(result.id || 0)}, ${Number(result.recipient_count || 0)} Empfaenger).`,
+          );
+        }
+      }
       setSubject("");
       setMessage("");
       setSendNow(false);
@@ -2722,6 +3021,28 @@ function EmailManagerIsland() {
     }
   };
 
+  const updateHistoryDeliveryStatus = async (id: number, nextStatus: "draft" | "sent") => {
+    try {
+      await apiFetch(`/emails/history/${id}/delivery-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          versand_status: nextStatus,
+          versand_kanal: nextStatus === "sent" ? "manual" : "draft",
+          versand_fehler: null,
+        }),
+      });
+      const history = await apiFetch<EmailHistoryRow[]>("/emails/history?limit=50");
+      setHistoryRows(Array.isArray(history) ? history : []);
+      if (historyDetailText.trim()) {
+        await openHistoryDetail(id);
+      }
+      setDraftStatus(`E-Mail #${id} als ${nextStatus === "sent" ? "gesendet" : "Entwurf"} markiert.`);
+    } catch (err) {
+      setDraftStatus(err instanceof Error ? err.message : "Status konnte nicht aktualisiert werden.");
+    }
+  };
+
   return (
     <div className="nd-react-shell">
       <div className="nd-react-data-header">
@@ -2743,30 +3064,66 @@ function EmailManagerIsland() {
           <h3>Neue E-Mail (Entwurf)</h3>
           <p className={statusClass(classifyStatus(deliveryStatusText))}>{deliveryStatusText}</p>
           <div>
-            <label>
-              Depots (Mehrfachauswahl)
-              <select
-                multiple
-                size={7}
-                value={selectedDepotIds.map(String)}
-                onChange={(event) => {
-                  const nextIds = Array.from(event.currentTarget.selectedOptions).map((option) => Number(option.value));
-                  setSelectedDepotIds(nextIds.filter((value) => Number.isFinite(value) && value > 0));
-                }}
-              >
-                {depots.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name} (#{row.id})
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="nd-react-email-recipient-grid">
+              <label>
+                Depots (Mehrfachauswahl)
+                <select
+                  multiple
+                  size={7}
+                  value={selectedDepotIds.map(String)}
+                  onChange={(event) => {
+                    const nextIds = Array.from(event.currentTarget.selectedOptions).map((option) => Number(option.value));
+                    setSelectedDepotIds(nextIds.filter((value) => Number.isFinite(value) && value > 0));
+                  }}
+                >
+                  {depots.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name} (#{row.id})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Ansprechpartner (optional, Mehrfachauswahl)
+                <select
+                  multiple
+                  size={8}
+                  value={selectedContactIds.map(String)}
+                  onChange={(event) => {
+                    const nextIds = Array.from(event.currentTarget.selectedOptions).map((option) => Number(option.value));
+                    setSelectedContactIds(nextIds.filter((value) => Number.isFinite(value) && value > 0));
+                  }}
+                >
+                  {availableRecipients.map((row) => (
+                    <option key={String(row.id)} value={String(row.id || "")}>
+                      {`${row.depot_name || "-"}: ${row.name || "-"} (${row.rolle || "-"}) <${row.email || "-"}>`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <div className="actions">
               <button type="button" onClick={() => setSelectedDepotIds(depots.map((item) => Number(item.id)).filter((id) => id > 0))}>
                 Alle auswaehlen
               </button>
               <button type="button" onClick={() => setSelectedDepotIds([])}>
                 Alle abwaehlen
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedContactIds(
+                    availableRecipients
+                      .map((row) => Number(row.id || 0))
+                      .filter((id) => Number.isFinite(id) && id > 0),
+                  )
+                }
+                disabled={!availableRecipients.length}
+              >
+                Alle Ansprechpartner auswaehlen
+              </button>
+              <button type="button" onClick={() => setSelectedContactIds([])} disabled={!selectedContactIds.length}>
+                Ansprechpartner abwaehlen
               </button>
               <button type="button" onClick={() => void previewRecipients()}>
                 Empfaenger-Vorschau
@@ -2789,7 +3146,7 @@ function EmailManagerIsland() {
                 Nachricht
                 <textarea rows={6} value={message} onChange={(event) => setMessage(event.target.value)} />
               </label>
-              <label>
+              <label className="checkbox-row nd-react-inline-checkbox">
                 <input
                   type="checkbox"
                   checked={sendNow}
@@ -2822,6 +3179,7 @@ function EmailManagerIsland() {
                   <th>Depots</th>
                   <th>Empfaenger</th>
                   <th>Status</th>
+                  <th>Aktion</th>
                 </tr>
               </thead>
               <tbody>
@@ -2833,11 +3191,36 @@ function EmailManagerIsland() {
                       <td>{row.empfaenger_depots || ""}</td>
                       <td>{String(row.anzahl_empfaenger ?? "")}</td>
                       <td>{String(row.versand_status || "draft")}</td>
+                      <td>
+                        {String(row.versand_status || "draft") === "sent" ? (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void updateHistoryDeliveryStatus(row.id, "draft");
+                            }}
+                          >
+                            Als Entwurf markieren
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void updateHistoryDeliveryStatus(row.id, "sent");
+                            }}
+                          >
+                            Als gesendet markieren
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="empty-cell">
+                    <td colSpan={6} className="empty-cell">
                       Noch keine E-Mail-Eintraege vorhanden.
                     </td>
                   </tr>
@@ -3417,8 +3800,8 @@ function AssignmentManagerIsland() {
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadDepots = async () => {
-    const depotsPayload = await apiFetch<{ rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
-    const nextDepots = Array.isArray(depotsPayload.rows) ? depotsPayload.rows : [];
+    const depotsPayload = await apiFetch<DepotRow[] | { rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
+    const nextDepots = normalizeDepotRows(depotsPayload);
     setDepots(nextDepots);
     if (!selectedDepotId && nextDepots.length) {
       setSelectedDepotId(Number(nextDepots[0].id));
@@ -3554,8 +3937,8 @@ function ContactsManagerIsland() {
   });
 
   const loadDepots = async () => {
-    const depotsPayload = await apiFetch<{ rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
-    const nextDepots = Array.isArray(depotsPayload.rows) ? depotsPayload.rows : [];
+    const depotsPayload = await apiFetch<DepotRow[] | { rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
+    const nextDepots = normalizeDepotRows(depotsPayload);
     setDepots(nextDepots);
     if (!selectedDepotId && nextDepots.length) setSelectedDepotId(Number(nextDepots[0].id));
     return nextDepots;
@@ -3769,7 +4152,7 @@ function MovementCreateFormIsland() {
     void (async () => {
       try {
         const depotsResponse = await apiFetch<{ rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
-        const rows = Array.isArray(depotsResponse.rows) ? depotsResponse.rows : [];
+        const rows = normalizeDepotRows(depotsResponse);
         setDepots(rows);
         const savedEnabled = window.localStorage.getItem(BEWEGUNG_AUTOFILL_ENABLED_KEY);
         const enabled = savedEnabled === null ? true : savedEnabled === "1";
@@ -3878,7 +4261,7 @@ function MovementCreateFormIsland() {
           Autofill <strong>{autofillEnabled ? "an" : "aus"}</strong>
         </span>
       </div>
-      <form className="grid two-col" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+      <form className="grid two-col nd-react-movement-form" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <label>
           Depot
           <select required value={depotId} onChange={(event) => void onDepotChange(event.target.value)}>
@@ -4281,7 +4664,7 @@ function AccountManagerIsland() {
   const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
 
   const loadActivity = async () => {
-    const rows = await apiFetch<ActivityRow[]>("/auth/activity?limit=50");
+    const rows = await apiFetch<ActivityRow[]>("/auth/activity?limit=10");
     setActivityRows(Array.isArray(rows) ? rows : []);
   };
 

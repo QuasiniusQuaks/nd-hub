@@ -1266,6 +1266,33 @@ class SqliteRepository:
             ).fetchone()
             return dict(row) if row else None
 
+    def update_email_delivery_status(
+        self,
+        email_id: int,
+        versand_status: str,
+        versand_kanal: str | None = None,
+        versand_fehler: str | None = None,
+    ) -> bool:
+        safe_status = (versand_status or "").strip().lower()
+        if safe_status not in {"draft", "sent", "send_failed"}:
+            raise ValueError("Ungueltiger Versandstatus.")
+        safe_channel = (versand_kanal or "").strip() or ("manual" if safe_status == "sent" else "draft")
+        safe_error = (versand_fehler or "").strip() or None
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE email_verlauf
+                SET versand_status = ?,
+                    versand_kanal = ?,
+                    versand_fehler = ?
+                WHERE id = ?
+                """,
+                (safe_status, safe_channel, safe_error, int(email_id)),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
     def list_bewegungen(
         self,
         limit: int = 100,
