@@ -8,6 +8,7 @@
   <img alt="Version" src="https://img.shields.io/badge/Version-v0.42-1f6feb" />
   <img alt="Produkte" src="https://img.shields.io/badge/Produkte-Desktop%20%2B%20Web-0a7f5a" />
   <img alt="Technologie" src="https://img.shields.io/badge/Stack-PySide6%20%7C%20FastAPI%20%7C%20React-6f42c1" />
+  <a href="https://github.com/QuasiniusQuaks/nd-hub/pkgs/container/nd-hub"><img alt="Container" src="https://img.shields.io/badge/ghcr.io-nd--hub-2496ed?logo=github" /></a>
 </p>
 
 <p align="center">
@@ -260,6 +261,25 @@ Dieser Abschnitt beschreibt den **tatsaechlichen aktuellen Deployment-Stand** de
 - Im Compose-Setup ist `ND_HUB_DB_ENGINE` standardmaessig auf `mariadb` gesetzt.
 - Persistenz wird ueber Docker-Volumes umgesetzt (`ndhub_data`, `ndhub_uploads`, `ndhub_backups`, `ndhub_mariadb_data`).
 
+### 1a) Vorgefertigtes Web-Image (GHCR / optional Docker Hub)
+
+Bei jedem Push auf `main` und bei Git-Tags `v*` baut GitHub Actions das Image aus `ndhub-web/Dockerfile` und veroeffentlicht es unter **GitHub Container Registry** (Paket ist mit diesem Repository verknuepft):
+
+- Paketuebersicht: [github.com/QuasiniusQuaks/nd-hub/pkgs/container/nd-hub](https://github.com/QuasiniusQuaks/nd-hub/pkgs/container/nd-hub)
+- Pull (Beispiel `latest`): `docker pull ghcr.io/quasiniusquaks/nd-hub:latest`
+
+**Compose mit Registry-Image:** In `ndhub-web/.env` die Variable aus `.env.example` setzen, z. B. `NDHUB_WEB_IMAGE=ghcr.io/quasiniusquaks/nd-hub:latest`, dann:
+
+```bash
+cd ndhub-web
+docker compose pull ndhub-web
+docker compose up -d --no-build
+```
+
+Ohne `NDHUB_WEB_IMAGE` wird wie bisher lokal gebaut (`docker compose up -d --build`).
+
+**Optional Docker Hub:** Repository-Variable `DOCKERHUB_PUSH` auf `true` setzen und die Secrets `DOCKERHUB_USERNAME` sowie `DOCKERHUB_TOKEN` in den Repository-Action-Secrets anlegen. Derselbe Workflow spiegelt das Image zusaetzlich nach `docker.io/quasiniusquaks/ndhub-web` (Tags entsprechen GHCR). Repository- oder Hub-Namen bei Forks im Workflow bzw. auf Docker Hub anpassen.
+
 ### 2) Voraussetzungen
 
 - Docker Engine + Docker Compose Plugin installiert.
@@ -292,6 +312,8 @@ Wichtige Variablen in `.env`:
 - **E-Mail (optional live)**
   - `ND_HUB_EMAIL_DELIVERY_MODE=draft|smtp`
   - `ND_HUB_SMTP_*`
+- **Compose / Registry-Image (optional)**
+  - `NDHUB_WEB_IMAGE` (siehe Abschnitt 1a)
 
 ### 4) Deployment starten
 
@@ -335,6 +357,8 @@ Minimalpruefung:
 
 ### 7) Update- und Restart-Operationen
 
+**Lokaler Build (Standard):**
+
 ```bash
 cd ndhub-web
 docker compose pull
@@ -342,7 +366,18 @@ docker compose up -d --build
 docker compose restart ndhub-web
 ```
 
-Hinweis: Bei Aenderungen an `.env` oder Abhaengigkeiten den Stack neu erzeugen (`up -d --build`).
+`docker compose pull` aktualisiert dabei vor allem das MariaDB-Basisimage; der `ndhub-web`-Service wird ueber `--build` neu erzeugt, sofern kein `NDHUB_WEB_IMAGE` gesetzt ist.
+
+**Vorgefertigtes Web-Image (`NDHUB_WEB_IMAGE` gesetzt):**
+
+```bash
+cd ndhub-web
+docker compose pull ndhub-web
+docker compose up -d --no-build
+docker compose restart ndhub-web
+```
+
+Hinweis: Bei Aenderungen an `.env` oder Abhaengigkeiten den Stack neu erzeugen (`up -d --build` bzw. nach Registry-Update erneut `pull` + `up -d --no-build`).
 
 ### 8) Backup, Restore und Betriebssicherheit
 

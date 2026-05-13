@@ -1,6 +1,7 @@
 services:
   ndhub-web:
     build: .
+    image: ${NDHUB_WEB_IMAGE:-ndhub-web:local}
     container_name: ndhub-web
     restart: unless-stopped
     ports:
