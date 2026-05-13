@@ -768,7 +768,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         finally:
             security.close()
 
-    app = FastAPI(title="ND-Hub Backend", version="0.1.0", lifespan=_lifespan)
+    app = FastAPI(title="ND-Hub Backend", version="0.1.1", lifespan=_lifespan)
     app.state.repository = repository
     app.state.security = security
     app.state.token_store = token_store

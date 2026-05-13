@@ -1,9 +1,9 @@
 # Umgebungsvariablen
 
 Vollstaendige Referenz aller `ND_HUB_*`-Variablen, die das Backend und der
-Container-Stack auswerten. Quellen: `ndhub-web/backend/README.md`,
-`ndhub-web/.env.example`, `ndhub-web/docker-compose.yml`,
-`ndhub-web/backend/config.py`.
+Container-Stack auswerten, plus Compose-Interpolation (siehe unten). Quellen:
+`ndhub-web/backend/README.md`, `ndhub-web/.env.example`,
+`ndhub-web/docker-compose.yml`, `ndhub-web/backend/config.py`.
 
 ## Sicherheit und Initialbetrieb
 
@@ -95,7 +95,20 @@ ND_HUB_SMTP_USE_SSL=0
 ND_HUB_SMTP_FROM_ADDRESS=
 ND_HUB_SMTP_FROM_NAME=ND-Hub
 ND_HUB_SMTP_TIMEOUT_SECONDS=10
+
+# Optional: siehe ndhub-web/.env.example und docs/deployment/01-docker-stack.md
+# NDHUB_WEB_IMAGE=ghcr.io/quasiniusquaks/nd-hub:latest
 ```
+
+## Docker Compose (nur Compose-Interpolation)
+
+Diese Variable steuert **nicht** das Python-Backend direkt; sie wird von
+`docker compose` beim Zusammenfuehren von `docker-compose.yml` gelesen
+(siehe dort `image: ${NDHUB_WEB_IMAGE:-...}`).
+
+| Variable | Bedeutung | Default (in Compose) |
+|---|---|---|
+| `NDHUB_WEB_IMAGE` | Vollqualifizierter Image-Name fuer den Service `ndhub-web` (z. B. GHCR-`latest`). Gesetzt: `docker compose pull ndhub-web` und `up -d --no-build`. Ungesetzt: lokaler Build, Tag `ndhub-web:local`. | (leer) |
 
 ## Desktop-Konfiguration (Vergleich)
 

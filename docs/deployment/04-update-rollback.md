@@ -21,12 +21,22 @@ git fetch
 git checkout <neue-version>
 ```
 
-### 2) Image neu bauen und Stack starten
+### 2) Image neu bauen bzw. Registry-Image ziehen und Stack starten
+
+**Lokaler Build (ohne `NDHUB_WEB_IMAGE`):**
 
 ```bash
 cd ndhub-web
 docker compose pull
 docker compose up -d --build
+```
+
+**Vorgefertigtes Web-Image (`NDHUB_WEB_IMAGE` in `.env`):**
+
+```bash
+cd ndhub-web
+docker compose pull ndhub-web
+docker compose up -d --no-build
 ```
 
 ### 3) Nach dem Update verifizieren

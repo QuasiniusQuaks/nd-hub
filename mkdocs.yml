@@ -1,5 +1,5 @@
 site_name: ND-Hub Enterprise Documentation
-site_description: Enterprise-Dokumentation fuer den ND-Hub Desktop Client und die ND-Hub Webanwendung (v0.42).
+site_description: Enterprise-Dokumentation fuer den ND-Hub Desktop Client und die ND-Hub Webanwendung (Produktdoku v0.42; ndhub-web 0.1.1).
 site_author: ND-Hub Team
 docs_dir: docs
 

@@ -1,7 +1,8 @@
 # Docker-Stack
 
 Diese Seite beschreibt den **tatsaechlichen aktuellen Deployment-Stand**
-der Webanwendung mit Docker (v0.42).
+der Webanwendung mit Docker. **Produktdokumentation:** v0.42; **ndhub-web**
+(FastAPI- und npm-Packageversion): **0.1.1**.
 
 ## Topologie
 
@@ -26,7 +27,7 @@ flowchart LR
 
 | Eigenschaft | Wert |
 |---|---|
-| Image | gebaut aus `ndhub-web/Dockerfile` |
+| Image | Standard: lokaler Build aus `ndhub-web/Dockerfile`; optional vorgebautes Image ueber `NDHUB_WEB_IMAGE` (siehe [Container-Registry](#container-registry-github-actions) und [Umgebungsvariablen](03-environment-variables.md)). |
 | Basis | `python:3.12-slim` (Frontend-Stage `node:20-slim`) |
 | Port | `8000` |
 | Healthcheck | `GET /health` (intern via `urllib`) |
@@ -41,6 +42,21 @@ flowchart LR
 | Port | `3306` |
 | Healthcheck | `healthcheck.sh --connect --innodb_initialized` |
 | Volume | `ndhub_mariadb_data:/var/lib/mysql` |
+
+## Container-Registry (GitHub Actions)
+
+Bei Push auf `main` und bei Git-Tags `v*` baut der Workflow
+`.github/workflows/publish-ndhub-web-image.yml` das Web-Image und pusht es nach:
+
+- **GHCR:** `ghcr.io/quasiniusquaks/nd-hub` (Paket mit dem GitHub-Repository verknuepft)
+- **Docker Hub (optional):** `docker.io/spypanther/ndhub-web`, wenn die
+  Repository-Variable `DOCKERHUB_PUSH` den Wert `true` hat und die Action-Secrets
+  `DOCKERHUB_USERNAME` sowie `DOCKERHUB_TOKEN` gesetzt sind.
+
+Zum Betrieb mit Registry-Image: in `ndhub-web/.env` z. B.
+`NDHUB_WEB_IMAGE=ghcr.io/quasiniusquaks/nd-hub:latest` setzen, dann
+`docker compose pull ndhub-web` und `docker compose up -d --no-build`
+(siehe auch [README](../../README.md) Abschnitt Docker).
 
 ## Voraussetzungen
 
@@ -110,6 +126,8 @@ Minimalpruefung nach Deploy:
 
 ## Update- und Restart-Operationen
 
+**Lokaler Build (Standard):**
+
 ```bash
 cd ndhub-web
 docker compose pull
@@ -117,8 +135,22 @@ docker compose up -d --build
 docker compose restart ndhub-web
 ```
 
+`docker compose pull` aktualisiert dabei vor allem das MariaDB-Basisimage;
+`ndhub-web` wird ueber `--build` neu erzeugt, sofern kein `NDHUB_WEB_IMAGE`
+gesetzt ist.
+
+**Vorgefertigtes Web-Image (`NDHUB_WEB_IMAGE` gesetzt):**
+
+```bash
+cd ndhub-web
+docker compose pull ndhub-web
+docker compose up -d --no-build
+docker compose restart ndhub-web
+```
+
 Hinweis: Bei Aenderungen an `.env` oder Dependencies den Stack neu
-erzeugen (`up -d --build`).
+erzeugen (`up -d --build` bzw. nach Registry-Update erneut `pull` und
+`up -d --no-build`).
 
 ## Backup, Restore und Betriebssicherheit
 
@@ -146,6 +178,7 @@ erzeugen (`up -d --build`).
 services:
   ndhub-web:
     build: .
+    image: ${NDHUB_WEB_IMAGE:-ndhub-web:local}
     container_name: ndhub-web
     restart: unless-stopped
     ports:

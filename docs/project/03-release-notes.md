@@ -1,7 +1,7 @@
 # Release Notes
 
 Diese Seite buendelt die Releaseuebersicht von ND-Hub auf den
-aktuellen Stand v0.42 und gibt eine Kurzfassung der wesentlichen
+aktuellen Stand v0.42 (ndhub-web **0.1.1**) und gibt eine Kurzfassung der wesentlichen
 Aenderungen.
 
 ## v0.42 (aktuell)
@@ -34,6 +34,10 @@ Aenderungen.
 
 - **Docker Stack**: `ndhub-web` + `mariadb`, Healthchecks, Volumes,
   `depends_on: service_healthy`.
+- **Container-Registry**: GitHub Actions baut das Web-Image und pusht nach
+  GHCR (`ghcr.io/quasiniusquaks/nd-hub`); optional Docker Hub
+  (`docker.io/spypanther/ndhub-web` bei `DOCKERHUB_PUSH=true` und Secrets).
+  Compose-Variable `NDHUB_WEB_IMAGE` fuer Betrieb mit Registry-Image.
 - **Backup/Restore**: Format-/Groessenpruefung, Pre-Restore-
   Snapshot, Engine-Marker.
 - **Sicherheit**: bcrypt, Account-Sperre, Self-Toggle-Schutz,
