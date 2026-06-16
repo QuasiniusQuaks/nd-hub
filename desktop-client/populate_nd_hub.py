@@ -19,7 +19,7 @@ Präparate orientieren sich an typischen Notfalldepot-Sortimenten:
 """
 
 import sqlite3
-import random
+import random  # nosec B311: non-cryptographic demo/test data generation only
 import os
 import sys
 from datetime import datetime, timedelta

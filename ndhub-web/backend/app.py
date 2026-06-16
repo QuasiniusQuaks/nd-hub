@@ -18,10 +18,13 @@ from io import BytesIO
 import csv
 import io
 import tempfile
+import logging
 from urllib.parse import urlencode, urlparse
 from urllib.request import urlopen, Request as UrlRequest
 from decimal import Decimal
 from email.message import EmailMessage
+
+logger = logging.getLogger(__name__)
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -957,7 +960,7 @@ def _get_user_flags(security: SecurityManager, username: str) -> dict[str, bool]
         ((username or "").strip(),),
     ).fetchone()
     if not row:
-        return {"requires_password_change": False, "permissions": sorted(DEFAULT_USER_PERMISSIONS)}
+        return {"requires_password_change": False, "permissions": sorted(DEFAULT_USER_PERMISSIONS)}  # nosec B105: boolean flag, not a password
     return {
         "requires_password_change": bool(row[0]),
         "permissions": sorted(_permissions_for_role(str(row[1]), row[2])),
@@ -1393,7 +1396,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
                     )
             except Exception:
                 # Auto backup should never block startup.
-                pass
+                logger.warning("Auto-backup during startup failed", exc_info=True)
             yield
         finally:
             security.close()
@@ -1480,7 +1483,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             username=session.username,
             role=session.role,
             ttl_hours=24 * 365 * 10,
-            token_type="desktop_sync",
+            token_type="desktop_sync",  # nosec B106: token type label, not a password
             token_label=client_label,
         )
         token_info = token_store.get(desktop_token)
@@ -1504,7 +1507,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
     ) -> list[DesktopSyncTokenArchiveItem]:
         _ = session
         rows: list[DesktopSyncTokenArchiveItem] = []
-        for entry in token_store.list_tokens(token_type="desktop_sync"):
+        for entry in token_store.list_tokens(token_type="desktop_sync"):  # nosec B106: token type label, not a password
             issued_at = _parse_iso_datetime(entry.get("issued_at"))
             expires_at = _parse_iso_datetime(entry.get("expires_at"))
             revoked_at = _parse_iso_datetime(entry.get("revoked_at"))
@@ -1533,7 +1536,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         _ = session
         revoked = token_store.revoke_by_fingerprint(
             payload.token_fingerprint,
-            token_type="desktop_sync",
+            token_type="desktop_sync",  # nosec B106: token type label, not a password  # nosec B106: token type label, not a password
         )
         if not revoked:
             raise HTTPException(
@@ -1766,7 +1769,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
                 _require_http_scheme(f"https://nominatim.openstreetmap.org/search?{params}"),
                 headers={"User-Agent": "ndhub-web/geo-geocode"},
             )
-            with urlopen(req, timeout=8) as resp:
+            with urlopen(req, timeout=8) as resp:  # nosec B310: URL scheme validated by _require_http_scheme
                 payload = json.loads(resp.read().decode("utf-8"))
             if not isinstance(payload, list) or not payload:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Keine Koordinate gefunden.")

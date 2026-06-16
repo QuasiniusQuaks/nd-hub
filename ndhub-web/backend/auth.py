@@ -108,7 +108,7 @@ class TokenStore:
         username: str,
         role: str | None,
         ttl_hours: int | None = None,
-        token_type: str = "session",
+        token_type: str = "session",  # nosec B107: token type label, not a password
         token_label: str | None = None,
     ) -> str:
         token = secrets.token_urlsafe(32)
@@ -199,7 +199,7 @@ class TokenStore:
                         "token_label": None,
                         "username": info.username,
                         "role": info.role,
-                        "token_type": "session",
+                        "token_type": "session",  # nosec B105: token type label, not a password
                         "issued_at": now.isoformat(),
                         "expires_at": info.expires_at.isoformat(),
                         "revoked_at": None,

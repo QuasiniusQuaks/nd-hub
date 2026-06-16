@@ -227,7 +227,7 @@ class BewegungshistoriePage(QtWidgets.QWidget):
             return
         try:
             if os.name == 'nt':
-                os.startfile(pdf_path)
+                os.startfile(pdf_path)  # nosec B606: opens user-selected attachment with OS default app
             else:
                 QDesktopServices.openUrl(QUrl.fromLocalFile(pdf_path))
             self._toast("PDF-Datei geöffnet.", "success")
@@ -246,7 +246,7 @@ class BewegungshistoriePage(QtWidgets.QWidget):
         folder = os.path.dirname(pdf_path)
         try:
             if os.name == 'nt':
-                os.startfile(folder)
+                os.startfile(folder)  # nosec B606: opens folder containing user-selected attachment
             else:
                 QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
             self._toast("Ordner geöffnet.", "success")

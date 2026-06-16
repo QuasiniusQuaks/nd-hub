@@ -59,12 +59,12 @@ class DB:
     TYP_VERNICHTUNG = "Vernichtung"
     SETTING_AUTO_BACKUP = "auto_backup"
     SETTING_LETZTES_BACKUP = "letztes_backup"
-    SETTING_PASSWORD_HASH = "password_hash"
+    SETTING_PASSWORD_HASH = "password_hash"  # gitleaks:allow nosec B105: settings KEY name, not a secret
     SETTING_MAX_BACKUPS = "max_backups"
     SETTING_SMTP_HOST = "smtp_host"
     SETTING_SMTP_PORT = "smtp_port"
     SETTING_SMTP_USERNAME = "smtp_username"
-    SETTING_SMTP_PASSWORD = "smtp_password"
+    SETTING_SMTP_PASSWORD = "smtp_password"  # gitleaks:allow nosec B105: settings KEY name, not a secret
     SETTING_SMTP_USE_TLS = "smtp_use_tls"
     SETTING_SMTP_USE_SSL = "smtp_use_ssl"
     SETTING_SMTP_FROM_ADDRESS = "smtp_from_address"
@@ -571,7 +571,7 @@ class Database:
             try:
                 self.cur.execute("ROLLBACK")
             except Exception:
-                pass
+                logger.warning("Rollback after ID-Remap failure failed", exc_info=True)
             logger.exception(
                 "ID-Remap fehlgeschlagen: entity=%s old=%s new=%s",
                 safe_entity,

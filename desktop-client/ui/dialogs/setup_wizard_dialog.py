@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib import error as url_error, request as url_request
 from typing import Any, Dict, List, Optional
 
@@ -23,6 +23,14 @@ from core.setup_wizard_contract import (
 from db_manager import Database, DB
 
 logger = logging.getLogger("ND-Hub")
+
+
+def _require_http_scheme(url: str) -> str:
+    """Validiert dass die URL nur http/https verwendet (SSRF-Schutz)."""
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"URL scheme not allowed: {url}")
+    return url
 
 
 def _empty_draft() -> Dict[str, Any]:
@@ -1300,9 +1308,9 @@ class SetupWizardDialog(QtWidgets.QDialog):
         headers = {"Accept": "application/json"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
-        req = url_request.Request(url, method="GET", headers=headers)
+        req = url_request.Request(_require_http_scheme(url), method="GET", headers=headers)
         try:
-            with url_request.urlopen(req, timeout=8.0) as response:
+            with url_request.urlopen(req, timeout=8.0) as response:  # nosec B310: URL scheme validated by _require_http_scheme
                 raw = response.read().decode("utf-8")
             payload = json.loads(raw) if raw else {}
             lat = payload.get("latitude")

@@ -991,10 +991,14 @@ class AppleDashboard(ResponsiveWidget):
     def _bulk_update_tracking(self, type):
         """Aktualisiert alle Depots gleichzeitig"""
         year = self.spin_tracking_year.value()
+        allowed_columns = {"bewegungen_erhalten", "bestand_erhalten"}
         column = "bewegungen_erhalten" if type == 'moves' else "bestand_erhalten"
-        
+        if column not in allowed_columns:
+            QtWidgets.QMessageBox.warning(self, "Fehler", f"Ungültige Spalte: {column}")
+            return
+
         try:
-            self.db.cur.execute(f"UPDATE meldungs_tracking SET {column} = 1 WHERE jahr = ?", (year,))
+            self.db.cur.execute("UPDATE meldungs_tracking SET " + column + " = 1 WHERE jahr = ?", (year,))  # nosec B608: column is allow-list validated above
             self.db.conn.commit()
             self.refresh_tracking()
         except Exception as e:

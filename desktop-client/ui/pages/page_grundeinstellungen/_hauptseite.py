@@ -7,6 +7,7 @@ import shutil
 import time
 import glob
 from urllib import error, request
+from urllib.parse import urlparse
 from datetime import datetime
 
 from PySide6 import QtWidgets, QtCore, QtGui
@@ -28,6 +29,17 @@ from core.data_access_layer import BackendApiClient, BackendSyncConfig, Operatin
 from .depots_tab import DepotsPage
 from .praeparate_tab import PraeparatePage
 from .kontakte_tab import KontaktePage
+
+
+def _require_http_scheme(url: str) -> str:
+    """Validiert dass die URL nur http/https verwendet (SSRF-Schutz)."""
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"URL scheme not allowed: {url}")
+    return url
+
+
+logger = logging.getLogger("ND-Hub")
 from .zuordnungen_tab import AssignmentPage
 from .backup_tab import BackupManager
 from .user_management_tab import UserManagementPage
@@ -923,11 +935,11 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             if token:
                 try:
                     req = request.Request(
-                        f"{backend_url.rstrip('/')}/auth/me",
+                        _require_http_scheme(f"{backend_url.rstrip('/')}/auth/me"),
                         method="GET",
                         headers={"Authorization": f"Bearer {token}"},
                     )
-                    with request.urlopen(req, timeout=4) as response:
+                    with request.urlopen(req, timeout=4) as response:  # nosec B310: URL scheme validated by _require_http_scheme
                         if 200 <= response.status < 300:
                             me_info = "Token gueltig"
                 except error.HTTPError as exc:
@@ -1350,8 +1362,8 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
                 if os.path.exists(emergency_backup):
                     try:
                         os.remove(emergency_backup)
-                    except:
-                        pass
+                    except Exception as exc:
+                        print(f"   ⚠ Konnte altes Notfall-Backup nicht löschen: {exc}")
                 shutil.copy2(self.db.path, emergency_backup)
                 print(f"   Gesichert nach: {emergency_backup}")
             
@@ -1434,7 +1446,7 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             import sys
             self.close()
             QtWidgets.QApplication.quit()
-            os.execl(sys.executable, sys.executable, *sys.argv)
+            os.execl(sys.executable, sys.executable, *sys.argv)  # nosec B606: self-restart without shell
             
         except Exception as e:
             print(f"\n✗✗✗ FEHLER: {e}")
@@ -1522,8 +1534,8 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             try:
                 self.db.cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
                 self.db.conn.commit()
-            except:
-                pass
+            except Exception as exc:
+                print(f"WAL-Checkpoint fehlgeschlagen (ignoriert): {exc}")
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_filename = f"auto_backup_{timestamp}.db"
@@ -1698,27 +1710,15 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             )
             return
 
-        # Aktuelles Passwort prüfen
+        # Aktuelles Passwort prüfen (nur wenn bereits eines gesetzt ist)
         stored_hash = self.load_password_hash()
-        if stored_hash:
-            # Gespeichertes Passwort prüfen
-            from security_manager import SecurityManager
-            if not SecurityManager.verify_password(current, stored_hash):
-                QtWidgets.QMessageBox.warning(
-                    self,
-                    "Falsches Passwort",
-                    "Das eingegebene aktuelle Passwort ist nicht korrekt."
-                )
-                return
-        else:
-            # Kein Passwort gespeichert - prüfe gegen Standard
-            if current != UI.DEFAULT_PASSWORD:
-                QtWidgets.QMessageBox.warning(
-                    self,
-                    "Falsches Passwort",
-                    "Das eingegebene aktuelle Passwort ist nicht korrekt."
-                )
-                return
+        if stored_hash and not SecurityManager.verify_password(current, stored_hash):
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Falsches Passwort",
+                "Das eingegebene aktuelle Passwort ist nicht korrekt."
+            )
+            return
 
         # Neues Passwort validieren
         if len(new) < 4:

@@ -356,7 +356,7 @@ class VerfallManager:
             where_clause = "WHERE " + " AND ".join(where_parts)
 
             # Komplette Query
-            query = f"""
+            query = f"""  # nosec B608: column names validated against ALLOWED_COLUMNS
                 SELECT 
                     {', '.join(select_parts)}
                 {from_part}
@@ -376,24 +376,28 @@ class VerfallManager:
 
             # Absolut minimale Query
             try:
-                query = f"""
-                    SELECT 
-                        id,
-                        depot_id,
-                        'Depot' as depot_name,
-                        praeparat_id,
-                        'Präparat' as praeparat_name,
-                        '' as pzn,
-                        {self.menge_column} as menge,
-                        {self.datum_column} as verfallsdatum,
-                        'achtung' as kategorie,
-                        0 as tage_bis_verfall
-                    FROM bewegungen
-                    WHERE {self.menge_column} > 0
-                      AND {self.datum_column} IS NOT NULL
-                      AND {self.datum_column} != ''
-                      AND {self.datum_column} <= ?
-                """
+                if not self._validate_column_name(self.menge_column) or not self._validate_column_name(self.datum_column):
+                    raise ValueError("Ungültiger Spaltenname für Minimal-Query")
+                menge_col = self.menge_column
+                datum_col = self.datum_column
+                query = (
+                    "SELECT\n"  # nosec B608: menge_col and datum_col validated above
+                    "    id,\n"
+                    "    depot_id,\n"
+                    "    'Depot' as depot_name,\n"
+                    "    praeparat_id,\n"
+                    "    'Präparat' as praeparat_name,\n"
+                    "    '' as pzn,\n"
+                    "    " + menge_col + " as menge,\n"
+                    "    " + datum_col + " as verfallsdatum,\n"
+                    "    'achtung' as kategorie,\n"
+                    "    0 as tage_bis_verfall\n"
+                    "FROM bewegungen\n"
+                    "WHERE " + menge_col + " > 0\n"
+                    "  AND " + datum_col + " IS NOT NULL\n"
+                    "  AND " + datum_col + " != ''\n"
+                    "  AND " + datum_col + " <= ?"
+                )
 
                 rows = self.cur.execute(query, (achtung_datum,)).fetchall()
                 logger.info("Minimal-Query erfolgreich")
@@ -477,8 +481,10 @@ class VerfallManager:
         try:
             datetime.strptime(verfallsdatum, '%Y-%m-%d')
 
+            if not self._validate_column_name(self.datum_column):
+                raise ValueError("Ungültiger Spaltenname für Verfallsdatum-Update")
             self.cur.execute(
-                f"UPDATE bewegungen SET {self.datum_column} = ? WHERE id = ?",
+                "UPDATE bewegungen SET " + self.datum_column + " = ? WHERE id = ?",  # nosec B608: datum_column validated against ALLOWED_COLUMNS
                 (verfallsdatum, bewegung_id)
             )
             self.conn.commit()
@@ -510,7 +516,7 @@ class VerfallManager:
             self.ACHTUNG = achtung
 
         if updates:
-            query = f"UPDATE warnung_einstellungen SET {', '.join(updates)} WHERE id = 1"
+            query = "UPDATE warnung_einstellungen SET " + ", ".join(updates) + " WHERE id = 1"  # nosec B608: updates built from hardcoded column=? strings
             self.cur.execute(query, params)
             self.conn.commit()
 

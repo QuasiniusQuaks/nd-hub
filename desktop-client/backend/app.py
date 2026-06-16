@@ -12,6 +12,7 @@ import shutil
 import sqlite3
 import os
 import json
+import logging
 from io import BytesIO
 import csv
 import io
@@ -42,6 +43,9 @@ from backend.auth import (
 from backend.config import resolve_db_path
 from backend.database import SqliteRepository
 from security_manager import SecurityManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class LoginRequest(BaseModel):
@@ -639,7 +643,7 @@ def _get_user_flags(security: SecurityManager, username: str) -> dict[str, bool]
         ((username or "").strip(),),
     ).fetchone()
     if not row:
-        return {"requires_password_change": False, "permissions": sorted(DEFAULT_USER_PERMISSIONS)}
+        return {"requires_password_change": False, "permissions": sorted(DEFAULT_USER_PERMISSIONS)}  # nosec B105: boolean flag, not a password
     return {
         "requires_password_change": bool(row[0]),
         "permissions": sorted(_permissions_for_role(str(row[1]), row[2])),
@@ -763,7 +767,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
                     )
             except Exception:
                 # Auto backup should never block startup.
-                pass
+                logger.warning("Auto-backup during startup failed", exc_info=True)
             yield
         finally:
             security.close()
