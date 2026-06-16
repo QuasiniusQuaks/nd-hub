@@ -14,7 +14,7 @@ services:
       ND_HUB_BACKUPS_DIR: /data/backups
       ND_HUB_BACKEND_HOST: 0.0.0.0
       ND_HUB_BACKEND_PORT: 8000
-      ND_HUB_INITIAL_ADMIN_PASSWORD: ${ND_HUB_INITIAL_ADMIN_PASSWORD:-ChangeMeToAStrongPassword_123!}
+      ND_HUB_INITIAL_ADMIN_PASSWORD: ${ND_HUB_INITIAL_ADMIN_PASSWORD:-}
       ND_HUB_FORCE_ADMIN_PASSWORD_SYNC: ${ND_HUB_FORCE_ADMIN_PASSWORD_SYNC:-0}
       ND_HUB_AUTO_BACKUP_HOURS: ${ND_HUB_AUTO_BACKUP_HOURS:-24}
       ND_HUB_MAX_BACKUP_RESTORE_MB: ${ND_HUB_MAX_BACKUP_RESTORE_MB:-200}
@@ -23,7 +23,7 @@ services:
       ND_HUB_MARIADB_PORT: ${ND_HUB_MARIADB_PORT:-3306}
       ND_HUB_MARIADB_DATABASE: ${ND_HUB_MARIADB_DATABASE:-ndhub}
       ND_HUB_MARIADB_USER: ${ND_HUB_MARIADB_USER:-ndhub}
-      ND_HUB_MARIADB_PASSWORD: ${ND_HUB_MARIADB_PASSWORD:-ChangeMe}
+      ND_HUB_MARIADB_PASSWORD: ${ND_HUB_MARIADB_PASSWORD:-}
       ND_HUB_DUAL_WRITE_SQLITE: ${ND_HUB_DUAL_WRITE_SQLITE:-0}
       ND_HUB_FEATURE_MULTI_INSTITUTION: ${ND_HUB_FEATURE_MULTI_INSTITUTION:-1}
       ND_HUB_FEATURE_INSTITUTION_MAP: ${ND_HUB_FEATURE_INSTITUTION_MAP:-1}
@@ -44,6 +44,10 @@ services:
       - ndhub_data:/data
       - ndhub_uploads:/data/uploads
       - ndhub_backups:/data/backups
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
@@ -58,12 +62,16 @@ services:
     environment:
       MARIADB_DATABASE: ${ND_HUB_MARIADB_DATABASE:-ndhub}
       MARIADB_USER: ${ND_HUB_MARIADB_USER:-ndhub}
-      MARIADB_PASSWORD: ${ND_HUB_MARIADB_PASSWORD:-ChangeMe}
-      MARIADB_ROOT_PASSWORD: ${ND_HUB_MARIADB_ROOT_PASSWORD:-ChangeRootMe}
+      MARIADB_PASSWORD: ${ND_HUB_MARIADB_PASSWORD:-}
+      MARIADB_ROOT_PASSWORD: ${ND_HUB_MARIADB_ROOT_PASSWORD:-}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - ndhub_mariadb_data:/var/lib/mysql
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 20s
