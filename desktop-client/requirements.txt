@@ -11,3 +11,5 @@ pywin32>=306; platform_system == "Windows"
 fastapi>=0.116,<1.0
 uvicorn>=0.35,<1.0
 python-multipart>=0.0.26,<1.0
+keyring>=24.0,<26.0
+cryptography>=42.0,<46.0

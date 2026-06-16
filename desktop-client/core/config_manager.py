@@ -6,6 +6,22 @@ import logging
 
 logger = logging.getLogger("ND-Hub.Config")
 
+# Lazy-Import, damit Tests ohne installiertes keyring/cryptography funktionieren
+_secure_store_cache = {}
+
+
+def _get_secure_store(data_dir: str):
+    """Lazy-Initializer für SecureTokenStore (vermeidet Import auf Modulebene)."""
+    if "store" not in _secure_store_cache:
+        from core.secure_token_store import SecureTokenStore
+        _secure_store_cache["store"] = SecureTokenStore(data_dir)
+    return _secure_store_cache["store"]
+
+
+def reset_secure_store_cache():
+    """Erzwingt Neuinitialisierung des Caches (z. B. nach data_dir-Änderung in Tests)."""
+    _secure_store_cache.clear()
+
 class ConfigManager:
     """Zentrales Konfigurationsmanagement für ND-Hub."""
     
@@ -60,7 +76,7 @@ class ConfigManager:
         self.config['General']['theme'] = "light"
         self.config['General']['operating_mode'] = "local_only"
         self.config['General']['backend_url'] = ""
-        self.config['General']['backend_token'] = ""  # nosec B105: empty default, user must configure
+        self.config['General']['backend_token'] = ""  # nosec B105: placeholder; real token lives in SecureTokenStore
         self.config['General']['sync_interval_seconds'] = "120"
         self.config['General']['sync_cursor'] = "0"
 
@@ -114,14 +130,46 @@ class ConfigManager:
         self.save_config()
 
     def get_backend_token(self) -> str:
-        """Liefert optionales Bearer-Token fuer Sync-API-Aufrufe."""
-        return self.config.get('General', 'backend_token', fallback='').strip()
+        """
+        Liefert optionales Bearer-Token fuer Sync-API-Aufrufe.
+
+        Sicherheits-Migration: Falls noch ein Legacy-Klartext-Token in
+        ``settings.ini`` liegt, wird es automatisch in den SecureTokenStore
+        migriert und aus der INI entfernt.
+        """
+        store = _get_secure_store(self.data_dir)
+        secure_value = store.get()
+        if secure_value:
+            return secure_value
+
+        # Legacy-Klartext-Token migrieren (One-Shot)
+        legacy = self.config.get('General', 'backend_token', fallback='').strip()
+        if legacy:
+            logger.info("Migriere Legacy-Klartext-Token in den SecureTokenStore.")
+            if store.set(legacy):
+                self.config['General']['backend_token'] = ""
+                self.save_config()
+            return legacy
+        return ""
 
     def set_backend_token(self, token: str):
-        """Setzt optionales Bearer-Token fuer Sync."""
+        """Setzt optionales Bearer-Token fuer Sync (im SecureTokenStore)."""
+        store = _get_secure_store(self.data_dir)
         if 'General' not in self.config:
             self.config['General'] = {}
-        self.config['General']['backend_token'] = (token or '').strip()
+        if not token:
+            store.clear()
+            self.config['General']['backend_token'] = ""
+        else:
+            if not store.set(token):
+                logger.warning(
+                    "Konnte Token nicht in SecureTokenStore schreiben — "
+                    "Fallback auf Legacy-Klartext in settings.ini."
+                )
+                self.config['General']['backend_token'] = (token or '').strip()
+            else:
+                # Klartext in INI explizit leer halten
+                self.config['General']['backend_token'] = ""
         self.save_config()
 
     def get_sync_interval_seconds(self) -> int:
