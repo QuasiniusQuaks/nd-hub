@@ -14,7 +14,7 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-addopts = "-q -m 'not performance' --cov=security_manager --cov=db_manager --cov-report=term-missing --cov-fail-under=30"
+addopts = "-q -m 'not performance' --cov=security_manager --cov=db_manager --cov=core/sync_worker --cov=core/secure_token_store --cov=core/config_manager --cov-report=term-missing --cov-fail-under=30"
 markers = [
   "integration: tests spanning multiple components",
   "performance: slower performance-oriented checks",
