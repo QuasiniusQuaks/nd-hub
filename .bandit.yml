@@ -1,0 +1,23 @@
+# Bandit configuration for ND-Hub
+# Goal: find real runtime security issues in production code while avoiding
+# noise from tests, build scripts and non-cryptographic demo data.
+
+# B311 (random) and B404 (import subprocess) are skipped globally:
+# - B311: used only in the demo-data generator (non-cryptographic).
+# - B404: subprocess imports are intentional and reviewed where used.
+
+skips:
+  - B311
+  - B404
+
+exclude_dirs:
+  # Tests: asserts, hardcoded test credentials and /tmp paths are expected.
+  - ./ndhub-web/backend/tests
+  - ./desktop-client/tests
+  # Build/packaging script: subprocess calls to PyInstaller etc. are trusted.
+  - ./desktop-client/build_windows_exe.py
+  # Frontend dependencies and Python caches.
+  - ./ndhub-web/frontend-react/node_modules
+  - ./__pycache__
+  - ./desktop-client/__pycache__
+  - ./ndhub-web/backend/__pycache__
