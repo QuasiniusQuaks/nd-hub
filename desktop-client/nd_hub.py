@@ -48,6 +48,7 @@ from core.data_access_layer import (
 )
 from core.error_handler import setup_global_error_handler
 from core.sync_service import DesktopSyncService
+from core.sync_worker import SyncWorkerRunner
 
 # Versionsnummer
 VERSION = "0.42"
@@ -349,6 +350,13 @@ class MainWindow(QtWidgets.QMainWindow):
             config=self.config,
             router=self.data_access_router,
         )
+        # Worker-Runner entkoppelt den Push/Pull-Zyklus vom UI-Thread.
+        # Signal-Handler werden hier gebunden, damit UI-Updates
+        # automatisch im Haupt-Thread eintreffen.
+        self.sync_worker_runner = SyncWorkerRunner(self.sync_service, max_threads=1)
+        self.sync_worker_runner.signals.cycle_finished.connect(self._on_sync_cycle_finished)
+        self.sync_worker_runner.signals.cycle_failed.connect(self._on_sync_cycle_failed)
+        self.sync_worker_runner.signals.cycle_skipped.connect(self._on_sync_cycle_skipped)
         self._refresh_sync_scheduler()
 
     def _init_multi_user_mode(self) -> None:
@@ -1195,28 +1203,58 @@ class MainWindow(QtWidgets.QMainWindow):
                     self._apply_write_mode_to_page(current)
 
     def _run_sync_cycle(self) -> None:
-        """Fuehrt Push/Pull fuer Hybrid-Sync aus."""
-        if not hasattr(self, "sync_service") or not hasattr(self, "security"):
+        """Plant einen Push/Pull-Cycle im QThreadPool (non-blocking).
+
+        Vorher lief ``self.sync_service.run_cycle`` synchron im UI-Thread
+        und konnte bei langsamen Backend-Antworten die UI einfrieren.
+        Mit dem Worker-Runner läuft der Cycle in einem Worker-Thread und
+        die UI bleibt reaktiv. Ergebnis-Updates kommen via Signal zurück.
+        """
+        if not hasattr(self, "sync_worker_runner") or not hasattr(self, "security"):
             return
         username = self.security.get_current_user()
         if not username:
             return
-        try:
-            cycle = self.sync_service.run_cycle(actor_username=username)
-            if cycle.skipped:
-                return
-            if cycle.pushed or cycle.pulled or cycle.rejected or cycle.conflicts:
-                logger.info(
-                    "Sync-Zyklus: mode=%s pushed=%s pulled=%s rejected=%s conflicts=%s reason=%s",
-                    cycle.effective_mode,
-                    cycle.pushed,
-                    cycle.pulled,
-                    cycle.rejected,
-                    cycle.conflicts,
-                    cycle.reason,
-                )
-        except Exception as exc:
-            logger.warning("Sync-Zyklus fehlgeschlagen: %s", exc)
+        started = self.sync_worker_runner.submit(username)
+        if not started:
+            # Bereits ein Cycle aktiv oder Username leer — kein Log-Spam
+            # (Timer feuert u. U. häufiger als Intervalle abgeschlossen sind).
+            return
+
+    def _on_sync_cycle_finished(self, payload: dict) -> None:
+        """Slot: erfolgreicher Sync-Cycle, ggf. UI aktualisieren."""
+        pushed = payload.get("pushed", 0) or 0
+        pulled = payload.get("pulled", 0) or 0
+        rejected = payload.get("rejected", 0) or 0
+        conflicts = payload.get("conflicts", 0) or 0
+        if pushed or pulled or rejected or conflicts:
+            logger.info(
+                "Sync-Zyklus: mode=%s pushed=%s pulled=%s rejected=%s conflicts=%s reason=%s",
+                payload.get("effective_mode"),
+                pushed,
+                pulled,
+                rejected,
+                conflicts,
+                payload.get("reason"),
+            )
+        # Pull kann Stammdaten/Depots verändert haben → Cache invalidieren
+        # und ggf. sichtbare Seiten neu laden.
+        if pulled:
+            try:
+                if hasattr(self.db, "_clear_lookup_caches"):
+                    self.db._clear_lookup_caches()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Cache-Invalidierung nach Sync fehlgeschlagen: %s", exc)
+            if hasattr(self, "_refresh_user_sidebar_state"):
+                self._refresh_user_sidebar_state()
+
+    def _on_sync_cycle_failed(self, message: str) -> None:
+        """Slot: Sync-Cycle fehlgeschlagen."""
+        logger.warning("Sync-Zyklus fehlgeschlagen: %s", message)
+
+    def _on_sync_cycle_skipped(self, reason: str) -> None:
+        """Slot: Sync-Cycle wurde übersprungen (z. B. kein Hybrid-Mode)."""
+        logger.debug("Sync-Cycle übersprungen: %s", reason)
 
     def _setup_integrated_login(self) -> None:
         """Login als Overlay im Hauptfenster statt separatem Fenster."""
