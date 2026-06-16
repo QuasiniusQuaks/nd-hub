@@ -1095,24 +1095,27 @@ class AuswertungenPage(QtWidgets.QWidget):
         depots = sorted(set(row[0] for row in data))
         praeparate = sorted(set(row[1] for row in data))
 
+        # Lookup-Maps für O(1)-Indizierung in der Matrix-Loop
+        # (Performance: vorher war depots.index() / praeparate.index() O(n) pro Iteration = O(n²) gesamt)
+        depot_idx_map = {name: i for i, name in enumerate(depots)}
+        praep_idx_map = {name: i for i, name in enumerate(praeparate)}
+
         # Matrix erstellen
         matrix = np.zeros((len(depots), len(praeparate)))
 
         for depot_name, praep_name, soll, ist in data:
-            depot_idx = depots.index(depot_name)
-            praep_idx = praeparate.index(praep_name)
-            
             # Sichere Defaults
             soll = soll or 0
             ist = ist or 0
-            
+
             # Abweichung in Prozent (oder absolut wenn Soll=0)
             if soll > 0:
                 abweichung = ((ist - soll) / soll) * 100
             else:
                 abweichung = ist
-            
-            matrix[depot_idx, praep_idx] = abweichung
+
+            # O(1)-Lookup statt O(n) via .index() — siehe Lookup-Maps oben
+            matrix[depot_idx_map[depot_name], praep_idx_map[praep_name]] = abweichung
 
 
         # Heatmap erstellen
