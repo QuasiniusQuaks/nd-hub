@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import re
 import sqlite3
 from typing import Any, Iterable
 
@@ -15,7 +16,9 @@ from backend.config import resolve_mariadb_settings
 
 
 def _quote_ident(name: str) -> str:
-    return f"`{(name or '').replace('`', '``')}`"
+    if not name or not re.fullmatch(r"[A-Za-z0-9_]+", name):
+        raise ValueError(f"Ungueltiger SQL-Bezeichner: {name!r}")
+    return f"`{name}`"
 
 
 def _sqlite_tables(conn: sqlite3.Connection) -> list[str]:
@@ -41,7 +44,9 @@ class ColumnDef:
 
 
 def _table_columns(conn: sqlite3.Connection, table: str) -> list[ColumnDef]:
-    rows = conn.execute(f"PRAGMA table_info({_quote_ident(table)})").fetchall()
+    rows = conn.execute(
+        "".join(["PRAGMA table_info(", _quote_ident(table), ")"])
+    ).fetchall()
     result: list[ColumnDef] = []
     for row in rows:
         result.append(
@@ -120,8 +125,9 @@ def _iter_rows(
     columns: list[ColumnDef],
     batch_size: int,
 ) -> Iterable[list[tuple]]:
-    quoted = ", ".join(_quote_ident(col.name) for col in columns)
-    cursor = conn.execute(f"SELECT {quoted} FROM {_quote_ident(table)}")
+    quoted_cols = ", ".join(_quote_ident(col.name) for col in columns)
+    sql = "".join(["SELECT ", quoted_cols, " FROM ", _quote_ident(table)])
+    cursor = conn.execute(sql)
     batch: list[tuple] = []
     for row in cursor:
         batch.append(tuple(row))
@@ -145,21 +151,29 @@ def _copy_table(
     create_sql = _create_table_sql(table, columns)
     insert_cols = ", ".join(_quote_ident(col.name) for col in columns)
     placeholders = ", ".join(["%s"] * len(columns))
-    insert_sql = (
-        f"INSERT INTO {_quote_ident(table)} ({insert_cols}) "
-        f"VALUES ({placeholders})"
+    insert_sql = "".join(
+        [
+            "INSERT INTO ",
+            _quote_ident(table),
+            " (",
+            insert_cols,
+            ") VALUES (",
+            placeholders,
+            ")",
+        ]
     )
 
     with maria_conn.cursor() as cur:
         cur.execute(create_sql)
-        cur.execute(f"TRUNCATE TABLE {_quote_ident(table)}")
+        cur.execute("".join(["TRUNCATE TABLE ", _quote_ident(table)]))
         for batch in _iter_rows(sqlite_conn, table, columns, batch_size):
             cur.executemany(insert_sql, batch)
     maria_conn.commit()
 
 
 def _count_rows_sqlite(conn: sqlite3.Connection, table: str) -> int:
-    row = conn.execute(f"SELECT COUNT(*) FROM {_quote_ident(table)}").fetchone()
+    sql = "".join(["SELECT COUNT(*) FROM ", _quote_ident(table)])
+    row = conn.execute(sql).fetchone()
     return int(row[0]) if row else 0
 
 
@@ -167,8 +181,9 @@ def _count_rows_mariadb(
     conn: Any,
     table: str,
 ) -> int:
+    sql = "".join(["SELECT COUNT(*) FROM ", _quote_ident(table)])
     with conn.cursor() as cur:
-        cur.execute(f"SELECT COUNT(*) FROM {_quote_ident(table)}")
+        cur.execute(sql)
         row = cur.fetchone()
     return int(row[0]) if row else 0
 

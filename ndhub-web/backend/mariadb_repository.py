@@ -215,12 +215,12 @@ class MariaDbRepository:
         ids_params: tuple[Any, ...] = ()
         if safe_ids:
             placeholders = ",".join("%s" for _ in safe_ids)
-            ids_filter_sql = f" AND depots.id IN ({placeholders})"
+            ids_filter_sql = "".join([" AND depots.id IN (", placeholders, ")"])
             ids_params = tuple(safe_ids)
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    f"""
+                sql_parts = [
+                    """
                     SELECT depots.id, depots.name, depots.adresse, depots.strasse, depots.hausnummer, depots.postleitzahl, depots.stadt, depots.telefon, depots.email,
                            depots.institution_id, depots.latitude, depots.longitude, institutions.name AS institution_name
                     FROM depots
@@ -232,10 +232,13 @@ class MariaDbRepository:
                           COALESCE(depots.telefon, '') LIKE %s OR
                           COALESCE(depots.email, '') LIKE %s
                     )
-                          {ids_filter_sql}
-                    ORDER BY depots.name
-                    LIMIT %s OFFSET %s
                     """,
+                ]
+                if ids_filter_sql:
+                    sql_parts.append(ids_filter_sql)
+                sql_parts.append("ORDER BY depots.name LIMIT %s OFFSET %s")
+                cur.execute(
+                    "".join(sql_parts),
                     (like, like, like, like, like, *ids_params, safe_limit, safe_offset),
                 )
                 rows = cur.fetchall()
@@ -948,8 +951,14 @@ class MariaDbRepository:
                     cur.execute("SELECT id, name FROM praeparate ORDER BY name")
                     return [dict(row) for row in cur.fetchall()]
                 placeholders = ", ".join(["%s"] * len(assigned_ids))
-                query = f"SELECT id, name FROM praeparate WHERE id IN ({placeholders}) ORDER BY name"
-                cur.execute(query, tuple(sorted(assigned_ids)))
+                sql = "".join(
+                    [
+                        "SELECT id, name FROM praeparate WHERE id IN (",
+                        placeholders,
+                        ") ORDER BY name",
+                    ]
+                )
+                cur.execute(sql, tuple(sorted(assigned_ids)))
                 return [dict(row) for row in cur.fetchall()]
 
     def list_depot_assignments(self, depot_id: int) -> list[dict[str, Any]]:
@@ -1086,16 +1095,22 @@ class MariaDbRepository:
         if not depot_ids:
             return []
         placeholders = ", ".join(["%s"] * len(depot_ids))
-        query = f"""
-            SELECT k.id, k.depot_id, k.name, k.rolle, k.telefon, k.email, d.name AS depot_name
-            FROM kontakte k
-            JOIN depots d ON d.id = k.depot_id
-            WHERE k.depot_id IN ({placeholders}) AND COALESCE(k.email, '') <> ''
-            ORDER BY d.name, k.name
-        """
+        sql = "".join(
+            [
+                """
+                SELECT k.id, k.depot_id, k.name, k.rolle, k.telefon, k.email, d.name AS depot_name
+                FROM kontakte k
+                JOIN depots d ON d.id = k.depot_id
+                WHERE k.depot_id IN (""",
+                placeholders,
+                """) AND COALESCE(k.email, '') <> ''
+                ORDER BY d.name, k.name
+                """,
+            ]
+        )
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute(query, tuple(int(item) for item in depot_ids))
+                cur.execute(sql, tuple(int(item) for item in depot_ids))
                 rows = cur.fetchall()
         return [dict(row) for row in rows]
 
@@ -1246,12 +1261,12 @@ class MariaDbRepository:
         ids_params: tuple[Any, ...] = ()
         if safe_depot_ids:
             placeholders = ",".join("%s" for _ in safe_depot_ids)
-            ids_filter_sql = f" AND b.depot_id IN ({placeholders})"
+            ids_filter_sql = "".join([" AND b.depot_id IN (", placeholders, ")"])
             ids_params = tuple(safe_depot_ids)
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    f"""
+                sql_parts = [
+                    """
                     SELECT
                         b.id,
                         b.depot_id,
@@ -1286,10 +1301,13 @@ class MariaDbRepository:
                             COALESCE(b.charge, '') LIKE %s OR
                             COALESCE(b.empfaenger, '') LIKE %s
                         )
-                        {ids_filter_sql}
-                    ORDER BY b.id DESC
-                    LIMIT %s OFFSET %s
                     """,
+                ]
+                if ids_filter_sql:
+                    sql_parts.append(ids_filter_sql)
+                sql_parts.append("ORDER BY b.id DESC LIMIT %s OFFSET %s")
+                cur.execute(
+                    "".join(sql_parts),
                     (
                         typ_filter,
                         typ_filter,
@@ -2066,14 +2084,20 @@ class MariaDbRepository:
             with conn.cursor() as cur:
                 if safe_entities:
                     placeholders = ", ".join(["%s"] * len(safe_entities))
-                    query = f"""
-                        SELECT id, timestamp, username, action, resource_type, resource_id, details
-                        FROM api_audit_log
-                        WHERE id > %s AND resource_type IN ({placeholders})
-                        ORDER BY id ASC
-                        LIMIT %s
-                    """
-                    cur.execute(query, (safe_cursor, *safe_entities, safe_limit + 1))
+                    sql = "".join(
+                        [
+                            """
+                            SELECT id, timestamp, username, action, resource_type, resource_id, details
+                            FROM api_audit_log
+                            WHERE id > %s AND resource_type IN (""",
+                            placeholders,
+                            """)
+                            ORDER BY id ASC
+                            LIMIT %s
+                            """,
+                        ]
+                    )
+                    cur.execute(sql, (safe_cursor, *safe_entities, safe_limit + 1))
                 else:
                     cur.execute(
                         """

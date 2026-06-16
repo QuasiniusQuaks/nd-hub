@@ -18,7 +18,7 @@ from io import BytesIO
 import csv
 import io
 import tempfile
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import urlopen, Request as UrlRequest
 from decimal import Decimal
 from email.message import EmailMessage
@@ -58,6 +58,14 @@ from backend.config import (
 from backend.database import SqliteRepository
 from backend.mariadb_repository import MariaDbRepository
 from security_manager import SecurityManager
+
+
+def _require_http_scheme(url: str) -> str:
+    """Validates that the URL uses only http/https (SSRF protection)."""
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"URL scheme not allowed: {url}")
+    return url
 
 
 class LoginRequest(BaseModel):
@@ -353,6 +361,13 @@ def _send_email_via_smtp(
 def _sanitize_filename_part(value: str) -> str:
     safe = re.sub(r"[^A-Za-z0-9._-]+", "_", value or "")
     return safe.strip("._") or "datei"
+
+
+def _quote_sql_identifier(name: str) -> str:
+    """Quote and validate a SQL identifier (table/column name)."""
+    if not name or not re.fullmatch(r"[A-Za-z0-9_]+", name):
+        raise ValueError(f"Ungueltiger SQL-Bezeichner: {name!r}")
+    return f"`{name}`"
 
 
 def _build_attachment_target_path(
@@ -1036,7 +1051,8 @@ def _create_mariadb_backup_snapshot(backups_dir: Path, label: str) -> Path:
             table_names = [str(next(iter(row.values()))) for row in rows]
             table_payload: dict[str, list[dict]] = {}
             for table_name in sorted(table_names):
-                cur.execute(f"SELECT * FROM `{table_name}`")
+                quoted_table = _quote_sql_identifier(table_name)
+                cur.execute("".join(["SELECT * FROM ", quoted_table]))
                 data_rows = []
                 for row in cur.fetchall():
                     normalized = {str(k): _normalize_json_value(v) for k, v in dict(row).items()}
@@ -1158,11 +1174,17 @@ def _restore_mariadb_backup_payload(payload: dict) -> None:
     ordered_tables = [name for name in preferred_order if name in tables]
     ordered_tables.extend(name for name in tables.keys() if name not in ordered_tables)
 
+    allowed_restore_tables = set(preferred_order)
+    invalid_tables = [name for name in ordered_tables if name not in allowed_restore_tables]
+    if invalid_tables:
+        raise ValueError(f"Backup enthaelt ungueltige Tabellen: {', '.join(sorted(invalid_tables))}")
+
     try:
         with conn.cursor() as cur:
             cur.execute("SET FOREIGN_KEY_CHECKS=0")
             for table_name in ordered_tables:
-                cur.execute(f"TRUNCATE TABLE `{table_name}`")
+                quoted_table = _quote_sql_identifier(table_name)
+                cur.execute("".join(["TRUNCATE TABLE ", quoted_table]))
             for table_name in ordered_tables:
                 table_rows = tables.get(table_name) or []
                 if not isinstance(table_rows, list) or not table_rows:
@@ -1171,9 +1193,21 @@ def _restore_mariadb_backup_payload(payload: dict) -> None:
                 if not isinstance(first, dict):
                     raise ValueError(f"Backup-Format ungueltig in Tabelle {table_name}.")
                 columns = list(first.keys())
-                col_sql = ", ".join(f"`{col}`" for col in columns)
+                for col in columns:
+                    _quote_sql_identifier(col)
+                col_sql = ", ".join(_quote_sql_identifier(col) for col in columns)
                 placeholders = ", ".join(["%s"] * len(columns))
-                query = f"INSERT INTO `{table_name}` ({col_sql}) VALUES ({placeholders})"
+                query = "".join(
+                    [
+                        "INSERT INTO ",
+                        _quote_sql_identifier(table_name),
+                        " (",
+                        col_sql,
+                        ") VALUES (",
+                        placeholders,
+                        ")",
+                    ]
+                )
                 values = []
                 for row in table_rows:
                     if not isinstance(row, dict):
@@ -1729,7 +1763,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         try:
             params = urlencode({"q": query, "format": "jsonv2", "limit": 1, "countrycodes": "de"})
             req = UrlRequest(
-                f"https://nominatim.openstreetmap.org/search?{params}",
+                _require_http_scheme(f"https://nominatim.openstreetmap.org/search?{params}"),
                 headers={"User-Agent": "ndhub-web/geo-geocode"},
             )
             with urlopen(req, timeout=8) as resp:
@@ -2031,7 +2065,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Keine Änderungen angegeben.")
         params.append(int(user_id))
         security.cur.execute(
-            f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+            "".join(["UPDATE users SET ", ", ".join(updates), " WHERE id = ?"]),
             tuple(params),
         )
         security.conn.commit()

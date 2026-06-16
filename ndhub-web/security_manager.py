@@ -646,7 +646,7 @@ class SecurityManager:
         # Scanner-Schutz: Typisierung erzwingen
         safe_user_id = int(user_id)
         params.append(safe_user_id)
-        sql = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+        sql = "".join(["UPDATE users SET ", ", ".join(updates), " WHERE id = ?"])
 
         try:
             self.cur.execute(sql, params)
