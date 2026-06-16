@@ -188,7 +188,9 @@ class SqliteRepository:
                 return [dict(row) for row in rows]
             placeholders = ",".join("?" * len(assigned_ids))
             rows = conn.execute(
-                f"SELECT id, name FROM praeparate WHERE id IN ({placeholders}) ORDER BY name",
+                # Placeholders are exclusively '?' generated from the count of
+                # already-validated integer IDs; no user input reaches the SQL.
+                f"SELECT id, name FROM praeparate WHERE id IN ({placeholders}) ORDER BY name",  # nosec B608
                 tuple(sorted(assigned_ids)),
             ).fetchall()
             return [dict(row) for row in rows]
@@ -458,6 +460,8 @@ class SqliteRepository:
         placeholders = ",".join("?" for _ in safe_ids)
         with self._connect() as conn:
             rows = conn.execute(
+                # Placeholders are exclusively '?' generated from the count of
+                # already-validated integer IDs; no user input reaches the SQL.
                 f"""
                 SELECT
                     k.id,
@@ -471,7 +475,7 @@ class SqliteRepository:
                 WHERE k.depot_id IN ({placeholders})
                   AND COALESCE(k.email, '') <> ''
                 ORDER BY d.name, k.name
-                """,
+                """,  # nosec B608
                 tuple(safe_ids),
             ).fetchall()
             return [dict(row) for row in rows]

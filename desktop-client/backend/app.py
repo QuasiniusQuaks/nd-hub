@@ -1108,8 +1108,10 @@ def create_app(db_path: str | None = None) -> FastAPI:
         if not updates:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Keine Änderungen angegeben.")
         params.append(int(user_id))
+        # SET clauses are hardcoded "<column> = ?" strings from an explicit
+        # allow-list; only the values are parameterized and user-controlled.
         security.cur.execute(
-            f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+            f"UPDATE users SET {', '.join(updates)} WHERE id = ?",  # nosec B608
             tuple(params),
         )
         security.conn.commit()

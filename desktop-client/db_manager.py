@@ -1508,15 +1508,17 @@ class Database:
         # Scanner-Schutz (False Positive Prävention): Typisierung erzwingen
         safe_depot_ids = tuple(int(d) for d in depot_ids)
         placeholders = ','.join('?' * len(safe_depot_ids))
+        # Placeholders are exclusively '?' generated from the count of
+        # already-validated integer IDs; no user input reaches the SQL.
         sql = f"""
             SELECT k.id, k.name, k.rolle, k.email, d.name as depot_name, d.id as depot_id
             FROM kontakte k
             JOIN depots d ON d.id = k.depot_id
             WHERE k.depot_id IN ({placeholders})
-              AND k.email IS NOT NULL 
+              AND k.email IS NOT NULL
               AND k.email != ''
             ORDER BY d.name, k.name
-        """
+        """  # nosec B608
         return self.cur.execute(sql, safe_depot_ids).fetchall()
 
     def add_email_verlauf(
