@@ -1,0 +1,42 @@
+# Bandit-Konfiguration für ND-Hub Desktop-Client
+# siehe: https://bandit.readthedocs.io/en/latest/config.html
+#
+# Issue #16: 107× `except Exception` sind nicht per se ein Bug, aber
+# sie brauchen eine bewusste Konvention. Diese Datei dokumentiert,
+# welche Patterns OK sind und welche nicht.
+
+# Tests/Fixturen ausnehmen — Fixturen dürfen breite Exception-Klauseln haben,
+# weil Setup-Fehler explizit getestet werden
+exclude_dirs:
+  - tests
+  - .venv
+  - build
+  - dist
+
+# B110 / try_except_pass: stilles `pass` nach `except` ist gefährlich,
+# weil Fehler verschluckt werden. Ausnahmen werden in core/exception_decorators.py
+# dokumentiert und mit `# noqa: B110` markiert.
+#
+# B904 / raise_without_from_inside_except: `raise NewException` ohne
+# `from` verliert den ursprünglichen Traceback. Sollte mit `raise X from e`
+# geschrieben werden — siehe nd_hub.py und security_manager.py für Beispiele.
+
+# Wir erlauben B110 explizit an Stellen, die durch den swallow_exceptions-Decorator
+# ersetzt werden sollen — Bandit warnt, der Fix-Pfad ist Issue #16.
+skips:
+  - B101  # assert used — wir nutzen assert für Invarianten in Test-Fixturen
+
+# Diese Warnings sollen FEHLEN (nicht stillschweigend unterdrückt):
+# - B110 (try_except_pass)
+# - B904 (raise_without_from_inside_except)
+# - B105 (hardcoded_password_string)
+# - B303 (md5_sha1_used)
+#
+# Wenn ein Bandit-Lauf diese Warnings meldet, MUSS der Fix im Code erfolgen,
+# nicht durch Hinzufügen eines `# noqa`.
+
+# Ausgabe-Format: weniger Rauschen, leichter reviewbar
+output:
+  format: screen
+  color: auto
+  show_progress: false

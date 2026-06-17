@@ -1,4 +1,28 @@
 # -*- coding: utf-8 -*-
+"""Database-Layer für die ND-Hub Desktop-Anwendung.
+
+.. note::
+   Dieses Modul verwendet ``functools.lru_cache`` an mehreren Stellen für
+   Lookup-Methoden (siehe Issue #11). Die Methode ist auf **Instanzen**
+   der ``Database``-Klasse angewendet, was zwei bekannte Risiken hat:
+
+   1. **Memory-Leak pro Instanz**: ``self`` ist Teil des Cache-Keys,
+      daher hält jede ``Database``-Instanz ihren eigenen Cache. Bei
+      vielen kurzlebigen Instanzen sammelt sich Cache bis zum GC.
+      Mitigation: ``Database`` wird als Singleton verwendet (siehe
+      ``nd_hub.py`` → ``self.db = Database(db_path)``).
+   2. **Stale Cache bei DB-Mutationen**: ``lru_cache`` invalidiert nicht
+      automatisch bei ``UPDATE``/``INSERT``/``DELETE``. Die
+      ``_clear_lookup_caches()``-Methode ist die zentrale Anlaufstelle
+      nach Mutationen — sie MUSS nach jedem schreibenden Query aufgerufen
+      werden. Bekannte Aufrufer sind in dieser Datei mit
+      ``self._clear_lookup_caches()`` markiert.
+
+   Für den Wechsel auf ``cachetools.TTLCache`` (TTL-basiertes Caching)
+   siehe Issue #17 — bewusst aufgeschoben, weil lru_cache für den
+   Single-User-Desktop gut funktioniert und die Risiken durch das
+   Singleton-Pattern mitigiert sind.
+"""
 import sqlite3
 import logging
 import os
