@@ -38,10 +38,32 @@ class SecurityManager:
     ROLE_USER = "User"
     ROLES = [ROLE_ADMIN, ROLE_USER]
 
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
-        self.cur = self.conn.cursor()
+    def __init__(self, db_path: str = "", *, database: Optional["Database"] = None):
+        """
+        Initialisiert den SecurityManager.
+
+        Args:
+            db_path: Pfad zur Datenbank (Legacy-Modus — eigene Connection).
+            database: Optional, bestehende ``Database``-Instanz. Wenn
+                      übergeben, wird deren Connection geteilt (kein
+                      Lock-Contention). Issue #18: Architektur-Audit-Befund.
+        """
+        if database is not None:
+            self._db = database
+            self.db_path = database.path
+            self.conn = database.conn
+            self.cur = database.cur
+            self._owns_connection = False
+        else:
+            if not db_path:
+                raise TypeError(
+                    "SecurityManager benötigt entweder 'db_path' (nicht-leer) oder 'database'"
+                )
+            self._db = None
+            self.db_path = db_path
+            self.conn = sqlite3.connect(db_path, check_same_thread=False)
+            self.cur = self.conn.cursor()
+            self._owns_connection = True
         self.current_user = None
         self.current_role = None
 
@@ -50,9 +72,10 @@ class SecurityManager:
         self._create_default_admin()
 
         # Log Status
-        logger.info(f"SecurityManager initialisiert")
-        logger.info(f"  Datenbank: {db_path}")
-        logger.info(f"  bcrypt: {'✓ Aktiv' if HAS_BCRYPT else '✗ Nicht verfügbar'}")
+        logger.info("SecurityManager initialisiert (Mode: %s)",
+                    "geteilt mit Database" if not self._owns_connection else "eigene Connection")
+        logger.info("  Datenbank: %s", self.db_path)
+        logger.info("  bcrypt: %s", '✓ Aktiv' if HAS_BCRYPT else '✗ Nicht verfügbar')
 
     def _create_user_tables(self):
         """Erstellt die Benutzertabellen falls nicht vorhanden"""
@@ -748,7 +771,16 @@ class SecurityManager:
 
 
     def close(self):
-        """Schließt die Datenbankverbindung"""
+        """Schließt die Datenbankverbindung — aber nur, wenn wir sie besitzen.
+
+        Issue #18: Falls die Connection von einer Database-Instanz geliehen
+        ist, dürfen wir sie nicht schließen (Database kümmert sich darum).
+        """
+        if not getattr(self, "_owns_connection", True):
+            return  # Connection ist geliehen, Database schließt sie
         if self.conn:
-            self.conn.close()
+            try:
+                self.conn.close()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("SecurityManager close fehlgeschlagen: %s", exc)
             logger.info("SecurityManager geschlossen")
