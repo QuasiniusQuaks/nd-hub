@@ -220,8 +220,13 @@ class MainWindow(QtWidgets.QMainWindow):
     # SECURITY
     # ============================================================
     def _init_security(self, db_path: str) -> None:
-        """Initialisiert Security."""
-        self.security = SecurityManager(db_path)
+        """Initialisiert Security.
+
+        Issue #18: Geteilte Connection mit der Database-Instanz, um
+        Lock-Contention zu vermeiden (3 parallele Connections auf
+        dieselbe Datei).
+        """
+        self.security = SecurityManager(database=self.db)
     
     def _handle_successful_login(self, username: str) -> None:
         """Zeigt Post-Login-Dialogs (Willkommen, Passwort-Warnung)"""
@@ -388,9 +393,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._apply_write_mode_to_page(current)
     
     def _init_managers(self, db_path: str) -> None:
-        """Initialisiert Business-Logic-Manager"""
-        self.verfallmanager = VerfallManager(db_path)
-        logger.info("VerfallManager initialisiert")
+        """Initialisiert Business-Logic-Manager.
+
+        Issue #18: Geteilte Connection mit der Database-Instanz für
+        VerfallManager — keine separate sqlite3-Connection mehr.
+        """
+        self.verfallmanager = VerfallManager(database=self.db)
+        logger.info("VerfallManager initialisiert (geteilt mit Database)")
     
     def _init_window(self) -> None:
         """Konfiguriert Hauptfenster"""

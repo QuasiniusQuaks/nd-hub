@@ -6,7 +6,7 @@ Version: 1.2 - Mit automatischer Synonym-Erkennung
 
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,20 +33,44 @@ class VerfallManager:
         'typ': ['typ', 'type', 'bewegungstyp', 'art']
     }
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str = "", *, database: Optional["Database"] = None):
         """
         Initialisiert den VerfallManager
 
         Args:
-            db_path: Pfad zur Datenbank
+            db_path: Pfad zur Datenbank (Legacy-Modus — eigene Connection).
+                     Wenn ``database`` übergeben wird, ist ``db_path`` optional.
+            database: Optional, eine bestehende ``Database``-Instanz. Wenn
+                      übergeben, wird deren Connection geteilt (kein Lock-Contention).
+                      Issue #18: Architektur-Audit-Befund.
+
+        Backwards-Kompatibilität:
+            Aufrufer ohne ``database``-Argument funktionieren weiterhin
+            (eigene Connection). Das ist der Default für Tests und
+            Backend-Kontexte, die keine ``Database``-Instanz haben.
         """
-        self.db_path = db_path
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
-        self.cur = self.conn.cursor()
+        if database is not None:
+            # Geteilte Connection — kein zusätzliches connect()
+            self._db = database
+            self.db_path = database.path
+            self.conn = database.conn
+            self.cur = database.cur
+            self._owns_connection = False
+        else:
+            # Legacy: eigene Connection
+            if not db_path:
+                raise TypeError(
+                    "VerfallManager benötigt entweder 'db_path' (nicht-leer) oder 'database'"
+                )
+            self._db = None
+            self.db_path = db_path
+            self.conn = sqlite3.connect(db_path, check_same_thread=False)
+            self.cur = self.conn.cursor()
+            self._owns_connection = True
 
         # Erkenne Schema mit Synonymen
         self._detect_schema_smart()
-        
+
         # OVERRIDE: Nutze 'verfall' statt 'verfallsdatum'
         self.datum_column = 'verfall'
 
@@ -57,7 +81,10 @@ class VerfallManager:
         self._create_tables()
         self._load_settings()
 
-        logger.info("VerfallManager initialisiert (Smart-Modus)")
+        logger.info(
+            "VerfallManager initialisiert (Smart-Modus, %s)",
+            "geteilt mit Database" if self._owns_connection is False else "eigene Connection",
+        )
 
     # Whitelist: Nur diese Spaltennamen sind in dynamischem SQL erlaubt
     ALLOWED_COLUMNS = frozenset([
@@ -581,7 +608,16 @@ class VerfallManager:
         return len(kritische) > 0
 
     def close(self):
-        """Schließt die Datenbankverbindung"""
+        """Schließt die Datenbankverbindung — aber nur, wenn wir sie besitzen.
+
+        Issue #18: Falls die Connection von einer Database-Instanz geliehen
+        ist, dürfen wir sie nicht schließen (Database kümmert sich darum).
+        """
+        if not getattr(self, "_owns_connection", True):
+            return  # Connection ist geliehen, Database schließt sie
         if self.conn:
-            self.conn.close()
+            try:
+                self.conn.close()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("VerfallManager close fehlgeschlagen: %s", exc)
             logger.info("VerfallManager geschlossen")
