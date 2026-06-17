@@ -200,16 +200,22 @@ class VerfallManager:
 
         except Exception as e:
             logger.error(f"Fehler beim Schema-Erkennung: {e}")
-            # Fallback-Werte
-            self.menge_column = 'menge'
-            self.datum_column = 'verfallsdatum'
-            self.typ_column = 'typ'
+            # Sicherer Fallback: Spalten NICHT hartcoden — das wäre ein Bug,
+            # wenn die Spalte im echten Schema anders heißt. Stattdessen None
+            # setzen, damit Query-Builder die Spalte überspringt und ein
+            # sprechender Fehler geworfen wird, statt SQL-Fehlermeldungen
+            # zur Laufzeit.
+            self.menge_column = None
+            self.datum_column = None
+            self.typ_column = None
             self.has_praeparate_table = False
             self.has_depots_table = False
             self.praeparat_name_column = None
             self.depot_name_column = None
             self.pzn_column = None
             self.has_pzn = False
+            # Konsistenz-Check gegen die Whitelist (Security)
+            self._validate_all_columns()
 
     def _create_tables(self):
         """Erstellt die Tabellen für Warnungs-Einstellungen"""

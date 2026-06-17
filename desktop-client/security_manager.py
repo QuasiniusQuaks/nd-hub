@@ -8,6 +8,7 @@ import sqlite3
 import os
 import logging
 import hashlib
+import hmac
 import secrets
 import shutil
 import json
@@ -213,20 +214,31 @@ class SecurityManager:
 
     @staticmethod
     def verify_password(password: str, password_hash: str) -> bool:
-        """Verifiziert ein Passwort gegen seinen Hash"""
+        """Verifiziert ein Passwort gegen seinen Hash.
+
+        Security-Hinweis: Der Vergleich nutzt ``hmac.compare_digest`` statt
+        ``==``, um Timing-Attacken zu verhindern. Beide Iterationszählungen
+        (modern 600k + legacy 100k) werden parallel berechnet, damit die
+        Funktion *unabhängig* vom Hash-Format eine konstante Laufzeit hat —
+        ein Angreifer kann nicht aus der Antwortzeit auf das Hash-Format
+        oder Teile des Hashes schließen.
+        """
         if not password_hash:
             return False
         try:
             if HAS_BCRYPT and password_hash.startswith('$2'):
                 return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
-            else:
-                salt = bytes.fromhex(password_hash[:64])
-                
-                # Check for modern 600k iterations
-                if hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 600000).hex() == password_hash[64:]:
-                    return True
-                # Check legacy 100k iterations fallback
-                return hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000).hex() == password_hash[64:]
+            salt = bytes.fromhex(password_hash[:64])
+            password_bytes = password.encode('utf-8')
+
+            # Beide Varianten berechnen — konstante Zeit unabhängig vom Treffer
+            modern = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 600000).hex()
+            legacy = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 100000).hex()
+
+            # Constant-time compare gegen BEIDE möglichen Hash-Suffixe
+            modern_match = hmac.compare_digest(modern, password_hash[64:])
+            legacy_match = hmac.compare_digest(legacy, password_hash[64:])
+            return modern_match or legacy_match
         except Exception as e:
             logger.error(f"Passwort-Verifikation fehlgeschlagen: {e}")
             return False
