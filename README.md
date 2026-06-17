@@ -238,6 +238,12 @@ ND-Hub Plattform
 │   ├── Operative Fachprozesse (Depots, Praeparate, Bewegungen, Verfall)
 │   ├── Reporting & Exporte
 │   ├── Security / Audit / Backup
+│   ├── Core-Module (core/) — zentrale, wiederverwendbare Bausteine
+│   │   ├── sync_worker.py     — UI-Thread-entkoppelter Background-Sync (QRunnable)
+│   │   ├── secure_token_store.py — sichere Token-Persistenz (keyring + Fernet-Fallback)
+│   │   ├── error_handler.py   — einheitliche Fehlerbehandlung
+│   │   ├── exception_decorators.py — swallow_exceptions-Decorator-Familie
+│   │   └── cache_helpers.py   — TTL-Cache-Wrapper (cachetools) für Instanzmethoden
 │   └── Lokale Datenhaltung (SQLite, optimiert)
 └── Webanwendung (FastAPI + React/Vite)
     ├── API-zentrierte Fachlogik
@@ -245,6 +251,46 @@ ND-Hub Plattform
     ├── Containerbetrieb (Docker)
     └── Datenpfad SQLite <-> MariaDB (Cutover/Go-Live dokumentiert)
 ```
+
+---
+
+## Architektur-Audit & Code-Qualität (2026-06)
+
+Das Repository wird regelmäßig einem systematischen Architektur-Audit unterzogen.
+Befunde, Fixes und Diskussionen sind direkt auf GitHub dokumentiert.
+
+### Audit-Ergebnisse
+
+| Audit | Issues gesamt | P0 | P1 | P2 | Roadmap |
+|---|---|---|---|---|---|
+| [2026-06](docs/ARCHITEKTUR_AUDIT_ROADMAP.md) | 15 | 4 | 6 | 5 | ✅ abgeschlossen |
+
+### Wichtigste Fixes aus dem Audit 2026-06
+
+- **Security-Härtung** ([#1](https://github.com/QuasiniusQuaks/nd-hub/pull/1)) — SQL-Parametrisierung, SSRF-Validierung, Secret-Handling, Bandit-Konfig, Smoke-Tests
+- **Token-Speicherung** ([#21](https://github.com/QuasiniusQuaks/nd-hub/pull/21)) — keyring mit Fernet-Fallback statt Klartext
+- **Heatmap-O(1)-Lookups** ([#20](https://github.com/QuasiniusQuaks/nd-hub/pull/20)) — Performance-Optimierung der Auswertungs-Matrix
+- **UI-Thread-Entkopplung** ([#22](https://github.com/QuasiniusQuaks/nd-hub/pull/22)) — QThreadPool statt blockierender Sync
+- **Passwort-Timing-Hardening** ([#24](https://github.com/QuasiniusQuaks/nd-hub/pull/24)) — `hmac.compare_digest`, konstante Laufzeit
+- **Schema-Fallback-Sicherheit** ([#24](https://github.com/QuasiniusQuaks/nd-hub/pull/24)) — keine hartcodierten Spaltennamen bei Schema-Erkennung
+- **Quick-Wins-Bundle** ([#23](https://github.com/QuasiniusQuaks/nd-hub/pull/23)) — 93 ungenutzte Imports, tote Cache-Felder, Logging-Fallback
+- **Architektur-Refactor** ([#25](https://github.com/QuasiniusQuaks/nd-hub/pull/25)) — lru_cache-Doku, Exception-Decorator-Modul, TTL-Cache-Helper
+
+### Lokale Entwicklung
+
+```bash
+# Linting
+ruff check desktop-client/ --select F401        # ungenutzte Imports
+bandit -r desktop-client/ -c desktop-client/.bandit.yml   # Security
+
+# Tests
+pytest desktop-client/tests/unit/ -v
+```
+
+### Issue-Workflow
+
+Befunde, Bug-Reports und Architektur-Reviews werden direkt auf GitHub
+gepflegt. Format-Vorlage siehe [docs/PULL_REQUEST_TEMPLATE.md](docs/PULL_REQUEST_TEMPLATE.md).
 
 ---
 
