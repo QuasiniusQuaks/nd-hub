@@ -7,10 +7,18 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Optional, Protocol, Tuple
 from urllib import error, request
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 
 logger = logging.getLogger("ND-Hub.DataAccess")
+
+
+def _require_http_scheme(url: str) -> str:
+    """Validiert dass die URL nur http/https verwendet (SSRF-Schutz)."""
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"URL scheme not allowed: {url}")
+    return url
 
 
 class OperatingMode(str, Enum):
@@ -61,9 +69,9 @@ class BackendApiClient:
         if not self.is_configured():
             return False
         url = f"{self.config.normalized_base_url}{self.config.health_endpoint}"
-        req = request.Request(url, method="GET", headers=self._headers())
+        req = request.Request(_require_http_scheme(url), method="GET", headers=self._headers())
         try:
-            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:
+            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:  # nosec B310: URL scheme validated by _require_http_scheme  # nosec B310: URL scheme validated by _require_http_scheme  # nosec B310: URL scheme validated by _require_http_scheme
                 return 200 <= response.status < 300
         except (error.URLError, TimeoutError, OSError) as exc:
             logger.info("Backend-Healthcheck nicht erreichbar: %s", exc)
@@ -130,13 +138,13 @@ class BackendApiClient:
         url = f"{self.config.normalized_base_url}{route_path}"
         body = json.dumps(payload).encode("utf-8")
         req = request.Request(
-            url,
+            _require_http_scheme(url),
             data=body,
             method="POST",
             headers=self._headers(content_type="application/json"),
         )
         try:
-            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:
+            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:  # nosec B310: URL scheme validated by _require_http_scheme
                 raw = response.read().decode("utf-8")
                 return json.loads(raw) if raw else {}
         except error.HTTPError as exc:
@@ -149,9 +157,9 @@ class BackendApiClient:
         if not self.is_configured():
             raise RuntimeError("Backend-URL ist nicht konfiguriert")
         url = f"{self.config.normalized_base_url}{route_path}"
-        req = request.Request(url, method="GET", headers=self._headers())
+        req = request.Request(_require_http_scheme(url), method="GET", headers=self._headers())
         try:
-            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:
+            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:  # nosec B310: URL scheme validated by _require_http_scheme
                 raw = response.read().decode("utf-8")
                 return json.loads(raw) if raw else {}
         except error.HTTPError as exc:

@@ -154,7 +154,7 @@ class PPTExportDialog(QtWidgets.QDialog):
             self.accept()
             # Open automatically
             if hasattr(os, "startfile"):
-                os.startfile(file_path)
+                os.startfile(file_path)  # nosec B606: opens user-selected output file with OS default app
         except ModuleNotFoundError as e:
             if "pptx" in str(e):
                 QtWidgets.QMessageBox.warning(

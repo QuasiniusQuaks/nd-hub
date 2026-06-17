@@ -26,7 +26,7 @@ def _ensure_venv():
     if os.path.exists(venv_python) and not in_venv:
         # Re-execute mit VENV-Python
         print(f"[*] Starte ND-Hub in virtueller Umgebung: {venv_python}")
-        os.execv(venv_python, [venv_python] + sys.argv)
+        os.execv(venv_python, [venv_python] + sys.argv)  # nosec B606: self-reexec into local venv, no shell
 
 _ensure_venv()
 # ---------------------------

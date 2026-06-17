@@ -71,20 +71,24 @@ class PPTGenerator:
         quote = (sum_ist / sum_soll * 100) if sum_soll > 0 else 0
         
         # Verfalls-KPI (Nächste 3 Monate)
-        placeholders = ','.join('?' * len(depots)) if depots else 'NULL'
-        where_clause = f"depot_id IN ({placeholders})" if depots else "1=1"
-        params = depots if depots else []
-        
-        sql = f"""
-            SELECT SUM(anzahl)
-            FROM bewegungen
-            WHERE {where_clause}
-              AND typ = 'Zugang'
-              AND (ausgang_datum IS NULL OR ausgang_datum = '')
-              AND verfall IS NOT NULL
-              AND verfall != ''
-              AND verfall <= ?
-        """
+        if depots:
+            placeholders = ','.join('?' * len(depots))
+            where_clause = "depot_id IN (" + placeholders + ")"
+            params = list(depots)
+        else:
+            where_clause = "1=1"
+            params = []
+
+        sql = (  # nosec B608: where_clause is built from ? placeholders or literal 1=1
+            "SELECT SUM(anzahl)\n"
+            "FROM bewegungen\n"
+            "WHERE " + where_clause + "\n"  # nosec B608: where_clause built from ? placeholders or literal 1=1
+            "  AND typ = 'Zugang'\n"
+            "  AND (ausgang_datum IS NULL OR ausgang_datum = '')\n"
+            "  AND verfall IS NOT NULL\n"
+            "  AND verfall != ''\n"
+            "  AND verfall <= ?"
+        )
         in_3_months = (date.today() + relativedelta(months=3)).strftime("%Y-%m-%d")
         res = self.db.cur.execute(sql, params + [in_3_months]).fetchone()
         gef_verfall = res[0] if res and res[0] else 0

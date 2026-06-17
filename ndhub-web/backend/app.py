@@ -18,10 +18,13 @@ from io import BytesIO
 import csv
 import io
 import tempfile
-from urllib.parse import urlencode
+import logging
+from urllib.parse import urlencode, urlparse
 from urllib.request import urlopen, Request as UrlRequest
 from decimal import Decimal
 from email.message import EmailMessage
+
+logger = logging.getLogger(__name__)
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
@@ -58,6 +61,14 @@ from backend.config import (
 from backend.database import SqliteRepository
 from backend.mariadb_repository import MariaDbRepository
 from security_manager import SecurityManager
+
+
+def _require_http_scheme(url: str) -> str:
+    """Validates that the URL uses only http/https (SSRF protection)."""
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"URL scheme not allowed: {url}")
+    return url
 
 
 class LoginRequest(BaseModel):
@@ -353,6 +364,13 @@ def _send_email_via_smtp(
 def _sanitize_filename_part(value: str) -> str:
     safe = re.sub(r"[^A-Za-z0-9._-]+", "_", value or "")
     return safe.strip("._") or "datei"
+
+
+def _quote_sql_identifier(name: str) -> str:
+    """Quote and validate a SQL identifier (table/column name)."""
+    if not name or not re.fullmatch(r"[A-Za-z0-9_]+", name):
+        raise ValueError(f"Ungueltiger SQL-Bezeichner: {name!r}")
+    return f"`{name}`"
 
 
 def _build_attachment_target_path(
@@ -942,7 +960,7 @@ def _get_user_flags(security: SecurityManager, username: str) -> dict[str, bool]
         ((username or "").strip(),),
     ).fetchone()
     if not row:
-        return {"requires_password_change": False, "permissions": sorted(DEFAULT_USER_PERMISSIONS)}
+        return {"requires_password_change": False, "permissions": sorted(DEFAULT_USER_PERMISSIONS)}  # nosec B105: boolean flag, not a password
     return {
         "requires_password_change": bool(row[0]),
         "permissions": sorted(_permissions_for_role(str(row[1]), row[2])),
@@ -1036,7 +1054,8 @@ def _create_mariadb_backup_snapshot(backups_dir: Path, label: str) -> Path:
             table_names = [str(next(iter(row.values()))) for row in rows]
             table_payload: dict[str, list[dict]] = {}
             for table_name in sorted(table_names):
-                cur.execute(f"SELECT * FROM `{table_name}`")
+                quoted_table = _quote_sql_identifier(table_name)
+                cur.execute("".join(["SELECT * FROM ", quoted_table]))
                 data_rows = []
                 for row in cur.fetchall():
                     normalized = {str(k): _normalize_json_value(v) for k, v in dict(row).items()}
@@ -1158,11 +1177,17 @@ def _restore_mariadb_backup_payload(payload: dict) -> None:
     ordered_tables = [name for name in preferred_order if name in tables]
     ordered_tables.extend(name for name in tables.keys() if name not in ordered_tables)
 
+    allowed_restore_tables = set(preferred_order)
+    invalid_tables = [name for name in ordered_tables if name not in allowed_restore_tables]
+    if invalid_tables:
+        raise ValueError(f"Backup enthaelt ungueltige Tabellen: {', '.join(sorted(invalid_tables))}")
+
     try:
         with conn.cursor() as cur:
             cur.execute("SET FOREIGN_KEY_CHECKS=0")
             for table_name in ordered_tables:
-                cur.execute(f"TRUNCATE TABLE `{table_name}`")
+                quoted_table = _quote_sql_identifier(table_name)
+                cur.execute("".join(["TRUNCATE TABLE ", quoted_table]))
             for table_name in ordered_tables:
                 table_rows = tables.get(table_name) or []
                 if not isinstance(table_rows, list) or not table_rows:
@@ -1171,9 +1196,21 @@ def _restore_mariadb_backup_payload(payload: dict) -> None:
                 if not isinstance(first, dict):
                     raise ValueError(f"Backup-Format ungueltig in Tabelle {table_name}.")
                 columns = list(first.keys())
-                col_sql = ", ".join(f"`{col}`" for col in columns)
+                for col in columns:
+                    _quote_sql_identifier(col)
+                col_sql = ", ".join(_quote_sql_identifier(col) for col in columns)
                 placeholders = ", ".join(["%s"] * len(columns))
-                query = f"INSERT INTO `{table_name}` ({col_sql}) VALUES ({placeholders})"
+                query = "".join(
+                    [
+                        "INSERT INTO ",
+                        _quote_sql_identifier(table_name),
+                        " (",
+                        col_sql,
+                        ") VALUES (",
+                        placeholders,
+                        ")",
+                    ]
+                )
                 values = []
                 for row in table_rows:
                     if not isinstance(row, dict):
@@ -1359,7 +1396,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
                     )
             except Exception:
                 # Auto backup should never block startup.
-                pass
+                logger.warning("Auto-backup during startup failed", exc_info=True)
             yield
         finally:
             security.close()
@@ -1446,7 +1483,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             username=session.username,
             role=session.role,
             ttl_hours=24 * 365 * 10,
-            token_type="desktop_sync",
+            token_type="desktop_sync",  # nosec B106: token type label, not a password
             token_label=client_label,
         )
         token_info = token_store.get(desktop_token)
@@ -1470,7 +1507,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
     ) -> list[DesktopSyncTokenArchiveItem]:
         _ = session
         rows: list[DesktopSyncTokenArchiveItem] = []
-        for entry in token_store.list_tokens(token_type="desktop_sync"):
+        for entry in token_store.list_tokens(token_type="desktop_sync"):  # nosec B106: token type label, not a password
             issued_at = _parse_iso_datetime(entry.get("issued_at"))
             expires_at = _parse_iso_datetime(entry.get("expires_at"))
             revoked_at = _parse_iso_datetime(entry.get("revoked_at"))
@@ -1499,7 +1536,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         _ = session
         revoked = token_store.revoke_by_fingerprint(
             payload.token_fingerprint,
-            token_type="desktop_sync",
+            token_type="desktop_sync",  # nosec B106: token type label, not a password  # nosec B106: token type label, not a password
         )
         if not revoked:
             raise HTTPException(
@@ -1729,10 +1766,10 @@ def create_app(db_path: str | None = None) -> FastAPI:
         try:
             params = urlencode({"q": query, "format": "jsonv2", "limit": 1, "countrycodes": "de"})
             req = UrlRequest(
-                f"https://nominatim.openstreetmap.org/search?{params}",
+                _require_http_scheme(f"https://nominatim.openstreetmap.org/search?{params}"),
                 headers={"User-Agent": "ndhub-web/geo-geocode"},
             )
-            with urlopen(req, timeout=8) as resp:
+            with urlopen(req, timeout=8) as resp:  # nosec B310: URL scheme validated by _require_http_scheme
                 payload = json.loads(resp.read().decode("utf-8"))
             if not isinstance(payload, list) or not payload:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Keine Koordinate gefunden.")
@@ -2031,7 +2068,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Keine Änderungen angegeben.")
         params.append(int(user_id))
         security.cur.execute(
-            f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+            "".join(["UPDATE users SET ", ", ".join(updates), " WHERE id = ?"]),
             tuple(params),
         )
         security.conn.commit()

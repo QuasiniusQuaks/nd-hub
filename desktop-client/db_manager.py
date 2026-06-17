@@ -59,12 +59,12 @@ class DB:
     TYP_VERNICHTUNG = "Vernichtung"
     SETTING_AUTO_BACKUP = "auto_backup"
     SETTING_LETZTES_BACKUP = "letztes_backup"
-    SETTING_PASSWORD_HASH = "password_hash"
+    SETTING_PASSWORD_HASH = "password_hash"  # gitleaks:allow nosec B105: settings KEY name, not a secret
     SETTING_MAX_BACKUPS = "max_backups"
     SETTING_SMTP_HOST = "smtp_host"
     SETTING_SMTP_PORT = "smtp_port"
     SETTING_SMTP_USERNAME = "smtp_username"
-    SETTING_SMTP_PASSWORD = "smtp_password"
+    SETTING_SMTP_PASSWORD = "smtp_password"  # gitleaks:allow nosec B105: settings KEY name, not a secret
     SETTING_SMTP_USE_TLS = "smtp_use_tls"
     SETTING_SMTP_USE_SSL = "smtp_use_ssl"
     SETTING_SMTP_FROM_ADDRESS = "smtp_from_address"
@@ -571,7 +571,7 @@ class Database:
             try:
                 self.cur.execute("ROLLBACK")
             except Exception:
-                pass
+                logger.warning("Rollback after ID-Remap failure failed", exc_info=True)
             logger.exception(
                 "ID-Remap fehlgeschlagen: entity=%s old=%s new=%s",
                 safe_entity,
@@ -1508,15 +1508,17 @@ class Database:
         # Scanner-Schutz (False Positive Prävention): Typisierung erzwingen
         safe_depot_ids = tuple(int(d) for d in depot_ids)
         placeholders = ','.join('?' * len(safe_depot_ids))
+        # Placeholders are exclusively '?' generated from the count of
+        # already-validated integer IDs; no user input reaches the SQL.
         sql = f"""
             SELECT k.id, k.name, k.rolle, k.email, d.name as depot_name, d.id as depot_id
             FROM kontakte k
             JOIN depots d ON d.id = k.depot_id
             WHERE k.depot_id IN ({placeholders})
-              AND k.email IS NOT NULL 
+              AND k.email IS NOT NULL
               AND k.email != ''
             ORDER BY d.name, k.name
-        """
+        """  # nosec B608
         return self.cur.execute(sql, safe_depot_ids).fetchall()
 
     def add_email_verlauf(

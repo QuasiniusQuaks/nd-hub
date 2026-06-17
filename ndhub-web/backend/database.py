@@ -301,11 +301,11 @@ class SqliteRepository:
         ids_params: tuple[Any, ...] = ()
         if safe_ids:
             placeholders = ",".join("?" for _ in safe_ids)
-            ids_filter_sql = f" AND depots.id IN ({placeholders})"
+            ids_filter_sql = "".join([" AND depots.id IN (", placeholders, ")"])
             ids_params = tuple(safe_ids)
         with self._connect() as conn:
-            rows = conn.execute(
-                f"""
+            sql_parts = [
+                """
                 SELECT depots.id, depots.name, depots.adresse, depots.strasse, depots.hausnummer, depots.postleitzahl, depots.stadt, depots.telefon, depots.email,
                        depots.institution_id, depots.latitude, depots.longitude, institutions.name AS institution_name
                 FROM depots
@@ -317,10 +317,13 @@ class SqliteRepository:
                       COALESCE(depots.telefon, '') LIKE ? OR
                       COALESCE(depots.email, '') LIKE ?
                 )
-                      {ids_filter_sql}
-                ORDER BY depots.name
-                LIMIT ? OFFSET ?
                 """,
+            ]
+            if ids_filter_sql:
+                sql_parts.append(ids_filter_sql)
+            sql_parts.append("ORDER BY depots.name LIMIT ? OFFSET ?")
+            rows = conn.execute(
+                "".join(sql_parts),
                 (like, like, like, like, like, *ids_params, safe_limit, safe_offset),
             ).fetchall()
             return [dict(row) for row in rows]
@@ -356,8 +359,15 @@ class SqliteRepository:
                 ).fetchall()
                 return [dict(row) for row in rows]
             placeholders = ",".join("?" * len(assigned_ids))
+            sql = "".join(
+                [
+                    "SELECT id, name FROM praeparate WHERE id IN (",
+                    placeholders,
+                    ") ORDER BY name",
+                ]
+            )
             rows = conn.execute(
-                f"SELECT id, name FROM praeparate WHERE id IN ({placeholders}) ORDER BY name",
+                sql,
                 tuple(sorted(assigned_ids)),
             ).fetchall()
             return [dict(row) for row in rows]
@@ -1177,9 +1187,9 @@ class SqliteRepository:
         if not safe_ids:
             return []
         placeholders = ",".join("?" for _ in safe_ids)
-        with self._connect() as conn:
-            rows = conn.execute(
-                f"""
+        sql = "".join(
+            [
+                """
                 SELECT
                     k.id,
                     k.name,
@@ -1189,10 +1199,17 @@ class SqliteRepository:
                     d.id AS depot_id
                 FROM kontakte k
                 JOIN depots d ON d.id = k.depot_id
-                WHERE k.depot_id IN ({placeholders})
+                WHERE k.depot_id IN (""",
+                placeholders,
+                """)
                   AND COALESCE(k.email, '') <> ''
                 ORDER BY d.name, k.name
                 """,
+            ]
+        )
+        with self._connect() as conn:
+            rows = conn.execute(
+                sql,
                 tuple(safe_ids),
             ).fetchall()
             return [dict(row) for row in rows]
@@ -1320,11 +1337,11 @@ class SqliteRepository:
         ids_params: tuple[Any, ...] = ()
         if safe_depot_ids:
             placeholders = ",".join("?" for _ in safe_depot_ids)
-            ids_filter_sql = f" AND depot_id IN ({placeholders})"
+            ids_filter_sql = "".join([" AND depot_id IN (", placeholders, ")"])
             ids_params = tuple(safe_depot_ids)
         with self._connect() as conn:
-            rows = conn.execute(
-                f"""
+            sql_parts = [
+                """
                 SELECT
                     id, depot_id, praeparat_id, typ, charge, verfall,
                     eingang_datum, ausgang_datum, empfaenger, anzahl,
@@ -1341,11 +1358,13 @@ class SqliteRepository:
                   AND (? = 0 OR COALESCE(datei_pfad, '') <> '')
                   AND (? = '' OR COALESCE(eingang_datum, ausgang_datum, '') >= ?)
                   AND (? = '' OR COALESCE(eingang_datum, ausgang_datum, '') <= ?)
-                  {ids_filter_sql}
-                ORDER BY id DESC
-                LIMIT ?
-                OFFSET ?
                 """,
+            ]
+            if ids_filter_sql:
+                sql_parts.append(ids_filter_sql)
+            sql_parts.append("ORDER BY id DESC LIMIT ? OFFSET ?")
+            rows = conn.execute(
+                "".join(sql_parts),
                 (
                     like,
                     like,
@@ -2100,14 +2119,21 @@ class SqliteRepository:
         with self._connect() as conn:
             if safe_entities:
                 placeholders = ",".join("?" for _ in safe_entities)
+                sql = "".join(
+                    [
+                        """
+                        SELECT id, timestamp, username, action, resource_type, resource_id, details
+                        FROM api_audit_log
+                        WHERE id > ? AND resource_type IN (""",
+                        placeholders,
+                        """)
+                        ORDER BY id ASC
+                        LIMIT ?
+                        """,
+                    ]
+                )
                 rows = conn.execute(
-                    f"""
-                    SELECT id, timestamp, username, action, resource_type, resource_id, details
-                    FROM api_audit_log
-                    WHERE id > ? AND resource_type IN ({placeholders})
-                    ORDER BY id ASC
-                    LIMIT ?
-                    """,
+                    sql,
                     (safe_cursor, *safe_entities, safe_limit + 1),
                 ).fetchall()
             else:

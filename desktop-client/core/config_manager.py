@@ -60,7 +60,7 @@ class ConfigManager:
         self.config['General']['theme'] = "light"
         self.config['General']['operating_mode'] = "local_only"
         self.config['General']['backend_url'] = ""
-        self.config['General']['backend_token'] = ""
+        self.config['General']['backend_token'] = ""  # nosec B105: empty default, user must configure
         self.config['General']['sync_interval_seconds'] = "120"
         self.config['General']['sync_cursor'] = "0"
 

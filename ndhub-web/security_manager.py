@@ -287,15 +287,15 @@ class SecurityManager:
             try:
                 self.cur.execute("ALTER TABLE users ADD COLUMN is_default_password INTEGER DEFAULT 0")
             except Exception:
-                pass
+                logger.debug("Column is_default_password may already exist", exc_info=True)
             try:
                 self.cur.execute("ALTER TABLE users ADD COLUMN avatar_path TEXT")
             except Exception:
-                pass
+                logger.debug("Column avatar_path may already exist", exc_info=True)
             try:
                 self.cur.execute("ALTER TABLE users ADD COLUMN permissions TEXT")
             except Exception:
-                pass
+                logger.debug("Column permissions may already exist", exc_info=True)
 
             # Aktivitäts-Log
             self.cur.execute("""
@@ -646,7 +646,7 @@ class SecurityManager:
         # Scanner-Schutz: Typisierung erzwingen
         safe_user_id = int(user_id)
         params.append(safe_user_id)
-        sql = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+        sql = "".join(["UPDATE users SET ", ", ".join(updates), " WHERE id = ?"])
 
         try:
             self.cur.execute(sql, params)

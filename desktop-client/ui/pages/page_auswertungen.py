@@ -1175,26 +1175,26 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         # Wir können direkt SQLite nutzen, um die Verfalldaten zu gruppieren
         placeholders = ','.join('?' * len(selected_ids))
-        
-        if self.radio_depot.isChecked():
-            where_clause = f"b.depot_id IN ({placeholders})"
-        else:
-            where_clause = f"b.praeparat_id IN ({placeholders})"
 
         # Zähle alle noch nicht abgegangenen Chargen, gruppiert nach Verfallsmonat
-        sql = f"""
-            SELECT 
-                strftime('%Y-%m', b.verfall) as verfall_monat,
-                SUM(b.anzahl) as anzahl
-            FROM bewegungen b
-            WHERE {where_clause}
-              AND b.typ = 'Zugang'
-              AND (b.ausgang_datum IS NULL OR b.ausgang_datum = '')
-              AND b.verfall IS NOT NULL
-              AND b.verfall != ''
-            GROUP BY verfall_monat
-            ORDER BY verfall_monat
-        """
+        if self.radio_depot.isChecked():
+            where_clause = "b.depot_id IN (" + placeholders + ")"
+        else:
+            where_clause = "b.praeparat_id IN (" + placeholders + ")"
+
+        sql = (  # nosec B608: where_clause is built from ? placeholders only
+            "SELECT\n"
+            "    strftime('%Y-%m', b.verfall) as verfall_monat,\n"
+            "    SUM(b.anzahl) as anzahl\n"
+            "FROM bewegungen b\n"
+            "WHERE " + where_clause + "\n"  # nosec B608: where_clause built from ? placeholders only
+            "  AND b.typ = 'Zugang'\n"
+            "  AND (b.ausgang_datum IS NULL OR b.ausgang_datum = '')\n"
+            "  AND b.verfall IS NOT NULL\n"
+            "  AND b.verfall != ''\n"
+            "GROUP BY verfall_monat\n"
+            "ORDER BY verfall_monat"
+        )
         
         data = self.db.cur.execute(sql, selected_ids).fetchall()
 

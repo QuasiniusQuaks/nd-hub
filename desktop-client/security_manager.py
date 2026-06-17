@@ -479,7 +479,9 @@ class SecurityManager:
         # Scanner-Schutz: Typisierung erzwingen
         safe_user_id = int(user_id)
         params.append(safe_user_id)
-        sql = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+        # SET clauses are hardcoded "<column> = ?" strings from an explicit
+        # allow-list; only the values are parameterized and user-controlled.
+        sql = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"  # nosec B608
 
         try:
             self.cur.execute(sql, params)
