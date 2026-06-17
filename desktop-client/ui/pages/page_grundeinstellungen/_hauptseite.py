@@ -3,6 +3,7 @@ import os
 import logging
 import sqlite3
 import shutil
+import sys
 import time
 from urllib import error, request
 from urllib.parse import urlparse
@@ -16,6 +17,7 @@ from icon_manager import IconManager
 from apple_theme import AppleTheme
 from ui.utils import create_card_widget
 from core.data_access_layer import BackendApiClient, BackendSyncConfig, OperatingMode
+from core.backup_worker import BackupRestoreRunner
 
 
 # Sub-Module (extrahierte Klassen)
@@ -1248,25 +1250,33 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             self.btn_restore_backup.setEnabled(True)
 
     def restore_backup(self):
-        """Backup zurückspielen - OHNE Dateien zu löschen (überschreiben stattdessen)"""
+        """Backup zurückspielen - OHNE Dateien zu löschen (überschreiben stattdessen)
+
+        Issue #7: Die schwere Arbeit (WAL-Checkpoint, File-Copy, Verifikation)
+        läuft im UI-Thread, aber ``time.sleep`` wurde durch ``QApplication.
+        processEvents()``-Polling ersetzt, damit die UI responsive bleibt.
+        Für eine vollständige Auslagerung in einen Worker-Thread siehe
+        ``BackupRestoreRunner`` (core/backup_worker.py) — das ist der
+        Migrationspfad, falls der Restore jemals >5 Sekunden braucht.
+        """
         if self._is_read_only_mode():
             QtWidgets.QMessageBox.warning(self, "Nur-Lesen Modus", "Backup-Wiederherstellung ist nur mit Schreibzugriff möglich.")
             return
         restore_file = self.restore_path_input.text().strip()
-        
+
         if not restore_file or not os.path.exists(restore_file):
             QtWidgets.QMessageBox.warning(self, "Fehler", "Bitte eine gültige Backup-Datei auswählen.")
             return
-        
+
         # Backup-Info anzeigen
         backup_size = os.path.getsize(restore_file) / 1024
         backup_time = datetime.fromtimestamp(os.path.getmtime(restore_file))
         current_size = os.path.getsize(self.db.path) / 1024
-        
+
         # Backup verifizieren
         backup_verified = self._verify_backup(restore_file)
         verify_text = "Verifiziert" if backup_verified else "⚠ Nicht verifiziert (möglicherweise beschädigt)"
-        
+
         if not backup_verified:
             reply = QtWidgets.QMessageBox.warning(
                 self,
@@ -1279,7 +1289,7 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             )
             if reply != QtWidgets.QMessageBox.Yes:
                 return
-        
+
         # Bestätigung anfordern
         info_msg = (
             f"ACHTUNG: Alle aktuellen Daten werden überschrieben!\n\n"
@@ -1291,7 +1301,7 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             f"Ein Notfall-Backup wird vor dem Restore erstellt.\n\n"
             f"Möchten Sie fortfahren?"
         )
-        
+
         reply = QtWidgets.QMessageBox.question(
             self,
             "Backup wiederherstellen",
@@ -1299,55 +1309,55 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
             QtWidgets.QMessageBox.No
         )
-        
+
         if reply != QtWidgets.QMessageBox.Yes:
             return
-        
+
         emergency_backup = None
-        
+
         try:
-            print("\n" + "="*50)
-            print("BACKUP-WIEDERHERSTELLUNG GESTARTET")
-            print("="*50)
-            
+            logger.info("=" * 50)
+            logger.info("BACKUP-WIEDERHERSTELLUNG GESTARTET")
+            logger.info("=" * 50)
+
             # 1. WAL-Checkpoint
-            print("1. WAL-Checkpoint wird durchgeführt...")
+            logger.info("1. WAL-Checkpoint wird durchgeführt...")
             try:
                 result = self.db.cur.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-                print(f"   WAL-Checkpoint: {result}")
+                logger.info("   WAL-Checkpoint: %s", result)
                 self.db.conn.commit()
             except Exception as e:
-                print(f"   ⚠ WAL-Checkpoint Fehler: {e}")
-            
+                logger.warning("   WAL-Checkpoint Fehler: %s", e)
+
             # 2. Cursor und Connection explizit schließen
-            print("2. Datenbank wird geschlossen...")
+            logger.info("2. Datenbank wird geschlossen...")
             try:
                 if hasattr(self.db, 'cur') and self.db.cur:
                     self.db.cur.close()
                     self.db.cur = None
-                    print("   Cursor geschlossen")
+                    logger.info("   Cursor geschlossen")
             except Exception as e:
-                print(f"   ⚠ Cursor-Fehler: {e}")
-            
+                logger.warning("   Cursor-Fehler: %s", e)
+
             try:
                 if hasattr(self.db, 'conn') and self.db.conn:
                     self.db.conn.close()
                     self.db.conn = None
-                    print("   Connection geschlossen")
+                    logger.info("   Connection geschlossen")
             except Exception as e:
-                print(f"   ⚠ Connection-Fehler: {e}")
-            
+                logger.warning("   Connection-Fehler: %s", e)
+
             # 3. Garbage Collection erzwingen
             import gc
             gc.collect()
-            print("   Garbage Collection durchgeführt")
-            
-            # 4. Längere Pause für Windows File-System
-            print("3. Warte auf File-System-Freigabe...")
-            time.sleep(2)
-            
+            logger.info("   Garbage Collection durchgeführt")
+
+            # 4. Pause für Windows File-System — ABER UI-responsive via processEvents
+            logger.info("3. Warte auf File-System-Freigabe...")
+            self._busy_sleep(2.0)  # 2 Sek warten, aber UI verarbeitet Events
+
             # 5. Notfall-Backup der aktuellen DB erstellen
-            print("4. Notfall-Backup wird erstellt...")
+            logger.info("4. Notfall-Backup wird erstellt...")
             emergency_backup = self.db.path + ".before_restore"
             if os.path.exists(self.db.path):
                 # Altes Notfall-Backup löschen falls vorhanden
@@ -1355,74 +1365,78 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
                     try:
                         os.remove(emergency_backup)
                     except Exception as exc:
-                        print(f"   ⚠ Konnte altes Notfall-Backup nicht löschen: {exc}")
+                        logger.warning("   Konnte altes Notfall-Backup nicht löschen: %s", exc)
                 shutil.copy2(self.db.path, emergency_backup)
-                print(f"   Gesichert nach: {emergency_backup}")
-            
+                logger.info("   Gesichert nach: %s", emergency_backup)
+
             # 6. WAL/SHM-Dateien löschen (diese MÜSSEN weg)
-            print("5. WAL/SHM-Dateien werden gelöscht...")
+            logger.info("5. WAL/SHM-Dateien werden gelöscht...")
             wal_file = self.db.path + "-wal"
             shm_file = self.db.path + "-shm"
             journal_file = self.db.path + "-journal"
-            
+
             for db_file in [wal_file, shm_file, journal_file]:
                 if os.path.exists(db_file):
                     deleted = False
                     for attempt in range(5):
                         try:
                             os.remove(db_file)
-                            print(f"   Gelöscht: {os.path.basename(db_file)}")
+                            logger.info("   Gelöscht: %s", os.path.basename(db_file))
                             deleted = True
                             break
                         except PermissionError:
                             if attempt < 4:
-                                print(f"   ⚠ Versuch {attempt + 1}/5: Warte...")
-                                time.sleep(1)
+                                logger.warning("   Versuch %d/5: Warte...", attempt + 1)
+                                self._busy_sleep(1.0)
                             else:
-                                print(f"   ⚠ Konnte nicht gelöscht werden (wird beim Restore überschrieben): {os.path.basename(db_file)}")
+                                logger.warning(
+                                    "   Konnte nicht gelöscht werden (wird beim Restore überschrieben): %s",
+                                    os.path.basename(db_file),
+                                )
                         except Exception as e:
-                            print(f"   ⚠ Fehler: {e}")
+                            logger.warning("   Fehler: %s", e)
                             break
-            
+
             # 7. Hauptdatenbank ÜBERSCHREIBEN (nicht löschen!)
-            print("6. Backup wird wiederhergestellt (überschreibt alte Datei)...")
-            
+            logger.info("6. Backup wird wiederhergestellt (überschreibt alte Datei)...")
+
             # Mehrere Versuche zum Überschreiben
             restored = False
+            restored_size = 0.0
             for attempt in range(10):
                 try:
                     shutil.copy2(restore_file, self.db.path)
                     restored_size = os.path.getsize(self.db.path) / 1024
-                    print(f"   Wiederhergestellt: {restored_size:.1f} KB")
+                    logger.info("   Wiederhergestellt: %.1f KB", restored_size)
                     restored = True
                     break
                 except PermissionError:
                     if attempt < 9:
-                        print(f"   ⚠ Versuch {attempt + 1}/10: Datei noch gesperrt, warte...")
-                        time.sleep(1)
+                        logger.warning("   Versuch %d/10: Datei noch gesperrt, warte...", attempt + 1)
+                        self._busy_sleep(1.0)
                     else:
                         raise Exception("Datei konnte nach 10 Versuchen nicht überschrieben werden!")
                 except Exception as e:
                     raise Exception(f"Fehler beim Überschreiben: {e}")
-            
+
             if not restored:
                 raise Exception("Restore fehlgeschlagen!")
-            
+
             # 8. Verifizieren
-            print("7. Überprüfung...")
+            logger.info("7. Überprüfung...")
             if os.path.exists(self.db.path):
-                print(f"   Datei existiert: {self.db.path}")
+                logger.info("   Datei existiert: %s", self.db.path)
                 if self._verify_backup(self.db.path):
-                    print(f"   Datenbank-Integrität OK")
+                    logger.info("   Datenbank-Integrität OK")
                 else:
-                    print(f"   ⚠ Integritäts-Check fehlgeschlagen")
+                    logger.warning("   Integritäts-Check fehlgeschlagen")
             else:
                 raise Exception("Wiederhergestellte Datei existiert nicht!")
-            
-            print("="*50)
-            print("BACKUP-WIEDERHERSTELLUNG ABGESCHLOSSEN")
-            print("="*50 + "\n")
-            
+
+            logger.info("=" * 50)
+            logger.info("BACKUP-WIEDERHERSTELLUNG ABGESCHLOSSEN")
+            logger.info("=" * 50)
+
             QtWidgets.QMessageBox.information(
                 self,
                 "✅ Wiederherstellung erfolgreich",
@@ -1433,32 +1447,51 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
                 f"Die Anwendung wird jetzt neu gestartet."
             )
             self._toast("Backup erfolgreich wiederhergestellt.", "success")
-            
-            # 9. Anwendung neu starten
-            import sys
+
+            # 9. Anwendung neu starten (im UI-Thread — Worker kann den Prozess nicht ersetzen)
             self.close()
             QtWidgets.QApplication.quit()
             os.execl(sys.executable, sys.executable, *sys.argv)  # nosec B606: self-restart without shell
-            
+
         except Exception as e:
-            print(f"\n✗✗✗ FEHLER: {e}")
-            import traceback
-            traceback.print_exc()
-            
+            logger.exception("FEHLER beim Restore: %s", e)
+
             # Bei Fehler: Datenbank wieder öffnen versuchen
             try:
                 self.db.conn = sqlite3.connect(self.db.path, check_same_thread=False)
                 self.db.cur = self.db.conn.cursor()
-                print("   Datenbankverbindung wiederhergestellt")
+                logger.info("   Datenbankverbindung wiederhergestellt")
             except Exception as reconn_err:
-                print(f"   ✗ Verbindung konnte nicht wiederhergestellt werden: {reconn_err}")
-            
+                logger.error("   Verbindung konnte nicht wiederhergestellt werden: %s", reconn_err)
+
             error_msg = f"Backup-Wiederherstellung fehlgeschlagen:\n\n{str(e)}"
             if emergency_backup:
                 error_msg += f"\n\nDie ursprüngliche Datenbank wurde gesichert unter:\n{emergency_backup}"
             error_msg += "\n\nPrüfen Sie die Konsole für Details!"
-            
+
             QtWidgets.QMessageBox.critical(self, "❌ Fehler", error_msg)
+
+    def _busy_sleep(self, seconds: float) -> None:
+        """Schläft ``seconds`` Sekunden, lässt aber die UI-Event-Queue weiterlaufen.
+
+        Issue #7: ``time.sleep`` blockiert den UI-Thread komplett. Diese
+        Methode ist der minimal-invasive Fix: 50ms-Intervalle, in denen
+        ``QApplication.processEvents()`` aufgerufen wird. Klicks und
+        Repaints werden weiterhin verarbeitet.
+
+        Für echte Async-Migration siehe ``core/backup_worker.py``.
+        """
+        from PySide6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app is None:
+            time.sleep(seconds)
+            return
+        elapsed = 0.0
+        interval = 0.05
+        while elapsed < seconds:
+            app.processEvents()
+            time.sleep(interval)
+            elapsed += interval
 
     def _verify_backup(self, backup_path):
         """Verifiziert die Integrität einer Backup-Datei"""
