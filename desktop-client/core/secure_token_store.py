@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import logging
 import os
 import platform
@@ -53,7 +52,6 @@ def _machine_specific_seed() -> bytes:
             pass
     elif platform.system() == "Darwin":
         try:
-            import plistlib
             with open("/var/lib/dslocal/nodes/Default/users/localuser.plist", "rb") as f:
                 pass  # IOPlatformUUID ist nicht trivial zugänglich; fallback
         except OSError:

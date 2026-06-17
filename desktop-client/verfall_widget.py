@@ -7,7 +7,6 @@ Version: 1.0 - Angepasst an bestehendes Verfall-System
 from PySide6 import QtWidgets, QtCore, QtGui
 from verfallmanager import VerfallManager
 from apple_theme import AppleTheme
-from typing import Optional
 import logging
 from icon_manager import IconManager
 

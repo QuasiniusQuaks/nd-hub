@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import time
 import random
-import string
 
 
 def _build_data(n_depots: int, n_praeparate: int, density: float = 0.3):

@@ -17,7 +17,6 @@ Abhängigkeiten:
 pip install PySide6 reportlab matplotlib pywin32 pandas openpyxl
 """
 import sys
-import base64
 from ui.resources import LOGO_BASE64
 import os
 import time
@@ -88,7 +87,9 @@ def _build_logging_handlers():
             ),
         )
     except Exception as exc:
-        print(f"Warnung: Dateilogging deaktiviert ({exc})")
+        # Während des Logging-Setups ist der Root-Logger noch nicht konfiguriert
+        # → stderr als Fallback, damit die Warnung nicht stillschweigend verschluckt wird.
+        sys.stderr.write(f"Warnung: Dateilogging deaktiviert ({exc})\n")
     return handlers
 
 
@@ -120,9 +121,16 @@ class UI:
     MAX_BACKUPS_DEFAULT = 10
 
 class Cache:
+    """Schneller UI-Hash-Speicher für Diff-Berechnungen.
+
+    Wird in ``nd_hub.py`` als ``self.cache`` gehalten und vergleicht den
+    aktuellen Inhalt des Verfall-Widgets mit dem zuletzt gerenderten Stand.
+    Felder ohne aktive Verwendung werden hier bewusst weggelassen — eine
+    Cache-Klasse ist kein Sammelbecken für „vielleicht später mal".
+    """
+
     def __init__(self):
-        self._last_verfall_hash = None
-        self._last_dashboard_hash = None
+        self._last_verfall_hash: str | None = None
 
 class PageIndex(IntEnum):
     """Stack-Indizes für Navigation"""
@@ -571,8 +579,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._busy_delay_timer.stop()
             try:
                 self._busy_delay_timer.timeout.disconnect()
-            except TypeError:
-                pass
+            except (RuntimeError, TypeError):
+                logger.debug("Busy-Timer-Signal war bereits getrennt — kein Disconnect nötig.")
 
             def _show_if_still_running():
                 if op_id == self._busy_operation_seq:
@@ -590,8 +598,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._busy_delay_timer.stop()
             try:
                 self._busy_delay_timer.timeout.disconnect()
-            except TypeError:
-                pass
+            except (RuntimeError, TypeError):
+                logger.debug("Busy-Timer-Signal war bereits getrennt — kein Disconnect nötig.")
         self._hide_page_busy()
 
     def show_toast(self, message: str, level: str = "info", duration_ms: int = 2600) -> None:
@@ -701,7 +709,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         try:
             import base64
-            from PySide6.QtGui import QPainter, QPainterPath, QPixmap
+            from PySide6.QtGui import QPainter, QPainterPath
             from PySide6.QtCore import QRectF
             
             logo_data = base64.b64decode(LOGO_BASE64)

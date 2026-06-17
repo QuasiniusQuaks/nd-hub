@@ -11,7 +11,6 @@ in diesem Quellcode-Verzeichnis, sondern werden automatisch nach
 
 import sys
 import os
-import subprocess
 
 # --- AUTO-VENV BOOTSTRAP ---
 def _ensure_venv():

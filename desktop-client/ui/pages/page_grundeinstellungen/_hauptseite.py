@@ -1,27 +1,20 @@
 """Grundeinstellungen - Depots, Präparate, Zuordnungen, Ansprechpartner, Backup."""
 import os
-import sys
 import logging
 import sqlite3
 import shutil
 import time
-import glob
 from urllib import error, request
 from urllib.parse import urlparse
 from datetime import datetime
 
 from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtCore import Qt, Signal, QDate, QObject, QRunnable, QThreadPool
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                               QLabel, QTableWidget, QTableWidgetItem, QHeaderView,
-                               QComboBox, QDateEdit, QLineEdit, QFileDialog, QMessageBox,
-                               QFrame, QFormLayout, QSpinBox, QCheckBox, QTabWidget,
-                               QProgressBar, QTextEdit)
+from PySide6.QtCore import Qt
 
-from db_manager import Database, fill_table, to_iso, DB
+from db_manager import Database, DB
 from icon_manager import IconManager
 from apple_theme import AppleTheme
-from ui.utils import create_card_widget, NumericTableWidgetItem
+from ui.utils import create_card_widget
 from core.data_access_layer import BackendApiClient, BackendSyncConfig, OperatingMode
 
 
@@ -41,7 +34,6 @@ def _require_http_scheme(url: str) -> str:
 
 logger = logging.getLogger("ND-Hub")
 from .zuordnungen_tab import AssignmentPage
-from .backup_tab import BackupManager
 from .user_management_tab import UserManagementPage
 from .audit_logs_tab import AuditLogsPage
 
