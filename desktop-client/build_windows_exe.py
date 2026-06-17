@@ -11,7 +11,7 @@ print("="*50)
 
 # Check if PyInstaller is installed
 try:
-    import PyInstaller
+    import PyInstaller  # noqa: F401  # Präsenz-Check für ImportError-Handling
     print("PyInstaller found.")
 except ImportError:
     print("PyInstaller not found. Installing now...")

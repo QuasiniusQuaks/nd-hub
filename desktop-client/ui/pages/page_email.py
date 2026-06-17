@@ -1,12 +1,12 @@
 """E-Mail-Kommunikation - Senden und Verlauf."""
 
-from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtCore import Qt, Signal, QDate, QObject, QRunnable, QThreadPool
+from PySide6 import QtWidgets, QtCore
+from PySide6.QtCore import Qt
 
-from db_manager import Database, to_iso
+from db_manager import Database
 from icon_manager import IconManager
 from apple_theme import AppleTheme
-from ui.utils import create_card_widget, NumericTableWidgetItem, configure_responsive_table
+from ui.utils import create_card_widget, configure_responsive_table
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 
 class EmailPage(QtWidgets.QWidget):

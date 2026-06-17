@@ -1,6 +1,5 @@
 from PySide6 import QtWidgets
-from PySide6.QtWidgets import QFrame, QHeaderView
-from apple_theme import AppleTheme
+from PySide6.QtWidgets import QHeaderView
 
 def create_card_widget():
     card = QtWidgets.QWidget()

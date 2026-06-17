@@ -1,5 +1,5 @@
 import os
-from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets, QtCore
 from icon_manager import IconManager
 from apple_theme import AppleTheme
 

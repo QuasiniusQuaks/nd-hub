@@ -1,16 +1,15 @@
 """Import-Funktionalität - Excel/CSV-Datenimport."""
 import os
-import logging
 import hashlib
 from datetime import datetime
 
 import pandas as pd
 HAS_PANDAS = True
 
-from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtCore import Qt, Signal, QDate, QObject, QRunnable, QThreadPool
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
 
-from db_manager import Database, to_iso
+from db_manager import Database
 from icon_manager import IconManager
 from apple_theme import AppleTheme
 from ui.utils import create_card_widget, configure_responsive_table

@@ -13,7 +13,6 @@ from responsive_widgets import ResponsiveWidget, FlowLayout
 from verfall_widget import VerfallWidget
 from ui.dialogs.verfall_detail_dialog import VerfallDetailDialog
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
-from verfallmanager import VerfallManager
 
 
 def create_card_widget():

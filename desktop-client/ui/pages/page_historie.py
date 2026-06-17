@@ -1,12 +1,10 @@
 """Bewegungshistorie - Tabellenansicht aller Bewegungen."""
 import os
-import logging
-from datetime import datetime
 
-from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtCore import Qt, QDate
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
 
-from db_manager import Database, to_iso
+from db_manager import Database
 from icon_manager import IconManager
 from apple_theme import AppleTheme
 from ui.utils import create_card_widget, NumericTableWidgetItem, configure_responsive_table

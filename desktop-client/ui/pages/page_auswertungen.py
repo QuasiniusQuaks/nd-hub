@@ -1,6 +1,4 @@
 """Auswertungen & Analytics - Diagramme und Statistiken."""
-import os
-import logging
 import textwrap
 from datetime import datetime
 
@@ -11,11 +9,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
 
-from db_manager import Database, to_iso
+from db_manager import Database
 from icon_manager import IconManager
 from apple_theme import AppleTheme
-from responsive_widgets import ResponsiveWidget, FlowLayout, AnalyticsKpiCard, ModernChartContainer
-from ui.utils import create_card_widget, NumericTableWidgetItem, configure_responsive_table
+from responsive_widgets import FlowLayout, AnalyticsKpiCard, ModernChartContainer
+from ui.utils import create_card_widget, configure_responsive_table
 from ui.dialogs.dialog_ppt_export import PPTExportDialog
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 
@@ -564,7 +562,6 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         # === DIAGRAMME NEBENEINANDER ===
         from collections import defaultdict
-        from matplotlib.ticker import MaxNLocator
         import numpy as np
         import textwrap
         
@@ -737,7 +734,8 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         op_id = self._begin_busy(self._export_report_message or "Erstelle PDF …", delay_ms=0)
         try:
-            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.lib.pagesizes import letter  # noqa: F401  # vorbereitet für zukünftige PDF-Sizes-Switch
+            from reportlab.lib.pagesizes import A4
             from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
             from reportlab.lib.units import inch
@@ -1309,7 +1307,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         op_id = self._begin_busy(self._export_report_message or "Erstelle Bericht …", delay_ms=0)
         try:
             from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
             from reportlab.lib.units import inch
             from reportlab.lib import colors
