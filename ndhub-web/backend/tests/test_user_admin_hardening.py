@@ -31,7 +31,7 @@ def _create_admin_user(client: TestClient, headers: dict[str, str], username: st
         "/users",
         json={
             "username": username,
-            "password": "StrongPass123"  # gitleaks:allow,
+            "password": "StrongPass123",  # gitleaks:allow
             "role": "Admin",
             "email": f"{username}@example.org",
             "is_active": True,
@@ -54,7 +54,7 @@ def test_cannot_downgrade_last_active_admin(monkeypatch, tmp_path):
         "/users",
         json={
             "username": "manager",
-            "password": "StrongPass123"  # gitleaks:allow,
+            "password": "StrongPass123",  # gitleaks:allow
             "role": "User",
             "email": "manager@example.org",
             "is_active": True,
@@ -63,7 +63,7 @@ def test_cannot_downgrade_last_active_admin(monkeypatch, tmp_path):
         headers=admin_headers,
     )
     assert manager_user.status_code == 201
-    manager_headers = _login_headers(client, "manager", "StrongPass123"  # gitleaks:allow)
+    manager_headers = _login_headers(client, "manager", "StrongPass123")  # gitleaks:allow
 
     response = client.put(
         f"/users/{admin_id}",

@@ -84,7 +84,7 @@ def test_permission_enforcement_for_reports(monkeypatch, tmp_path):
         "/users",
         json={
             "username": "viewer_without_reports",
-            "password": "StrongPass123"  # gitleaks:allow,
+            "password": "StrongPass123",  # gitleaks:allow
             "role": "User",
             "email": "viewer@example.org",
             "is_active": True,
@@ -94,7 +94,7 @@ def test_permission_enforcement_for_reports(monkeypatch, tmp_path):
     )
     assert create_user.status_code == 201
 
-    restricted_login = _login(client, "viewer_without_reports", "StrongPass123"  # gitleaks:allow)
+    restricted_login = _login(client, "viewer_without_reports", "StrongPass123")  # gitleaks:allow
     restricted_headers = {"Authorization": f"Bearer {restricted_login['token']}"}
     denied = client.get("/reports/matrix", headers=restricted_headers)
     assert denied.status_code == 403
