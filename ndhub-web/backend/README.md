@@ -19,6 +19,8 @@ Optional env vars:
 - `ND_HUB_FORCE_ADMIN_PASSWORD_SYNC`: force one-time admin password sync on startup (`0`/`1`)
 - `ND_HUB_AUTO_BACKUP_HOURS`: auto backup interval in hours
 - `ND_HUB_MAX_BACKUP_RESTORE_MB`: max. Upload-Groesse fuer Restore-Dateien
+- `ND_HUB_CORS_ORIGINS`: Komma-getrennte CORS-Allowlist (z.B. `https://app.example.com,https://admin.example.com`). Default: leer = Cross-Origin-Requests blockiert. Same-Origin-Traffic funktioniert immer.
+- `ND_HUB_ALLOWED_HOSTS`: Komma-getrennte Liste erlaubter `Host`-Header (z.B. `api.example.com,admin.example.com`). Default: `*` = alle Hosts. Produktiv bitte explizit setzen.
 - `ND_HUB_EMAIL_DELIVERY_MODE`: `draft` (default) or `smtp`
 - `ND_HUB_SMTP_HOST`, `ND_HUB_SMTP_PORT`
 - `ND_HUB_SMTP_USERNAME`, `ND_HUB_SMTP_PASSWORD`

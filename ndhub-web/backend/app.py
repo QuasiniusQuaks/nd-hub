@@ -27,6 +27,8 @@ from email.message import EmailMessage
 logger = logging.getLogger(__name__)
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials
@@ -1416,6 +1418,45 @@ def create_app(db_path: str | None = None) -> FastAPI:
     app.state.email_delivery_settings = email_delivery_settings
     app.state.feature_multi_institution = feature_multi_institution
     app.state.feature_institution_map = feature_institution_map
+
+    # ---- Security-Middleware (Fix für #31) ----
+    # 1) TrustedHost: blockiert Requests mit unbekanntem Host-Header
+    #    (verhindert Host-Header-Injection / Cache-Poisoning).
+    #    Default ["*"] = alle Hosts; produktiv bitte ND_HUB_ALLOWED_HOSTS setzen.
+    _allowed_hosts_raw = os.environ.get("ND_HUB_ALLOWED_HOSTS", "*").strip()
+    if _allowed_hosts_raw == "*":
+        _allowed_hosts = ["*"]
+    else:
+        _allowed_hosts = [h.strip() for h in _allowed_hosts_raw.split(",") if h.strip()]
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
+
+    # 2) CORS: restriktiver Default (allow_origins=[]). Cross-Origin nur
+    #    explizit via ND_HUB_CORS_ORIGINS (Komma-getrennte Allowlist).
+    _cors_raw = os.environ.get("ND_HUB_CORS_ORIGINS", "").strip()
+    _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()] if _cors_raw else []
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
+    )
+
+    # 3) Security-Header-Middleware: schraubt Standard-Schutz-Header auf
+    #    jede Response. HSTS nur bei HTTPS-Request, damit Dev über HTTP ok bleibt.
+    @app.middleware("http")
+    async def _security_headers_middleware(request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.url.scheme == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=63072000; includeSubDomains",
+            )
+        return response
+    # ---- /Security-Middleware ----
 
     app.mount(
         "/web",
