@@ -33,6 +33,13 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
+# ---- Rate-Limit für /auth/login (Fix für #32) ----
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.requests import Request as _StarletteRequest
+from starlette.responses import JSONResponse as _JSONResponse
+# ---- /Rate-Limit ----
 try:
     import pandas as pd
 except ImportError:  # pragma: no cover - optional runtime dependency
@@ -1458,6 +1465,101 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return response
     # ---- /Security-Middleware ----
 
+    # ---- Login-Rate-Limit (Fix für #32) ----
+    # Per-IP via slowapi (ENV-konfigurierbar; Default 5/min).
+    # Per-Username-Lockout: 10 Fehlversuche -> 15 min Sperre (ENV-konfigurierbar).
+    # Audit-Log-Eintrag bei Lockout.
+    _login_ip_limit = os.environ.get("ND_HUB_LOGIN_IP_LIMIT", "5/minute")
+    _login_max_fails = int(os.environ.get("ND_HUB_LOGIN_MAX_FAILS", "10"))
+    _login_lockout_seconds = int(os.environ.get("ND_HUB_LOGIN_LOCKOUT_SECONDS", "900"))
+
+    login_limiter = Limiter(key_func=get_remote_address, default_limits=[_login_ip_limit])
+    app.state.login_limiter = login_limiter
+
+    # Per-Username-Lockout-Tracker auf app.state (statt closure-lokal),
+    # damit er pro App-Instanz eindeutig ist und von Tests verifiziert werden kann.
+    # Struktur: {username: (fails, lockout_until_epoch)}
+    # In-Memory (Single-Instance). Thread-safe via Lock.
+    import threading as _threading
+    app.state.login_lockout_state = {}
+    app.state.login_lockout_lock = _threading.Lock()
+    app.state.login_max_fails = _login_max_fails
+    app.state.login_lockout_seconds = _login_lockout_seconds
+
+    def _check_login_lockout(username: str) -> int | None:
+        """Returnt verbleibende Sekunden, wenn locked; sonst None."""
+        with app.state.login_lockout_lock:
+            entry = app.state.login_lockout_state.get(username)
+            if not entry:
+                return None
+            fails, lockout_until = entry
+            # Eintraege mit unendlicher Ablaufzeit sind reine Counter
+            # (noch nicht max_fails erreicht) und sperren nicht.
+            if lockout_until == float("inf"):
+                return None
+            now = datetime.now().timestamp()
+            if lockout_until > now:
+                return int(lockout_until - now)
+            # Lockout abgelaufen — Counter zuruecksetzen
+            app.state.login_lockout_state.pop(username, None)
+            return None
+
+    def _record_login_failure(username: str) -> int | None:
+        """Verzeichnet einen Fehlversuch. Returnt lockout-Restsekunden, wenn Lockout ausgeloest."""
+        with app.state.login_lockout_lock:
+            state = app.state.login_lockout_state
+            entry = state.get(username)
+            if entry is None:
+                fails, lockout_until = 0, 0.0
+            else:
+                fails, lockout_until = entry
+            fails += 1
+            if fails >= app.state.login_max_fails:
+                lockout_until = datetime.now().timestamp() + app.state.login_lockout_seconds
+                state[username] = (fails, lockout_until)
+                return app.state.login_lockout_seconds
+            # Counter-Eintrag ohne aktiven Lockout: Ablaufzeit auf 'unendlich'
+            # setzen, damit _check_login_lockout ihn nicht als 'abgelaufen'
+            # verwirft, bevor max_fails erreicht ist.
+            state[username] = (fails, float("inf"))
+            return None
+
+    def _clear_login_lockout(username: str) -> None:
+        with app.state.login_lockout_lock:
+            app.state.login_lockout_state.pop(username, None)
+
+    def _audit_login_lockout(username: str, ip: str) -> None:
+        """Audit-Log-Eintrag bei Lockout. Best-effort, kein Raise bei Fehler."""
+        try:
+            security.log_activity(
+                user_id=0,
+                username=username,
+                action="login_lockout",
+                details=f"ip={ip} max_fails={app.state.login_max_fails} lockout_seconds={app.state.login_lockout_seconds}",
+                ip=ip,
+            )
+        except Exception:
+            logger.warning("Audit-Log fuer login_lockout fehlgeschlagen", exc_info=True)
+
+    # slowapi-Exception-Handler: 429 + Retry-After-Header bei IP-Limit
+    async def _rate_limit_handler(_request: _StarletteRequest, exc: RateLimitExceeded):
+        # Retry-After aus slowapi-Limit-Strategie ableiten
+        retry_after = 60  # Default-Fallback
+        try:
+            # slowapi speichert Limit in exc.limit, Detail in exc.detail
+            if hasattr(exc, "limit") and exc.limit and hasattr(exc.limit, "seconds"):
+                retry_after = exc.limit.seconds
+        except Exception:
+            pass
+        return _JSONResponse(
+            status_code=429,
+            content={"detail": f"Zu viele Login-Versuche. Bitte {retry_after}s warten."},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+    # ---- /Login-Rate-Limit ----
+
     app.mount(
         "/web",
         StaticFiles(directory=app.state.web_dir, html=False),
@@ -1473,13 +1575,36 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return {"status": "ok", "db_engine": str(app.state.db_engine)}
 
     @app.post("/auth/login", response_model=LoginResponse)
-    def login(payload: LoginRequest) -> LoginResponse:
-        ok, _message = security.authenticate(payload.username.strip(), payload.password)
+    @login_limiter.limit(_login_ip_limit)
+    def login(payload: LoginRequest, request: Request) -> LoginResponse:
+        # Fix #32: per-Username-Lockout pruefen BEVOR authenticate() laeuft
+        # (verhindert, dass PBKDF2-CPU-Zeit verschwendet wird, waehrend locked)
+        username_attempt = payload.username.strip()
+        remaining_lockout = _check_login_lockout(username_attempt)
+        if remaining_lockout is not None:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Account temporaer gesperrt. Bitte {remaining_lockout}s warten.",
+                headers={"Retry-After": str(remaining_lockout)},
+            )
+        ok, _message = security.authenticate(username_attempt, payload.password)
         if not ok:
+            lockout_seconds = _record_login_failure(username_attempt)
+            if lockout_seconds is not None:
+                # Lockout frisch ausgeloest
+                _audit_login_lockout(username_attempt, request.client.host if request.client else "unknown")
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Account gesperrt nach {app.state.login_max_fails} Fehlversuchen. "
+                           f"Bitte {lockout_seconds}s warten.",
+                    headers={"Retry-After": str(lockout_seconds)},
+                )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Benutzername oder Passwort ungueltig.",
             )
+        # Erfolgreich: Lockout-Counter zuruecksetzen
+        _clear_login_lockout(username_attempt)
         username = security.get_current_user() or payload.username
         user_flags = _get_user_flags(security, username)
         token = token_store.issue(
