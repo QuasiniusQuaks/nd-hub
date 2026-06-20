@@ -36,20 +36,36 @@ Befund nach systematischer Inspektion des **Web-Backends** (4575 LOC `app.py`, 8
 
 ### Status (Welle 2)
 
-| Prio | Issue | Befund | Aufwand | Status |
-|---|---|---|---|---|
-| **P0** | [#29](https://github.com/QuasiniusQuaks/nd-hub/issues/29) | Timing-Attacke auf Web `verify_password` (== statt hmac.compare_digest) | 1-2h | 🟡 offen |
-| **P0** | [#30](https://github.com/QuasiniusQuaks/nd-hub/issues/30) | SyntaxError in 2 Web-Test-Dateien (`gitleaks:allow,` Bug) | 30min | 🟡 offen |
-| **P0** | [#31](https://github.com/QuasiniusQuaks/nd-hub/issues/31) | Kein CORS / Security-Header / TrustedHost im FastAPI | 2-3h | 🟡 offen |
-| **P0** | [#32](https://github.com/QuasiniusQuaks/nd-hub/issues/32) | Kein Rate-Limit auf `/auth/login` (Brute-Force) | 3-4h | 🟡 offen |
-| **P1** | [#33](https://github.com/QuasiniusQuaks/nd-hub/issues/33) | Auth-Worker fehlt (Issue #15 nur halb umgesetzt) | 2-3h | 🟡 offen |
-| **P1** | [#34](https://github.com/QuasiniusQuaks/nd-hub/issues/34) | `class DB` Constants-Container → `Enum`/`Final` | 2h | 🟡 offen |
-| **P1** | [#35](https://github.com/QuasiniusQuaks/nd-hub/issues/35) | 9× `@lru_cache` → `cachetools.TTLCache` migrieren | 3-4h | 🟡 offen |
-| **P1** | [#36](https://github.com/QuasiniusQuaks/nd-hub/issues/36) | 4× bare `except:` in `page_import.py` typisieren | 30min | 🟡 offen |
-| **P1** | [#37](https://github.com/QuasiniusQuaks/nd-hub/issues/37) | `ndhub-web/requirements.txt` unvollständig | 30min | 🟡 offen |
-| **P2** | [#38](https://github.com/QuasiniusQuaks/nd-hub/issues/38) | Verdreifachte `# nosec B310` Annotation | 5min | 🟢 trivial |
-| **P2** | [#39](https://github.com/QuasiniusQuaks/nd-hub/issues/39) | 518 ruff-Lint-Errors systematisch fixen | 2-3h | 🟡 offen |
-| **P2** | [#40](https://github.com/QuasiniusQuaks/nd-hub/issues/40) | TODO/FIXME/HACK Inventar erstellen | 1-2h | 🟡 offen |
+| Prio | Issue | Befund | Aufwand | Status | Branch / PR |
+|---|---|---|---|---|---|
+| **P0** | [#29](https://github.com/QuasiniusQuaks/nd-hub/issues/29) | Timing-Attacke auf Web `verify_password` (== statt hmac.compare_digest) | 1-2h | ✅ fertig | PR #44 |
+| **P0** | [#30](https://github.com/QuasiniusQuaks/nd-hub/issues/30) | SyntaxError in 2 Web-Test-Dateien (`gitleaks:allow,` Bug) | 30min | ✅ fertig | PR #43 |
+| **P0** | [#31](https://github.com/QuasiniusQuaks/nd-hub/issues/31) | Kein CORS / Security-Header / TrustedHost im FastAPI | 2-3h | ✅ fertig | PR #45 |
+| **P0** | [#32](https://github.com/QuasiniusQuaks/nd-hub/issues/32) | Kein Rate-Limit auf `/auth/login` (Brute-Force) | 3-4h | ✅ fertig | PR #48 |
+| **P1** | [#33](https://github.com/QuasiniusQuaks/nd-hub/issues/33) | Auth-Worker fehlt (Issue #15 nur halb umgesetzt) | 2-3h | ✅ fertig | PR #47 |
+| **P1** | [#34](https://github.com/QuasiniusQuaks/nd-hub/issues/34) | `class DB` Constants-Container → `Enum`/`Final` | 2h | ✅ fertig | PR #46 |
+| **P1** | [#35](https://github.com/QuasiniusQuaks/nd-hub/issues/35) | 9× `@lru_cache` → `cachetools.TTLCache` migrieren | 3-4h | ✅ fertig | PR #46 |
+| **P1** | [#36](https://github.com/QuasiniusQuaks/nd-hub/issues/36) | 4× bare `except:` in `page_import.py` typisieren | 30min | ✅ fertig | PR #46 |
+| **P1** | [#37](https://github.com/QuasiniusQuaks/nd-hub/issues/37) | `ndhub-web/requirements.txt` unvollständig | 30min | ✅ fertig | PR #46 |
+| **P2** | [#38](https://github.com/QuasiniusQuaks/nd-hub/issues/38) | Verdreifachte `# nosec B310` Annotation | 5min | ✅ fertig | PR #50 |
+| **P2** | [#39](https://github.com/QuasiniusQuaks/nd-hub/issues/39) | 518 ruff-Lint-Errors systematisch fixen | 2-3h | ✅ fertig | PR #51 |
+| **P2** | [#40](https://github.com/QuasiniusQuaks/nd-hub/issues/40) | TODO/FIXME/HACK Inventar erstellen | 1-2h | ✅ fertig | PR #52 |
+
+**Welle 2: 11 PRs gemerged (#43–#53), 12 Issues closed (#29–#40).**
+
+Zusätzliche PRs über den Sprint-Plan hinaus:
+- [PR #49](https://github.com/QuasiniusQuaks/nd-hub/pull/49): README-Update "Audit-Follow-up 2026-07"
+- [PR #53](https://github.com/QuasiniusQuaks/nd-hub/pull/53): Post-Merge ruff-Cleanup (23 verbleibende Lint-Errors)
+
+### Verifikation nach Sprint-Abschluss (2026-06-20)
+
+| Tool | Ergebnis | Bewertung |
+|---|---|---|
+| `ruff check` | **0 Errors** | ✅ clean (PR #51 + #53) |
+| `bandit` | **603 Low + 1 Medium** | ✅ Medium = Hardcoded `/tmp/test.pdf` in Test (harmlos, bekannt) |
+| `ast.parse` | **0 SyntaxErrors** | ✅ Issue #30 Fix verifiziert |
+| `pytest desktop-client/tests/unit/` | **23/23 passed** (Welle-2-relevant) | ✅ clean; 7 Failures in `test_sync_worker.py` sind PySide6-Stub-Pitfall (Welle-1 #4) |
+| `pytest ndhub-web/` | **1 pre-existing Failure** | ⚠️ `test_session_token_invalid_after_app_restart` — schon seit Initial-Commit `f0d39a8` rot (TokenStore file-based, Test erwartet in-memory); KEIN Welle-2-Problem |
 
 Sprint-Plan: siehe [#41](https://github.com/QuasiniusQuaks/nd-hub/issues/41).
 
