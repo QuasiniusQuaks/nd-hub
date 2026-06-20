@@ -81,6 +81,37 @@ class GlobalFilterBar(QtWidgets.QWidget):
 
         layout.addStretch()
 
+        # Vergleichs-Modus Toggle (Phase 2)
+        self.btn_compare = QtWidgets.QPushButton("📊 vs. Vorjahr")
+        self.btn_compare.setCheckable(True)
+        self.btn_compare.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.btn_compare.setToolTip("Vergleichs-Modus: aktuelle Periode vs. Vorjahr")
+        self.btn_compare.clicked.connect(self._on_compare_toggled)
+        layout.addWidget(self.btn_compare)
+
+        # Saved Views (Phase 2)
+        layout.addWidget(self._make_separator())
+        lbl_views = QtWidgets.QLabel("Views:")
+        lbl_views.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {c['secondary_label']};")
+        layout.addWidget(lbl_views)
+
+        self.combo_saved_views = QtWidgets.QComboBox()
+        self.combo_saved_views.addItem("— Gespeicherte Views —")
+        self._populate_saved_views()
+        self.combo_saved_views.currentIndexChanged.connect(self._on_view_selected)
+        layout.addWidget(self.combo_saved_views)
+
+        self.btn_save_view = QtWidgets.QPushButton("💾 Speichern")
+        self.btn_save_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.btn_save_view.clicked.connect(self._on_save_view)
+        layout.addWidget(self.btn_save_view)
+
+        self.btn_delete_view = QtWidgets.QPushButton("🗑️")
+        self.btn_delete_view.setMaximumWidth(36)
+        self.btn_delete_view.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.btn_delete_view.clicked.connect(self._on_delete_view)
+        layout.addWidget(self.btn_delete_view)
+
         # Refresh-Button
         self.btn_refresh = QtWidgets.QPushButton("↻ Aktualisieren")
         self.btn_refresh.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
@@ -149,3 +180,103 @@ class GlobalFilterBar(QtWidgets.QWidget):
     def refresh_theme(self) -> None:
         """Bei Theme-Wechsel neu stylen."""
         self._apply_style()
+
+    # ── Vergleichs-Modus (Phase 2) ──────────────────────────────────
+
+    def _on_compare_toggled(self) -> None:
+        """Vergleichs-Modus Toggle → Signal emit."""
+        self.filtersChanged.emit()
+
+    def is_compare_mode(self) -> bool:
+        """True wenn Vergleichs-Modus aktiv ist."""
+        return self.btn_compare.isChecked()
+
+    # ── Saved Views (Phase 2) ───────────────────────────────────────
+
+    def _populate_saved_views(self) -> None:
+        """Lädt gespeicherte Views in die ComboBox."""
+        self.combo_saved_views.clear()
+        self.combo_saved_views.addItem("— Gespeicherte Views —")
+        try:
+            views = self.db.get_analytics_views()
+            for view in views:
+                self.combo_saved_views.addItem(str(view["name"]), view["filter_json"])
+        except Exception:
+            logger.debug("Saved-Views-Population fehlgeschlagen (Tabelle evtl. nicht vorhanden)")
+
+    def _on_view_selected(self, index: int) -> None:
+        """View ausgewählt → Filter aus JSON laden + anwenden."""
+        if index <= 0:
+            return
+        filter_json = self.combo_saved_views.itemData(index)
+        if not filter_json:
+            return
+        try:
+            import json
+            config = json.loads(filter_json)
+
+            # Zeitraum setzen
+            days = config.get("date_range_days", 30)
+            for i in range(self.combo_zeitraum.count()):
+                if self.combo_zeitraum.itemData(i) == days:
+                    self.combo_zeitraum.setCurrentIndex(i)
+                    break
+
+            # Vergleichs-Modus
+            self.btn_compare.setChecked(config.get("compare_mode", False))
+
+            # Cross-Filter setzen
+            depot_ids = set(config.get("depot_ids", []))
+            praeparat_ids = set(config.get("praeparat_ids", []))
+            self.filter_state.set_depot_filter(depot_ids)
+            self.filter_state.set_praeparat_filter(praeparat_ids)
+
+            self.filtersChanged.emit()
+        except Exception:
+            logger.exception("Saved-View-Laden fehlgeschlagen")
+
+    def _on_save_view(self) -> None:
+        """Aktuelle Filter-Konfiguration als View speichern."""
+        from PySide6 import QtWidgets as QW
+
+        name, ok = QW.QInputDialog.getText(
+            self, "View speichern", "Name der View:", text=""
+        )
+        if not ok or not name.strip():
+            return
+
+        import json
+        config = {
+            "date_range_days": self.get_date_range_days(),
+            "compare_mode": self.is_compare_mode(),
+            "depot_ids": list(self.filter_state.state.depot_ids),
+            "praeparat_ids": list(self.filter_state.state.praeparat_ids),
+        }
+        filter_json = json.dumps(config)
+
+        success = self.db.save_analytics_view(name.strip(), filter_json)
+        if success:
+            self._populate_saved_views()
+            QW.QMessageBox.information(self, "Gespeichert", f"View '{name}' gespeichert.")
+        else:
+            QW.QMessageBox.warning(self, "Fehler", f"View '{name}' konnte nicht gespeichert werden.")
+
+    def _on_delete_view(self) -> None:
+        """Aktuell ausgewählte View löschen."""
+        from PySide6 import QtWidgets as QW
+
+        index = self.combo_saved_views.currentIndex()
+        if index <= 0:
+            return
+        name = self.combo_saved_views.itemText(index)
+
+        reply = QW.QMessageBox.question(
+            self, "Löschen", f"View '{name}' wirklich löschen?",
+            QW.QMessageBox.Yes | QW.QMessageBox.No,
+        )
+        if reply != QW.QMessageBox.Yes:
+            return
+
+        self.db.delete_analytics_view(name)
+        self._populate_saved_views()
+

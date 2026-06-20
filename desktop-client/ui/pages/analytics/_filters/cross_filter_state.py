@@ -13,8 +13,6 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from PySide6 import QtCore
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,12 +35,14 @@ class FilterState:
         self.date_range_days = 30
 
 
-class CrossFilterState(QtCore.QObject):
-    """Singleton, das den Cross-Filter-State hält und Änderungen broadcastet."""
+class CrossFilterState:
+    """Singleton, das den Cross-Filter-State hält und Änderungen broadcastet.
 
-    filtersChanged = QtCore.Signal()
+    Reine Python-Klasse (kein QObject), damit auch ohne PySide6 testbar.
+    Stattdessen werden Listener-Callbacks verwendet.
+    """
 
-    _instance: CrossFilterState | None = None
+    _instance: "CrossFilterState | None" = None
 
     def __init__(self) -> None:
         super().__init__()
@@ -89,10 +89,9 @@ class CrossFilterState(QtCore.QObject):
         self._listeners.append(callback)
 
     def _notify(self) -> None:
-        """Benachrichtigt alle Listener und emit das Signal."""
+        """Benachrichtigt alle Listener."""
         for callback in self._listeners:
             try:
                 callback(self.state)
             except Exception:
                 logger.exception("Cross-Filter-Listener fehlgeschlagen")
-        self.filtersChanged.emit()

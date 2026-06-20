@@ -1,6 +1,6 @@
 """Bewegungen-Tab — Flow, Ranking, Top-Movers, Zeitreihen.
 
-Issue #42 Phase 1.
+Issue #42 Phase 1+2 — mit interaktiven Bar-Charts und Cross-Filter.
 """
 
 from __future__ import annotations
@@ -11,59 +11,107 @@ from PySide6 import QtWidgets
 
 from ui.utils import configure_responsive_table
 
+from .._charts.ranking_bar import RankingBarChart
+from .._filters.cross_filter_state import CrossFilterState
 from ._base_tab import BaseTab
 
 logger = logging.getLogger(__name__)
 
 
 class TabBewegungen(BaseTab):
-    """Bewegungs-Analyse: Top-Movers, Depot-Ranking, Präparat-Ranking."""
+    """Bewegungs-Analyse: Top-Movers (Charts), Rankings (Tabellen)."""
+
+    def __init__(self, db, queries, parent=None) -> None:
+        super().__init__(db, queries, parent)
+        self._filter_state = CrossFilterState.instance()
+        self._filter_state.add_listener(self._on_filter_changed)
+
+    def _on_filter_changed(self, state) -> None:
+        """Cross-Filter geändert → Tab neu laden."""
+        self.refresh()
 
     def refresh(self) -> None:
         self._clear_content()
 
-        # 1. Top-Movers (Zugang)
-        card_in = self._make_card("Top-Movers: Zugänge (letzte 30 Tage)")
-        table_in = self._build_movers_table(direction="in")
-        card_in.layout().addWidget(table_in)
+        days = self._filter_state.state.date_range_days
 
-        # 2. Top-Movers (Abgang)
-        card_out = self._make_card("Top-Movers: Abgänge (letzte 30 Tage)")
-        table_out = self._build_movers_table(direction="out")
-        card_out.layout().addWidget(table_out)
+        # 1. Top-Movers Eingang (Bar-Chart)
+        card_in = self._make_card("Top-Movers: Zugänge (interaktiv)")
+        chart_in = self._build_movers_chart(direction="in", days=days)
+        card_in.layout().addWidget(chart_in)
 
-        # 3. Depot-Ranking
+        # 2. Top-Movers Abgang (Bar-Chart)
+        card_out = self._make_card("Top-Movers: Abgänge (interaktiv)")
+        chart_out = self._build_movers_chart(direction="out", days=days)
+        card_out.layout().addWidget(chart_out)
+
+        # 3. Depot-Ranking (Tabelle)
         card_rank = self._make_card("Depot-Ranking nach Abgaben")
         table_rank = self._build_ranking_table()
         card_rank.layout().addWidget(table_rank)
 
+        # 4. Präparat-Ranking (Tabelle)
+        card_praep = self._make_card("Präparat-Ranking nach Abgaben")
+        table_praep = self._build_praeparat_ranking_table()
+        card_praep.layout().addWidget(table_praep)
+
         self.content_layout.addStretch()
 
-    def _build_movers_table(self, direction: str) -> QtWidgets.QTableWidget:
-        rows = self.queries.get_top_movers(direction=direction, limit=10, days=30)
-        headers = ["Präparat", "Gesamt", "Anzahl Bewegungen", "Letzte Bewegung"]
-        table = self._create_table(headers, len(rows))
+    def _build_movers_chart(self, direction: str, days: int = 30) -> RankingBarChart:
+        """Bar-Chart für Top-Movers mit Click-to-Filter."""
+        rows = self.queries.get_top_movers(direction=direction, limit=10, days=days)
 
-        for i, row in enumerate(rows):
-            table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["praeparat_name"])))
-            table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row["gesamt"])))
-            table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(row["anzahl_bewegungen"])))
-            last = row["letzte_bewegung"] or "—"
-            table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(last)))
+        # Cross-Filter anwenden
+        if self._filter_state.state.praeparat_ids:
+            rows = [r for r in rows if r["praeparat_id"] in self._filter_state.state.praeparat_ids]
 
+        chart = RankingBarChart(width=5, height=3)
         if not rows:
-            self._add_empty_hint(table, "Keine Bewegungen im gewählten Zeitraum.")
+            chart.plot([], [], title=f"Top-{direction.upper()} (keine Daten)")
+            return chart
 
-        return table
+        labels = [str(r["praeparat_name"]) for r in rows]
+        values = [int(r["gesamt"]) for r in rows]
+        ids = [r["praeparat_id"] for r in rows]
+        color = "green" if direction == "in" else "red"
+        title = "Zugänge" if direction == "in" else "Abgänge"
+        chart.plot(labels, values, title=title, color_key=color,
+                   ids=ids, id_type="praeparat")
+        return chart
 
     def _build_ranking_table(self) -> QtWidgets.QTableWidget:
         rows = self.queries.get_depot_ranking(limit=10)
+
+        if self._filter_state.state.depot_ids:
+            rows = [r for r in rows if str(r["depot_name"]) in
+                    {str(d) for d in self._filter_state.state.depot_ids}]
+
         headers = ["Depot", "Präparat", "Abgaben gesamt"]
         table = self._create_table(headers, len(rows))
 
         for i, row in enumerate(rows):
             table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["depot_name"])))
             table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row["praeparat_name"])))
+            table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(row["abgaben_gesamt"])))
+
+        if not rows:
+            self._add_empty_hint(table, "Keine Abgaben im gewählten Zeitraum.")
+
+        return table
+
+    def _build_praeparat_ranking_table(self) -> QtWidgets.QTableWidget:
+        rows = self.queries.get_praeparat_ranking(limit=10)
+
+        if self._filter_state.state.praeparat_ids:
+            rows = [r for r in rows if str(r["praeparat_name"]) in
+                    {str(p) for p in self._filter_state.state.praeparat_ids}]
+
+        headers = ["Präparat", "Depot", "Abgaben gesamt"]
+        table = self._create_table(headers, len(rows))
+
+        for i, row in enumerate(rows):
+            table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["praeparat_name"])))
+            table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row["depot_name"])))
             table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(row["abgaben_gesamt"])))
 
         if not rows:
