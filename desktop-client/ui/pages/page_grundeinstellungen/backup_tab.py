@@ -19,25 +19,25 @@ class BackupManager:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_filename = f"backup_{timestamp}.db"
             backup_path = self.backup_folder / backup_filename
-            
+
             # 2. Natives SQLite-Backup durchführen
             # transaktionssicher, WAL-safe und blockiert nicht!
             with sqlite3.connect(backup_path) as bck_conn:
                 db_connection.backup(bck_conn)
-            
+
             # 3. Backup verifizieren
             if self._verify_backup(backup_path):
                 print(f"Backup erstellt und verifiziert: {backup_path}")
-                
+
                 # 4. Alte Backups rotieren
                 self._rotate_backups()
-                
+
                 filesize_kb = os.path.getsize(backup_path) / 1024
                 return True, str(backup_path), filesize_kb
             else:
                 backup_path.unlink()  # Fehlerhaftes Backup löschen
                 return False, "Backup-Verifikation fehlgeschlagen", 0
-            
+
         except Exception as e:
             print(f"✗ Backup-Fehler: {e}")
             import traceback
@@ -57,9 +57,9 @@ class BackupManager:
 
     def _rotate_backups(self):
         """Löscht alte Backups, behält nur max_backups neueste"""
-        backups = sorted(self.backup_folder.glob("backup_*.db"), 
+        backups = sorted(self.backup_folder.glob("backup_*.db"),
                         key=lambda p: p.stat().st_mtime, reverse=True)
-        
+
         deleted_count = 0
         for old in backups[self.max_backups:]:
             try:
@@ -68,14 +68,14 @@ class BackupManager:
                 print(f"   Altes Backup gelöscht: {old.name}")
             except Exception as e:
                 print(f"   ⚠ Konnte {old.name} nicht löschen: {e}")
-        
+
         if deleted_count > 0:
             print(f"   {deleted_count} alte(s) Backup(s) gelöscht")
 
     def list_backups(self):
         """Listet alle verfügbaren Backups auf"""
         backups = []
-        for p in sorted(self.backup_folder.glob("backup_*.db"), 
+        for p in sorted(self.backup_folder.glob("backup_*.db"),
                        key=lambda x: x.stat().st_mtime, reverse=True):
             backups.append({
                 'path': p,
@@ -84,7 +84,7 @@ class BackupManager:
                 'name': p.name
             })
         return backups
-    
+
     def get_backup_info(self, backup_path):
         """Gibt Informationen über eine Backup-Datei zurück"""
         try:

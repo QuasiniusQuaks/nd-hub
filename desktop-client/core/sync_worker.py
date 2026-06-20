@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 QThreadPool-basierter Sync-Worker.
 
@@ -31,7 +30,6 @@ from __future__ import annotations
 
 import logging
 import traceback
-from typing import Optional
 
 from PySide6 import QtCore
 
@@ -143,7 +141,7 @@ class SyncWorkerRunner:
     def is_running(self) -> bool:
         return self._is_active
 
-    def submit(self, username: Optional[str]) -> bool:
+    def submit(self, username: str | None) -> bool:
         """
         Reicht einen Sync-Cycle im Thread-Pool ein.
 

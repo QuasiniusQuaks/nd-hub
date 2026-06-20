@@ -1,15 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 VerfallDetailDialog - Detailansicht für verfallende Präparate
 Version: 1.0 - Angepasst an bestehendes Verfall-System
 """
 
-from PySide6 import QtWidgets, QtCore, QtGui
-from verfallmanager import VerfallManager
-from apple_theme import AppleTheme
 import logging
+
+from PySide6 import QtCore, QtGui, QtWidgets
+
+from apple_theme import AppleTheme
 from icon_manager import IconManager
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
+from verfallmanager import VerfallManager
 
 logger = logging.getLogger(__name__)
 
@@ -124,11 +125,11 @@ class VerfallDetailDialog(QtWidgets.QDialog):
 
         # Tabelle
         self.table = QtWidgets.QTableWidget()
-        
+
         # Spaltenanzahl abhängig von PZN-Verfügbarkeit
         has_pzn = self.verfallmanager.has_pzn
         self.table.setColumnCount(8 if has_pzn else 7)
-        
+
         headers = ["Kategorie", "Depot", "Präparat"]
         if has_pzn:
             headers.append("PZN")
@@ -257,12 +258,12 @@ class VerfallDetailDialog(QtWidgets.QDialog):
         """Füllt die Tabelle mit Daten"""
         self.table.setRowCount(0)
         has_pzn = self.verfallmanager.has_pzn
-        
+
         for row_idx, item in enumerate(data):
             self.table.insertRow(row_idx)
-            
+
             col_idx = 0
-            
+
             # Kategorie mit Farbe
             kategorie_item = QtWidgets.QTableWidgetItem()
             if item['kategorie'] == 'kritisch':
@@ -276,30 +277,30 @@ class VerfallDetailDialog(QtWidgets.QDialog):
                 kategorie_item.setForeground(QtGui.QColor("#ffc107"))
             self.table.setItem(row_idx, col_idx, kategorie_item)
             col_idx += 1
-            
+
             # Depot
             self.table.setItem(row_idx, col_idx, QtWidgets.QTableWidgetItem(item['depot_name']))
             col_idx += 1
-            
+
             # Präparat
             self.table.setItem(row_idx, col_idx, QtWidgets.QTableWidgetItem(item['praeparat_name']))
             col_idx += 1
-            
+
             # PZN (nur wenn verfügbar)
             if has_pzn:
                 self.table.setItem(row_idx, col_idx, QtWidgets.QTableWidgetItem(str(item['pzn'])))
                 col_idx += 1
-            
+
             # Menge
             menge_item = QtWidgets.QTableWidgetItem(str(item['menge']))
             menge_item.setTextAlignment(QtCore.Qt.AlignCenter)
             self.table.setItem(row_idx, col_idx, menge_item)
             col_idx += 1
-            
+
             # Verfallsdatum
             self.table.setItem(row_idx, col_idx, QtWidgets.QTableWidgetItem(item['verfallsdatum']))
             col_idx += 1
-            
+
             # Tage bis Verfall
             tage_item = QtWidgets.QTableWidgetItem(str(item['tage_bis_verfall']))
             tage_item.setTextAlignment(QtCore.Qt.AlignCenter)
@@ -309,19 +310,19 @@ class VerfallDetailDialog(QtWidgets.QDialog):
                 tage_item.setForeground(QtGui.QColor("#fd7e14"))
             self.table.setItem(row_idx, col_idx, tage_item)
             col_idx += 1
-            
+
             # Aktionen (Button-Widget)
             action_widget = QtWidgets.QWidget()
             action_layout = QtWidgets.QHBoxLayout(action_widget)
             action_layout.setContentsMargins(4, 2, 4, 2)
-            
+
             info_btn = QtWidgets.QPushButton("ℹ️")
             info_btn.setFixedSize(28, 28)
             info_btn.setToolTip("Details anzeigen")
             info_btn.clicked.connect(lambda checked, i=item: self._show_details(i))
             action_layout.addWidget(info_btn)
             action_layout.addStretch()
-            
+
             self.table.setCellWidget(row_idx, col_idx, action_widget)
 
         # Passe Spaltenbreiten an
@@ -349,14 +350,14 @@ class VerfallDetailDialog(QtWidgets.QDialog):
         msg = QtWidgets.QMessageBox(self)
         msg.setWindowTitle("Präparat-Details")
         msg.setIcon(QtWidgets.QMessageBox.Information)
-        
+
         details = f"""Präparat: {item['praeparat_name']}
     Depot: {item['depot_name']}
     Menge: {item['menge']}
     Verfallsdatum: {item['verfallsdatum']}
     Tage bis Verfall: {item['tage_bis_verfall']}
     Kategorie: {item['kategorie'].title()}"""
-        
+
         # PZN nur anzeigen wenn vorhanden
         if self.verfallmanager.has_pzn and item.get('pzn'):
             details = f"PZN: {item['pzn']}\n" + details

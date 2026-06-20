@@ -1,11 +1,11 @@
 
-# -*- coding: utf-8 -*-
 """
 Login und Passwort-Dialoge für ND-Hub - Die ND-Hub-Verwaltung
 Version: 1.1 (Layout-Refactor)
 """
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
+
 from apple_theme import AppleTheme
 
 
@@ -261,22 +261,37 @@ class ChangePasswordDialog(QtWidgets.QDialog):
             return
         strength = 0
         feedback = []
-        if len(password) >= 8: strength += 1
-        else: feedback.append("mind. 8 Zeichen")
-        if any(c.isupper() for c in password): strength += 1
-        else: feedback.append("Großbuchstaben")
-        if any(c.islower() for c in password): strength += 1
-        else: feedback.append("Kleinbuchstaben")
-        if any(c.isdigit() for c in password): strength += 1
-        else: feedback.append("Zahlen")
-        if any(c in "!@#$%^&*()_+-=[]{};:,.<>?" for c in password): strength += 1
-        else: feedback.append("Sonderzeichen")
+        if len(password) >= 8:
+            strength += 1
+        else:
+            feedback.append("mind. 8 Zeichen")
+        if any(c.isupper() for c in password):
+            strength += 1
+        else:
+            feedback.append("Großbuchstaben")
+        if any(c.islower() for c in password):
+            strength += 1
+        else:
+            feedback.append("Kleinbuchstaben")
+        if any(c.isdigit() for c in password):
+            strength += 1
+        else:
+            feedback.append("Zahlen")
+        if any(c in "!@#$%^&*()_+-=[]{};:,.<>?" for c in password):
+            strength += 1
+        else:
+            feedback.append("Sonderzeichen")
 
-        if strength <= 1: color, text = "#e74c3c", "Sehr schwach"
-        elif strength == 2: color, text = "#e67e22", "Schwach"
-        elif strength == 3: color, text = "#f39c12", "Mittel"
-        elif strength == 4: color, text = "#27ae60", "Gut"
-        else: color, text = "#27ae60", "Sehr gut"
+        if strength <= 1:
+            color, text = "#e74c3c", "Sehr schwach"
+        elif strength == 2:
+            color, text = "#e67e22", "Schwach"
+        elif strength == 3:
+            color, text = "#f39c12", "Mittel"
+        elif strength == 4:
+            color, text = "#27ae60", "Gut"
+        else:
+            color, text = "#27ae60", "Sehr gut"
 
         feedback_text = f" (Fehlt: {', '.join(feedback)})" if feedback and strength < 4 else ""
         self.strength_label.setText(f"Passwortstärke: {text}{feedback_text}")

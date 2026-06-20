@@ -7,7 +7,6 @@ a temporary SQLite database, so no external services are required.
 
 from __future__ import annotations
 
-import os
 from datetime import date
 
 import pytest

@@ -8,8 +8,18 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
-ignore = ["E501"]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+  "E402",  # imports not at top — bewusst (PySide6-Stub, App-State)
+  "E501",  # line too long — Projekt hat 100 Zeichen, aber keine harte Policy
+  "B008",  # function calls in default args — FastAPI Dependencies
+  "B019",  # cache auf Methoden — Issue #35, Rest bekannt
+  "B023",  # loop variable in lambda — Qt/matplotlib Pattern
+  "B904",  # raise without from — bewusstes Design
+  "UP006", # typing.X statt builtins — PySide6 Signale
+  "UP035", # typing.X deprecated — gleicher Grund
+  "UP045", # Optional[X] Lesbarkeit
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

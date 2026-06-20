@@ -108,7 +108,7 @@ def test_bewegungen_supports_has_attachment_filter(monkeypatch, tmp_path):
     rows = with_pdf.json()
     assert len(rows) == 1
     assert rows[0]["charge"] == "A-100"
-    assert rows[0]["has_attachment"] in {1, True}
+    assert rows[0]["has_attachment"] in {1}
 
 
 def test_bewegungen_supports_praeparat_filter(monkeypatch, tmp_path):

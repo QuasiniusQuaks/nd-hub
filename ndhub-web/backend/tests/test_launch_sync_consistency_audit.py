@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from types import SimpleNamespace
-import sys
 
-import pytest
 from fastapi.testclient import TestClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -23,10 +22,11 @@ def _prepare_sys_path() -> None:
 
 _prepare_sys_path()
 
-from backend.app import create_app  # noqa: E402
 from core.data_access_layer import DataAccessRouter, OperatingMode  # noqa: E402
 from core.sync_service import DesktopSyncService  # noqa: E402
 from db_manager import Database  # noqa: E402
+
+from backend.app import create_app  # noqa: E402
 
 
 class _InMemorySyncConfig:

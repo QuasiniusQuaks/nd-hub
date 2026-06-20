@@ -1,19 +1,20 @@
-# -*- coding: utf-8 -*-
 """
 SecurityManager - Benutzerverwaltung und Authentifizierung
 Version: 2.0 (V32 - Kryptobereinigt)
 """
 
-import sqlite3
-import os
-import logging
 import hashlib
 import hmac
+import json
+import logging
+import os
 import secrets
 import shutil
-import json
-from typing import Optional, List, Tuple
+import sqlite3
 from datetime import datetime
+from typing import Optional
+
+from db_manager import Database
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ class SecurityManager:
     def _create_default_admin(self):
         """Erstellt den Standard-Admin-Benutzer falls nicht vorhanden"""
         existing = self.cur.execute(
-            "SELECT COUNT(*) FROM users WHERE username = ?", 
+            "SELECT COUNT(*) FROM users WHERE username = ?",
             ("admin",)
         ).fetchone()[0]
 
@@ -174,16 +175,16 @@ class SecurityManager:
             # Selbstheilung: Sicherstellen, dass 'admin' auch wirklich Admin-Rechte hat
             # Dies löst das Problem "Role is None" bei inkonsistenten Datenbanken
             self.cur.execute("""
-                UPDATE users 
-                SET role = ?, is_active = 1 
+                UPDATE users
+                SET role = ?, is_active = 1
                 WHERE username = ? AND (role IS NULL OR role = '' OR role != ?)
             """, (self.ROLE_ADMIN, "admin", self.ROLE_ADMIN))
             self.conn.commit()
-  
+
     def is_using_default_password(self) -> bool:
         """
         Prüft, ob der aktuelle Benutzer das Standard-Passwort verwendet.
-        
+
         Returns:
             True wenn Default-Passwort aktiv, sonst False
         """
@@ -191,27 +192,27 @@ class SecurityManager:
         if not hasattr(self, 'current_user') or not self.current_user:
             logger.warning("is_using_default_password aufgerufen ohne Login")
             return False
-        
+
         try:
             cursor = self.conn.cursor()
-            
+
             # User-ID aus Username holen
             cursor.execute("""
-                SELECT id, is_default_password 
-                FROM users 
+                SELECT id, is_default_password
+                FROM users
                 WHERE username = ?
             """, (self.current_user,))
-            
+
             result = cursor.fetchone()
-            
+
             if not result:
                 logger.warning(f"User '{self.current_user}' nicht in DB gefunden")
                 return False
-            
+
             # Prüfe ob Spalte 'is_default_password' existiert
             user_id, is_default = result
             return is_default == 1
-            
+
         except sqlite3.OperationalError as e:
             # Spalte existiert nicht -> immer False zurückgeben
             if "no such column" in str(e):
@@ -268,7 +269,7 @@ class SecurityManager:
 
     # ==================== USER AUTHENTICATION ====================
 
-    def authenticate(self, username: str, password: str) -> Tuple[bool, str]:
+    def authenticate(self, username: str, password: str) -> tuple[bool, str]:
         """
         Authentifiziert einen Benutzer
 
@@ -298,7 +299,7 @@ class SecurityManager:
             else:
                 # Entsperre Account
                 self.cur.execute("""
-                    UPDATE users SET locked_until = NULL, failed_attempts = 0 
+                    UPDATE users SET locked_until = NULL, failed_attempts = 0
                     WHERE id = ?
                 """, (user_id,))
                 self.conn.commit()
@@ -308,7 +309,7 @@ class SecurityManager:
             # Erfolgreicher Login
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cur.execute("""
-                UPDATE users 
+                UPDATE users
                 SET last_login = ?, failed_attempts = 0, locked_until = NULL
                 WHERE id = ?
             """, (now, user_id))
@@ -333,7 +334,7 @@ class SecurityManager:
                 lock_time = datetime.now() + timedelta(minutes=15)
                 locked_until = lock_time.strftime('%Y-%m-%d %H:%M:%S')
                 self.cur.execute("""
-                    UPDATE users 
+                    UPDATE users
                     SET failed_attempts = ?, locked_until = ?
                     WHERE id = ?
                 """, (failed_attempts, locked_until, user_id))
@@ -361,11 +362,11 @@ class SecurityManager:
         """Prüft ob der aktuelle Benutzer Admin ist"""
         return self.current_role == self.ROLE_ADMIN
 
-    def get_current_user(self) -> Optional[str]:
+    def get_current_user(self) -> str | None:
         """Gibt den aktuellen Benutzernamen zurück"""
         return self.current_user
 
-    def get_current_role(self) -> Optional[str]:
+    def get_current_role(self) -> str | None:
         """Gibt die aktuelle Rolle zurück"""
         return self.current_role
 
@@ -441,7 +442,7 @@ class SecurityManager:
 
     # ==================== USER MANAGEMENT ====================
 
-    def create_user(self, username: str, password: str, role: str, email: str = "") -> Tuple[bool, str]:
+    def create_user(self, username: str, password: str, role: str, email: str = "") -> tuple[bool, str]:
         """Erstellt einen neuen Benutzer (nur für Admins)"""
         if not self.is_admin():
             return False, "Keine Berechtigung"
@@ -472,11 +473,11 @@ class SecurityManager:
             """, (username, password_hash, role, email, now))
             self.conn.commit()
 
-            user_id = self.cur.lastrowid
+            _user_id = self.cur.lastrowid
             self.log_activity(
-                self.get_current_user_id(), 
-                self.current_user, 
-                "CREATE_USER", 
+                self.get_current_user_id(),
+                self.current_user,
+                "CREATE_USER",
                 f"Benutzer '{username}' erstellt (Rolle: {role})"
             )
 
@@ -486,8 +487,8 @@ class SecurityManager:
             logger.error(f"✗ Fehler beim Erstellen: {e}")
             return False, f"Fehler: {str(e)}"
 
-    def update_user(self, user_id: int, username: str = None, role: str = None, 
-                   email: str = None, is_active: bool = None) -> Tuple[bool, str]:
+    def update_user(self, user_id: int, username: str = None, role: str = None,
+                   email: str = None, is_active: bool = None) -> tuple[bool, str]:
         """Aktualisiert einen Benutzer (nur für Admins)"""
         if not self.is_admin():
             return False, "Keine Berechtigung"
@@ -523,9 +524,9 @@ class SecurityManager:
             self.conn.commit()
 
             self.log_activity(
-                self.get_current_user_id(), 
-                self.current_user, 
-                "UPDATE_USER", 
+                self.get_current_user_id(),
+                self.current_user,
+                "UPDATE_USER",
                 f"Benutzer ID {safe_user_id} aktualisiert"
             )
 
@@ -534,7 +535,7 @@ class SecurityManager:
             logger.error(f"✗ Fehler beim Aktualisieren: {e}")
             return False, str(e)
 
-    def delete_user(self, user_id: int) -> Tuple[bool, str]:
+    def delete_user(self, user_id: int) -> tuple[bool, str]:
         """Löscht einen Benutzer (nur für Admins, nicht sich selbst)"""
         if not self.is_admin():
             return False, "Keine Berechtigung"
@@ -548,7 +549,7 @@ class SecurityManager:
         user = self.cur.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
         if user and user[0] == self.ROLE_ADMIN:
             admin_count = self.cur.execute(
-                "SELECT COUNT(*) FROM users WHERE role = ? AND is_active = 1", 
+                "SELECT COUNT(*) FROM users WHERE role = ? AND is_active = 1",
                 (self.ROLE_ADMIN,)
             ).fetchone()[0]
             if admin_count <= 1:
@@ -560,9 +561,9 @@ class SecurityManager:
             self.conn.commit()
 
             self.log_activity(
-                current_user_id, 
-                self.current_user, 
-                "DELETE_USER", 
+                current_user_id,
+                self.current_user,
+                "DELETE_USER",
                 f"Benutzer '{username}' gelöscht"
             )
 
@@ -571,7 +572,7 @@ class SecurityManager:
             logger.error(f"✗ Fehler beim Löschen: {e}")
             return False, str(e)
 
-    def change_password(self, user_id: int, old_password: str, new_password: str) -> Tuple[bool, str]:
+    def change_password(self, user_id: int, old_password: str, new_password: str) -> tuple[bool, str]:
         """Ändert das Passwort eines Benutzers"""
         # Hole aktuellen Hash
         user = self.cur.execute(
@@ -596,7 +597,7 @@ class SecurityManager:
         try:
             self.cur.execute("UPDATE users SET password_hash = ?, is_default_password = 0 WHERE id = ?", (new_hash, user_id))
             self.conn.commit()
-            
+
             # Überprüfe ob Update erfolgreich war
             updated = self.cur.execute("SELECT is_default_password FROM users WHERE id = ?", (user_id,)).fetchone()
             if updated and updated[0] == 0:
@@ -605,13 +606,13 @@ class SecurityManager:
                 return True, "Passwort erfolgreich geändert"
             else:
                 raise Exception("Datenbank-Flag 'is_default_password' konnte nicht auf 0 gesetzt werden.")
-                
+
         except Exception as e:
             self.conn.rollback()
             logger.error(f"✗ Fehler beim Passwortändern: {e}")
             return False, f"Fehler beim Speichern: {str(e)}"
 
-    def reset_password(self, user_id: int, new_password: str) -> Tuple[bool, str]:
+    def reset_password(self, user_id: int, new_password: str) -> tuple[bool, str]:
         """Setzt das Passwort eines Benutzers zurück (nur für Admins)"""
         if not self.is_admin():
             return False, "Keine Berechtigung"
@@ -622,14 +623,14 @@ class SecurityManager:
         try:
             username = self.cur.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()[0]
             new_hash = self.hash_password(new_password)
-            self.cur.execute("UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL, is_default_password = ? WHERE id = ?", 
+            self.cur.execute("UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL, is_default_password = ? WHERE id = ?",
                            (new_hash, 1, user_id))
             self.conn.commit()
 
             self.log_activity(
-                self.get_current_user_id(), 
-                self.current_user, 
-                "RESET_PASSWORD", 
+                self.get_current_user_id(),
+                self.current_user,
+                "RESET_PASSWORD",
                 f"Passwort zurückgesetzt: '{username}'"
             )
 
@@ -637,7 +638,7 @@ class SecurityManager:
         except Exception as e:
             return False, str(e)
 
-    def unlock_user(self, user_id: int) -> Tuple[bool, str]:
+    def unlock_user(self, user_id: int) -> tuple[bool, str]:
         """Entsperrt einen Benutzeraccount (setzt Lock/Fehlversuche zurueck)."""
         if not self.is_admin():
             return False, "Keine Berechtigung"
@@ -661,7 +662,7 @@ class SecurityManager:
         except Exception as e:
             return False, str(e)
 
-    def list_users(self) -> List[Tuple]:
+    def list_users(self) -> list[tuple]:
         """Listet alle Benutzer auf"""
         return self.cur.execute("""
             SELECT id, username, role, email, created_at, last_login, is_active, failed_attempts, locked_until, is_default_password, permissions
@@ -669,28 +670,28 @@ class SecurityManager:
             ORDER BY username
         """).fetchall()
 
-    def get_current_user_id(self) -> Optional[int]:
+    def get_current_user_id(self) -> int | None:
         """Gibt die ID des aktuellen Benutzers zurück"""
         if not self.current_user:
             return None
         row = self.cur.execute("SELECT id FROM users WHERE username = ?", (self.current_user,)).fetchone()
         return row[0] if row else None
 
-    def get_user_avatar_path(self, user_id: int) -> Optional[str]:
+    def get_user_avatar_path(self, user_id: int) -> str | None:
         """Gibt den Avatar-Pfad eines Benutzers zurück."""
         row = self.cur.execute("SELECT avatar_path FROM users WHERE id = ?", (int(user_id),)).fetchone()
         if not row:
             return None
         return row[0] or None
 
-    def get_current_user_avatar_path(self) -> Optional[str]:
+    def get_current_user_avatar_path(self) -> str | None:
         """Gibt den Avatar-Pfad des aktuell angemeldeten Benutzers zurück."""
         user_id = self.get_current_user_id()
         if not user_id:
             return None
         return self.get_user_avatar_path(user_id)
 
-    def set_user_avatar(self, user_id: int, image_path: str) -> Tuple[bool, str]:
+    def set_user_avatar(self, user_id: int, image_path: str) -> tuple[bool, str]:
         """Setzt/aktualisiert Avatar für einen Benutzer."""
         safe_user_id = int(user_id)
         current_user_id = self.get_current_user_id()
@@ -716,7 +717,7 @@ class SecurityManager:
             logger.error("Fehler beim Speichern des Profilbilds: %s", e)
             return False, f"Fehler beim Speichern: {e}"
 
-    def clear_user_avatar(self, user_id: int) -> Tuple[bool, str]:
+    def clear_user_avatar(self, user_id: int) -> tuple[bool, str]:
         """Entfernt Avatar-Eintrag eines Benutzers."""
         safe_user_id = int(user_id)
         current_user_id = self.get_current_user_id()
@@ -751,7 +752,7 @@ class SecurityManager:
         except Exception as e:
             logger.error(f"✗ Logging-Fehler: {e}")
 
-    def get_activity_log(self, user_id: int = None, limit: int = 100) -> List[Tuple]:
+    def get_activity_log(self, user_id: int = None, limit: int = 100) -> list[tuple]:
         """Holt das Aktivitätslog"""
         if user_id:
             return self.cur.execute("""

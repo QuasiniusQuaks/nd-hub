@@ -2,38 +2,48 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from datetime import date
-from pathlib import Path
-from typing import Any, Optional
-from datetime import datetime, timezone
-import re
-import os
-import shutil
-import sqlite3
-import json
-import smtplib
-import hashlib
-from io import BytesIO
 import csv
+import hashlib
 import io
-import tempfile
+import json
 import logging
-from urllib.parse import urlencode, urlparse
-from urllib.request import urlopen, Request as UrlRequest
+import os
+import re
+import shutil
+import smtplib
+import sqlite3
+import tempfile
+from contextlib import asynccontextmanager
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from email.message import EmailMessage
+from io import BytesIO
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlencode, urlparse
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-# ---- Rate-Limit für /auth/login (Fix für #32) ----
+
+# ---- Rate-Limit fuer /auth/login (Fix fuer #32) ----
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -63,8 +73,8 @@ from backend.config import (
     resolve_db_engine,
     resolve_dual_write_sqlite,
     resolve_email_delivery_settings,
-    resolve_max_backup_restore_mb,
     resolve_mariadb_settings,
+    resolve_max_backup_restore_mb,
     resolve_runtime_paths,
 )
 from backend.database import SqliteRepository
@@ -673,7 +683,7 @@ def _build_report_export_filename(
         parts.append(f"h{max(1, int(horizon_months))}m")
     if limit is not None:
         parts.append(f"top{max(1, int(limit))}")
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    stamp = datetime.now(UTC).strftime("%Y%m%d")
     safe_extension = _safe_report_filename_token(extension) or "csv"
     return f"{'_'.join(parts)}_{stamp}.{safe_extension}"
 
@@ -796,7 +806,13 @@ def _pdf_response(filename: str, title: str, headers: list[str], rows: list[list
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from reportlab.platypus import (
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
     except ImportError as exc:  # pragma: no cover
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PDF-Export erfordert reportlab.") from exc
 
@@ -1012,8 +1028,8 @@ def _parse_iso_datetime(value: object) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _create_backup_snapshot(source_db_path: Path, backups_dir: Path, label: str) -> Path:
@@ -1043,7 +1059,7 @@ def _create_mariadb_backup_snapshot(backups_dir: Path, label: str) -> Path:
     payload: dict[str, object] = {
         "engine": "mariadb",
         "database": settings.database,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "tables": {},
     }
     conn = pymysql.connect(
@@ -1099,7 +1115,7 @@ def _list_backup_files(backups_dir: Path, limit: int = 200) -> list[dict]:
             {
                 "filename": path.name,
                 "size_bytes": int(stat.st_size),
-                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
                 "kind": "mariadb_json" if path.name.endswith(".mariadb.json") else "sqlite_file",
             }
         )
@@ -1110,7 +1126,7 @@ def _list_backup_files(backups_dir: Path, limit: int = 200) -> list[dict]:
 
 def _run_auto_backup_if_due(source_db_path: Path, backups_dir: Path, interval_hours: int) -> Path | None:
     safe_interval_hours = max(1, min(int(interval_hours), 24 * 30))
-    now_ts = datetime.now(timezone.utc).timestamp()
+    now_ts = datetime.now(UTC).timestamp()
     latest_auto_mtime = None
     for path in backups_dir.glob("ndhub_auto_*.db"):
         try:
@@ -1128,7 +1144,7 @@ def _run_auto_backup_if_due(source_db_path: Path, backups_dir: Path, interval_ho
 
 def _run_auto_backup_if_due_mariadb(backups_dir: Path, interval_hours: int) -> Path | None:
     safe_interval_hours = max(1, min(int(interval_hours), 24 * 30))
-    now_ts = datetime.now(timezone.utc).timestamp()
+    now_ts = datetime.now(UTC).timestamp()
     latest_auto_mtime = None
     for path in backups_dir.glob("ndhub_auto_*.mariadb.json"):
         try:
@@ -1298,7 +1314,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return f"{token[:4]}{'*' * (len(token) - 8)}{token[-4:]}"
 
     def _resolve_archive_status(expires_at: datetime | None, revoked_at: datetime | None, token: str) -> str:
-        if isinstance(expires_at, datetime) and expires_at <= datetime.now(timezone.utc):
+        if isinstance(expires_at, datetime) and expires_at <= datetime.now(UTC):
             return "abgelaufen"
         if revoked_at is not None:
             return "widerrufen"
@@ -2377,7 +2393,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return {
             "filename": backup_path.name,
             "size_bytes": int(stat.st_size),
-            "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
         }
 
     @app.get("/admin/backup/download")
@@ -3294,13 +3310,13 @@ def create_app(db_path: str | None = None) -> FastAPI:
     ) -> dict:
         allowed_ids = set(_allowed_depot_ids(session, require_write=False))
         if session.role != "Admin" and not allowed_ids:
-            return {"since": (since or "").strip() or None, "next_since": datetime.now(timezone.utc).isoformat(), "rows": [], "counts": {"kritisch": 0, "warnung": 0, "achtung": 0, "gesamt": 0}}
+            return {"since": (since or "").strip() or None, "next_since": datetime.now(UTC).isoformat(), "rows": [], "counts": {"kritisch": 0, "warnung": 0, "achtung": 0, "gesamt": 0}}
         safe_critical, safe_warning, safe_attention = _normalize_verfall_thresholds(
             critical_days=critical_days,
             warning_days=warning_days,
             attention_days=attention_days,
         )
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
         rows = repository.list_new_critical_expiry_events(
             since_iso=(since or "").strip() or None,
             limit=limit,
@@ -3384,7 +3400,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         except OSError as exc:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Datei konnte nicht gespeichert werden.") from exc
         stored_name = Path(filename).name
-        uploaded_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        uploaded_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         repository.set_bewegung_attachment(
             bewegung_id=bewegung_id,
             datei_pfad=str(target_path),
@@ -4576,7 +4592,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
     def sync_status(session: SessionInfo = Depends(get_current_session)) -> dict[str, Any]:
         _ = session
         return {
-            "server_time": datetime.now(timezone.utc).isoformat(),
+            "server_time": datetime.now(UTC).isoformat(),
             "min_supported_client_version": "1.0.0",
             "features": {
                 "entities": ["institutions", "depots", "praeparate", "kontakte", "depot_praeparate", "bewegungen"],
@@ -4604,7 +4620,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             if built is not None and _is_sync_change_allowed_for_session(session, built):
                 transformed_changes.append(built)
         result["changes"] = transformed_changes
-        result["server_time"] = datetime.now(timezone.utc).isoformat()
+        result["server_time"] = datetime.now(UTC).isoformat()
         return result
 
     @app.post("/sync/push")
@@ -4712,7 +4728,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         session: SessionInfo = Depends(require_permission("audit_view")),
     ) -> dict[str, Any]:
         stats = repository.get_sync_ops_stats()
-        stats["server_time"] = datetime.now(timezone.utc).isoformat()
+        stats["server_time"] = datetime.now(UTC).isoformat()
         stats["requested_by"] = session.username
         return stats
 

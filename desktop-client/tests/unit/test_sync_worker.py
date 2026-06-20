@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests für Fix #1: Sync-Worker-Entkopplung vom UI-Thread.
 
@@ -19,7 +18,6 @@ import pytest
 from PySide6 import QtCore
 
 from core.sync_worker import SyncWorkerRunner
-
 
 # --- QApplication-Fixture (singleton für alle Tests) -----------------------
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import logging
@@ -8,7 +7,6 @@ from typing import Any
 
 from core.config_manager import ConfigManager
 from core.data_access_layer import DataAccessRouter, OperatingMode
-
 
 logger = logging.getLogger("ND-Hub.Sync")
 

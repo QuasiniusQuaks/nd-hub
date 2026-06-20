@@ -1,29 +1,30 @@
 """E-Mail-Kommunikation - Senden und Verlauf."""
 
-from PySide6 import QtWidgets, QtCore
+from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
 
+from apple_theme import AppleTheme
 from db_manager import Database
 from icon_manager import IconManager
-from apple_theme import AppleTheme
-from ui.utils import create_card_widget, configure_responsive_table
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
+from ui.utils import configure_responsive_table, create_card_widget
+
 
 class EmailPage(QtWidgets.QWidget):
     def __init__(self, db: Database, parent=None):
         super().__init__(parent)
         self.db = db
-        
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(20)
-        
+
         title = QtWidgets.QLabel("E-Mail-Kommunikation")
         title.setProperty("class", "page-title")
         layout.addWidget(title)
-        
+
         tabs = QtWidgets.QTabWidget()
-        
+
         tab_new = QtWidgets.QWidget()
         tab_new_layout = QtWidgets.QVBoxLayout(tab_new)
         tab_new_layout.setContentsMargins(0, 0, 0, 0)
@@ -38,27 +39,27 @@ class EmailPage(QtWidgets.QWidget):
         tab_new_content_layout = QtWidgets.QVBoxLayout(tab_new_content)
         tab_new_content_layout.setContentsMargins(0, 0, 0, 0)
         tab_new_content_layout.setSpacing(20)
-        
+
         empfaenger_card = create_card_widget()
         empfaenger_layout = QtWidgets.QVBoxLayout(empfaenger_card)
-        
+
         empf_title = QtWidgets.QLabel("Empfänger auswählen")
         empf_title.setStyleSheet("font-size: 16px; font-weight: 600; margin-bottom: 12px;")
         empfaenger_layout.addWidget(empf_title)
-        
+
         self._email_recipient_hint = QtWidgets.QLabel(
             "Pro Depot werden automatisch alle Ansprechpartner als Empfänger hinzugefügt."
         )
         self._email_recipient_hint.setWordWrap(True)
         empfaenger_layout.addWidget(self._email_recipient_hint)
-        
+
         depot_controls = QtWidgets.QHBoxLayout()
-        
+
         self.depot_list = QtWidgets.QListWidget()
         self.depot_list.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
         self.depot_list.setMinimumHeight(170)
         depot_controls.addWidget(self.depot_list)
-        
+
         depot_buttons = QtWidgets.QVBoxLayout()
         self.btn_select_all = QtWidgets.QPushButton(" Alle auswählen")
         self.btn_select_all.setIcon(IconManager.get_icon("check"))
@@ -68,29 +69,29 @@ class EmailPage(QtWidgets.QWidget):
         depot_buttons.addWidget(self.btn_select_none)
         depot_buttons.addStretch()
         depot_controls.addLayout(depot_buttons)
-        
+
         empfaenger_layout.addLayout(depot_controls)
-        
+
         self.label_empfaenger_count = QtWidgets.QLabel("Ausgewählte Empfänger: 0")
         empfaenger_layout.addWidget(self.label_empfaenger_count)
-        
+
         self.text_empfaenger_preview = QtWidgets.QTextEdit()
         self.text_empfaenger_preview.setReadOnly(True)
         self.text_empfaenger_preview.setMinimumHeight(90)
         self.text_empfaenger_preview.setMaximumHeight(180)
         self.text_empfaenger_preview.setPlaceholderText("Empfänger werden hier angezeigt...")
         empfaenger_layout.addWidget(self.text_empfaenger_preview)
-        
+
         tab_new_content_layout.addWidget(empfaenger_card)
-        
+
         content_card = create_card_widget()
         content_layout = QtWidgets.QFormLayout(content_card)
         content_layout.setSpacing(16)
-        
+
         self.line_betreff = QtWidgets.QLineEdit()
         self.line_betreff.setPlaceholderText("z.B. Inventur-Checkliste ND-Hub")
         content_layout.addRow("Betreff:", self.line_betreff)
-        
+
         self.text_nachricht = QtWidgets.QPlainTextEdit()
         self.text_nachricht.setPlaceholderText(
             "Sehr geehrte Damen und Herren,\n\n"
@@ -104,9 +105,9 @@ class EmailPage(QtWidgets.QWidget):
             "Sofort per SMTP senden (Konfiguration: Grundeinstellungen → E-Mail-Versand)"
         )
         content_layout.addRow("Versand:", self.check_send_now)
-        
+
         tab_new_content_layout.addWidget(content_card)
-        
+
         button_layout = QtWidgets.QHBoxLayout()
         self.btn_create_email = QtWidgets.QPushButton(" E-Mail in Outlook erstellen")
         self.btn_create_email.setIcon(IconManager.get_icon("mail"))
@@ -115,23 +116,23 @@ class EmailPage(QtWidgets.QWidget):
         button_layout.addStretch()
         button_layout.addWidget(self.btn_create_email)
         tab_new_content_layout.addLayout(button_layout)
-        
+
         tabs.addTab(tab_new, "Neue E-Mail")
         tabs.setTabIcon(0, IconManager.get_icon("mail"))
-        
+
         tab_verlauf = QtWidgets.QWidget()
         tab_verlauf_layout = QtWidgets.QVBoxLayout(tab_verlauf)
         tab_verlauf_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         verlauf_card = create_card_widget()
         verlauf_card_layout = QtWidgets.QVBoxLayout(verlauf_card)
-        
+
         self.table_verlauf = QtWidgets.QTableWidget()
         self.table_verlauf.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table_verlauf.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         configure_responsive_table(self.table_verlauf)
         verlauf_card_layout.addWidget(self.table_verlauf)
-        
+
         verlauf_buttons = QtWidgets.QHBoxLayout()
         self.btn_show_details = QtWidgets.QPushButton(" Details anzeigen")
         self.btn_show_details.setIcon(IconManager.get_icon("eye"))
@@ -142,21 +143,21 @@ class EmailPage(QtWidgets.QWidget):
         verlauf_buttons.addStretch()
         verlauf_buttons.addWidget(self.btn_refresh_verlauf)
         verlauf_card_layout.addLayout(verlauf_buttons)
-        
+
         tab_verlauf_layout.addWidget(verlauf_card)
-        
+
         tabs.addTab(tab_verlauf, "Verlauf")
         tabs.setTabIcon(1, IconManager.get_icon("clock"))
-        
+
         layout.addWidget(tabs)
-        
+
         self.btn_select_all.clicked.connect(self.select_all_depots)
         self.btn_select_none.clicked.connect(self.select_no_depots)
         self.depot_list.itemSelectionChanged.connect(self.update_empfaenger_preview)
         self.btn_create_email.clicked.connect(self.create_outlook_email)
         self.btn_refresh_verlauf.clicked.connect(self.refresh_verlauf_with_toast)
         self.btn_show_details.clicked.connect(self.show_email_details)
-        
+
         self._apply_email_hint_styles()
         # Initialisierung entkoppeln, damit Seitenwechsel nicht "hängt".
         QtCore.QTimer.singleShot(0, self._load_initial_data)
@@ -207,50 +208,50 @@ class EmailPage(QtWidgets.QWidget):
             self.label_empfaenger_count.setText("Ausgewählte Empfänger: 0")
             self.text_empfaenger_preview.clear()
             return
-        
+
         depot_ids = [item.data(Qt.UserRole) for item in selected_items]
         kontakte = self.db.get_kontakte_by_depot_ids(depot_ids)
-        
+
         if not kontakte:
             self.label_empfaenger_count.setText("Keine E-Mail-Adressen vorhanden")
             self.text_empfaenger_preview.setPlainText("Für die ausgewählten Depots sind keine Ansprechpartner mit E-Mail-Adressen hinterlegt.")
             return
-        
+
         self.label_empfaenger_count.setText(f"Ausgewählte Empfänger: {len(kontakte)}")
-        
+
         preview_text = ""
         current_depot = None
-        for k_id, name, rolle, email, depot_name, depot_id in kontakte:
+        for _k_id, name, rolle, email, depot_name, _depot_id in kontakte:
             if depot_name != current_depot:
                 current_depot = depot_name
                 preview_text += f"\n📍 {depot_name}\n"
             preview_text += f"   • {name} ({rolle}) - {email}\n"
-        
+
         self.text_empfaenger_preview.setPlainText(preview_text.strip())
 
     def create_outlook_email(self):
         selected_items = self.depot_list.selectedItems()
         if not selected_items:
-            QtWidgets.QMessageBox.warning(self, "Keine Depots ausgewählt", 
+            QtWidgets.QMessageBox.warning(self, "Keine Depots ausgewählt",
                                          "Bitte wählen Sie mindestens ein Depot aus.")
             return
-        
+
         betreff = self.line_betreff.text().strip()
         nachricht = self.text_nachricht.toPlainText().strip()
-        
+
         if not betreff:
-            QtWidgets.QMessageBox.warning(self, "Kein Betreff", 
+            QtWidgets.QMessageBox.warning(self, "Kein Betreff",
                                          "Bitte geben Sie einen Betreff ein.")
             return
-        
+
         depot_ids = [item.data(Qt.UserRole) for item in selected_items]
         kontakte = self.db.get_kontakte_by_depot_ids(depot_ids)
-        
+
         if not kontakte:
-            QtWidgets.QMessageBox.warning(self, "Keine Empfänger", 
+            QtWidgets.QMessageBox.warning(self, "Keine Empfänger",
                                          "Für die ausgewählten Depots sind keine E-Mail-Adressen hinterlegt.")
             return
-        
+
         emails = [k[3] for k in kontakte]
         depot_names = list(set([k[4] for k in kontakte]))
         send_now = bool(self.check_send_now.isChecked())
@@ -334,13 +335,13 @@ class EmailPage(QtWidgets.QWidget):
         self.table_verlauf.setUpdatesEnabled(False)
         try:
             verlauf = self.db.get_email_verlauf(limit=50)
-            
+
             headers = ["ID", "Datum", "Betreff", "Depots", "Empfänger", "Status"]
             self.table_verlauf.clear()
             self.table_verlauf.setColumnCount(len(headers))
             self.table_verlauf.setRowCount(len(verlauf))
             self.table_verlauf.setHorizontalHeaderLabels(headers)
-            
+
             for r, (email_id, datum, betreff, depots, anzahl, delivery_status) in enumerate(verlauf):
                 self.table_verlauf.setItem(r, 0, QtWidgets.QTableWidgetItem(str(email_id)))
                 self.table_verlauf.setItem(r, 1, QtWidgets.QTableWidgetItem(datum))
@@ -348,7 +349,7 @@ class EmailPage(QtWidgets.QWidget):
                 self.table_verlauf.setItem(r, 3, QtWidgets.QTableWidgetItem(depots))
                 self.table_verlauf.setItem(r, 4, QtWidgets.QTableWidgetItem(str(anzahl)))
                 self.table_verlauf.setItem(r, 5, QtWidgets.QTableWidgetItem(str(delivery_status or "draft")))
-            
+
             configure_responsive_table(
                 self.table_verlauf,
                 stretch_columns=[2, 3],
@@ -374,19 +375,19 @@ class EmailPage(QtWidgets.QWidget):
         if row < 0:
             QtWidgets.QMessageBox.information(self, "Keine Auswahl", "Bitte wählen Sie eine E-Mail aus.")
             return
-        
+
         email_id = int(self.table_verlauf.item(row, 0).text())
         details = self.db.get_email_details(email_id)
-        
+
         if not details:
             return
-        
+
         datum, betreff, nachricht, depots, emails, anzahl, send_now, delivery_status, delivery_channel, delivery_error = details
-        
+
         dialog = QtWidgets.QDialog(self)
         dialog.setWindowTitle(f"E-Mail Details - {betreff}")
         dialog.resize(760, 560)
-        
+
         layout = QtWidgets.QVBoxLayout(dialog)
         scroll = QtWidgets.QScrollArea()
         scroll.setWidgetResizable(True)
@@ -396,7 +397,7 @@ class EmailPage(QtWidgets.QWidget):
         dialog_content = QtWidgets.QWidget()
         scroll.setWidget(dialog_content)
         content_layout = QtWidgets.QVBoxLayout(dialog_content)
-        
+
         info_layout = QtWidgets.QFormLayout()
         info_layout.addRow("Datum:", QtWidgets.QLabel(datum))
         info_layout.addRow("Betreff:", QtWidgets.QLabel(betreff))
@@ -408,7 +409,7 @@ class EmailPage(QtWidgets.QWidget):
         if delivery_error:
             info_layout.addRow("Fehler:", QtWidgets.QLabel(str(delivery_error)))
         content_layout.addLayout(info_layout)
-        
+
         content_layout.addWidget(QtWidgets.QLabel("Empfänger:"))
         email_text = QtWidgets.QTextEdit()
         email_text.setReadOnly(True)
@@ -416,18 +417,18 @@ class EmailPage(QtWidgets.QWidget):
         email_text.setMinimumHeight(120)
         email_text.setMaximumHeight(220)
         content_layout.addWidget(email_text)
-        
+
         content_layout.addWidget(QtWidgets.QLabel("Nachricht:"))
         msg_text = QtWidgets.QTextEdit()
         msg_text.setReadOnly(True)
         msg_text.setPlainText(nachricht)
         msg_text.setMinimumHeight(220)
         content_layout.addWidget(msg_text)
-        
+
         btn_close = QtWidgets.QPushButton("Schließen")
         btn_close.clicked.connect(dialog.accept)
         layout.addWidget(btn_close)
-        
+
         exec_embedded_dialog(self, dialog)
 
 

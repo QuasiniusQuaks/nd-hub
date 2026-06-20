@@ -1,6 +1,6 @@
+import os
 import tempfile
 import unittest
-import os
 
 from security_manager import SecurityManager
 

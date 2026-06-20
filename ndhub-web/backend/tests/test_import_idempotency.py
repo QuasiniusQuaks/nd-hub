@@ -36,9 +36,9 @@ def test_import_execute_is_idempotent_for_same_payload(monkeypatch, tmp_path):
     headers = _admin_headers(client)
 
     csv_content = (
-        "Depot,Praeparat,Typ,Charge,Verfall,Datum,Anzahl,Empfaenger\n"
-        "Depot A,Praeparat X,Zugang,C-001,2027-12-31,2026-06-01,3,\n"
-    ).encode("utf-8")
+        b"Depot,Praeparat,Typ,Charge,Verfall,Datum,Anzahl,Empfaenger\n"
+        b"Depot A,Praeparat X,Zugang,C-001,2027-12-31,2026-06-01,3,\n"
+    )
 
     first = client.post(
         "/imports/bewegungen/execute",
@@ -74,11 +74,11 @@ def test_import_preview_returns_error_summary(monkeypatch, tmp_path):
     headers = _admin_headers(client)
 
     csv_content = (
-        "Depot,Praeparat,Typ,Charge,Verfall,Datum,Anzahl,Empfaenger\n"
-        "Depot B,Praeparat X,Zugang,C-001,2027-12-31,2026-06-01,3,\n"
-        "Depot A,Praeparat X,Zugang,C-002,invalid,2026-06-01,3,\n"
-        "Depot A,Praeparat X,Zugang,C-003,2027-12-31,2026-06-01,0,\n"
-    ).encode("utf-8")
+        b"Depot,Praeparat,Typ,Charge,Verfall,Datum,Anzahl,Empfaenger\n"
+        b"Depot B,Praeparat X,Zugang,C-001,2027-12-31,2026-06-01,3,\n"
+        b"Depot A,Praeparat X,Zugang,C-002,invalid,2026-06-01,3,\n"
+        b"Depot A,Praeparat X,Zugang,C-003,2027-12-31,2026-06-01,0,\n"
+    )
 
     preview = client.post(
         "/imports/bewegungen/preview",
@@ -104,9 +104,9 @@ def test_import_execute_dry_run_does_not_write(monkeypatch, tmp_path):
     headers = _admin_headers(client)
 
     csv_content = (
-        "Depot,Praeparat,Typ,Charge,Verfall,Datum,Anzahl,Empfaenger\n"
-        "Depot A,Praeparat X,Zugang,C-DRY,2027-12-31,2026-06-01,4,\n"
-    ).encode("utf-8")
+        b"Depot,Praeparat,Typ,Charge,Verfall,Datum,Anzahl,Empfaenger\n"
+        b"Depot A,Praeparat X,Zugang,C-DRY,2027-12-31,2026-06-01,4,\n"
+    )
 
     execute = client.post(
         "/imports/bewegungen/execute",

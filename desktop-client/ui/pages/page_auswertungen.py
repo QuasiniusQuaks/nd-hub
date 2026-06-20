@@ -1,21 +1,22 @@
 """Auswertungen & Analytics - Diagramme und Statistiken."""
+import logging
 import textwrap
 from datetime import datetime
 
-from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtCore import Qt, QDate
-
+logger = logging.getLogger(__name__)
+import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-import numpy as np
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import QDate, Qt
 
+from apple_theme import AppleTheme
 from db_manager import Database
 from icon_manager import IconManager
-from apple_theme import AppleTheme
-from responsive_widgets import FlowLayout, AnalyticsKpiCard, ModernChartContainer
-from ui.utils import create_card_widget, configure_responsive_table
+from responsive_widgets import AnalyticsKpiCard, FlowLayout, ModernChartContainer
 from ui.dialogs.dialog_ppt_export import PPTExportDialog
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
+from ui.utils import configure_responsive_table, create_card_widget
 
 # Qt-Dateidialog: unter Linux/Portal wirkt der native Dialog oft „losgelöst“ und das Hauptfenster verschwindet hinter dem Busy-Overlay.
 _QT_SAVE_OPTIONS = QtWidgets.QFileDialog.Option.DontUseNativeDialog
@@ -176,19 +177,19 @@ class AuswertungenPage(QtWidgets.QWidget):
         self.action_bar = QtWidgets.QWidget()
         self.action_layout = FlowLayout(self.action_bar, margin=0, h_spacing=10, v_spacing=10)
         self.action_layout.setContentsMargins(0, 0, 0, 10)
-        
+
         self.export_report_btn = QtWidgets.QPushButton(" Bericht speichern")
         self.export_report_btn.setIcon(IconManager.get_icon("file_text"))
         self.export_report_btn.setObjectName("btn_secondary")
         self.export_report_btn.clicked.connect(self._handle_export_report_clicked)
         self.action_layout.addWidget(self.export_report_btn)
-        
+
         self.export_charts_btn = QtWidgets.QPushButton(" Diagramme speichern")
         self.export_charts_btn.setIcon(IconManager.get_icon("bar_chart"))
         self.export_charts_btn.setObjectName("btn_add")
         self.export_charts_btn.clicked.connect(self._handle_export_charts_clicked)
         self.action_layout.addWidget(self.export_charts_btn)
-        
+
         self.export_ppt_btn = QtWidgets.QPushButton(" PowerPoint erstellen")
         self.export_ppt_btn.setIcon(IconManager.get_icon("monitor"))
         self.export_ppt_btn.setObjectName("btn_add")
@@ -199,9 +200,9 @@ class AuswertungenPage(QtWidgets.QWidget):
         self._export_charts_action = None
         self._export_report_message = "Erstelle Bericht ..."
         self._export_charts_message = "Exportiere Diagramme ..."
-        
+
         self.action_bar.hide() # Initial hidden
-        
+
         results_layout.insertWidget(1, self.action_bar)
 
         scroll.setWidget(self.results_widget)
@@ -210,7 +211,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         main_layout.addWidget(self.results_card, 1)
 
         content_layout.addLayout(main_layout)
-        
+
         # Initial: Depots laden
         self.load_selection_items()
         self.show_empty_state()
@@ -234,12 +235,12 @@ class AuswertungenPage(QtWidgets.QWidget):
     def load_selection_items(self):
         """Lädt Depots oder Präparate in die Liste"""
         self.selection_list.clear()
-        
+
         try:
             if self.radio_depot.isChecked():
                 # Depots laden
                 items = self.db.list_depots()
-                for item_id, name, *rest in items:
+                for item_id, name, *_rest in items:
                     list_item = QtWidgets.QListWidgetItem(name)
                     list_item.setData(Qt.UserRole, item_id)
                     self.selection_list.addItem(list_item)
@@ -257,8 +258,8 @@ class AuswertungenPage(QtWidgets.QWidget):
 
     def get_selected_ids(self):
         """Gibt die IDs der markierten Elemente zurück"""
-        return [self.selection_list.item(i).data(Qt.UserRole) 
-                for i in range(self.selection_list.count()) 
+        return [self.selection_list.item(i).data(Qt.UserRole)
+                for i in range(self.selection_list.count())
                 if self.selection_list.item(i).isSelected()]
 
     def select_all(self):
@@ -273,17 +274,17 @@ class AuswertungenPage(QtWidgets.QWidget):
         empty_layout = QtWidgets.QVBoxLayout(empty_card)
         empty_layout.setContentsMargins(40, 60, 40, 60)
         empty_layout.setAlignment(Qt.AlignCenter)
-        
+
         icon_label = QtWidgets.QLabel("")
         icon_label.setStyleSheet("font-size: 64px; margin-bottom: 20px;")
-        
+
         hint_label = QtWidgets.QLabel("Wähle links die gewünschten Daten und einen Auswertungstyp aus.")
         hint_label.setStyleSheet(f"font-size: 16px; color: {AppleTheme.current_colors()['secondary_label']}; font-weight: 500;")
         hint_label.setAlignment(Qt.AlignCenter)
-        
+
         empty_layout.addWidget(icon_label, 0, Qt.AlignCenter)
         empty_layout.addWidget(hint_label, 0, Qt.AlignCenter)
-        
+
         self.content_layout.addWidget(empty_card)
 
     def add_kpi(self, title, value, unit="", color=None):
@@ -297,12 +298,12 @@ class AuswertungenPage(QtWidgets.QWidget):
             child = self.kpi_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        
+
         while self.content_layout.count():
             child = self.content_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        
+
         # Letzten Typ merken für Theme-Refresh
         self.last_auswertung_typ = None
         self.action_bar.hide()
@@ -316,7 +317,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         self.action_bar.show()
         self.export_ppt_btn.show() # Immer zeigen
 
-        
+
         if typ == "bewegungen":
             table = kwargs.get('table')
             start_date = kwargs.get('start_date')
@@ -400,7 +401,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         selected_depots = []
         if self.radio_depot.isChecked():
             selected_depots = self.get_selected_ids()
-            
+
         dialog = PPTExportDialog(self.db, default_depot_ids=selected_depots, parent=self)
         exec_embedded_dialog(self, dialog)
 
@@ -501,7 +502,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         total_count = sum(d[4] for d in data)
         zugang_count = sum(d[4] for d in data if d[2] == "Zugang")
         abgang_count = sum(d[4] for d in data if d[2] in ["Abgang", "Vernichtung"])
-        
+
         # Meistbewegtes Element finden
         from collections import Counter
         item_counter = Counter()
@@ -509,7 +510,7 @@ class AuswertungenPage(QtWidgets.QWidget):
             # d format: (depot, praep, typ, monat, anzahl)
             name = d[1] if self.radio_depot.isChecked() else d[0]
             item_counter[name] += d[4]
-        
+
         most_active_item = item_counter.most_common(1)[0][0] if item_counter else "-"
 
         self.add_kpi("Gesamt", int(total_count), "EH", AppleTheme.current_colors()['blue'])
@@ -552,7 +553,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         table.setMinimumHeight(260)
         table.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        
+
         table_container = ModernChartContainer("Detaillierte Bewegungsliste")
         table_container.add_widget(table)
         self.content_layout.addWidget(table_container)
@@ -561,10 +562,11 @@ class AuswertungenPage(QtWidgets.QWidget):
         self.update_action_bar("bewegungen", table=table, start_date=start_date, end_date=end_date)
 
         # === DIAGRAMME NEBENEINANDER ===
-        from collections import defaultdict
-        import numpy as np
         import textwrap
-        
+        from collections import defaultdict
+
+        import numpy as np
+
         self.bewegungen_canvases = []
 
         # Container für Diagramme (Flow Layout für Responsiveness)
@@ -581,7 +583,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         if perspective == "depot":
             praeparate_bewegungen = defaultdict(lambda: defaultdict(lambda: {"Zugang": 0, "Abgang": 0, "Vernichtung": 0}))
 
-            for depot, praep, typ, monat, anzahl in data:
+            for _depot, praep, typ, monat, anzahl in data:
                 key = monat if monat else "Unbekannt"
                 praeparate_bewegungen[praep][key][typ] += anzahl
 
@@ -628,11 +630,11 @@ class AuswertungenPage(QtWidgets.QWidget):
 
                 fig.tight_layout(pad=1.5)
                 fig.subplots_adjust(bottom=0.3, top=0.75) # Deutlich mehr Platz oben für Titel + Legende
-                
+
                 canvas = FigureCanvas(fig)
                 canvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
                 canvas.setMinimumSize(360, 300)
-                
+
                 chart_card = ModernChartContainer()
                 chart_card.add_widget(canvas)
                 charts_layout.addWidget(chart_card)
@@ -643,7 +645,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         else:
             depot_bewegungen = defaultdict(lambda: defaultdict(lambda: {"Zugang": 0, "Abgang": 0, "Vernichtung": 0}))
 
-            for depot, praep, typ, monat, anzahl in data:
+            for depot, _praep, typ, monat, anzahl in data:
                 key = monat if monat else "Unbekannt"
                 depot_bewegungen[depot][key][typ] += anzahl
 
@@ -690,11 +692,11 @@ class AuswertungenPage(QtWidgets.QWidget):
 
                 fig.tight_layout(pad=1.5)
                 fig.subplots_adjust(bottom=0.3, top=0.75)
-                
+
                 canvas = FigureCanvas(fig)
                 canvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
                 canvas.setMinimumSize(360, 300)
-                
+
                 chart_card = ModernChartContainer()
                 chart_card.add_widget(canvas)
                 charts_layout.addWidget(chart_card)
@@ -718,7 +720,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         }
 
         # (Actions werden jetzt zentral in update_action_bar verwaltet)
-        
+
         self.content_layout.addStretch()
 
     def export_bewegungen_tabelle_pdf(self, table, start_date, end_date):
@@ -734,13 +736,16 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         op_id = self._begin_busy(self._export_report_message or "Erstelle PDF …", delay_ms=0)
         try:
-            from reportlab.lib.pagesizes import letter  # noqa: F401  # vorbereitet für zukünftige PDF-Sizes-Switch
-            from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
-            from reportlab.lib import colors
             from datetime import datetime
+
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import (
+                A4,
+                letter,  # noqa: F401  # vorbereitet für zukünftige PDF-Sizes-Switch
+            )
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
             # PDF erstellen
             doc = SimpleDocTemplate(file_path, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
@@ -757,7 +762,7 @@ class AuswertungenPage(QtWidgets.QWidget):
                 alignment=1
             )
             elements.append(Paragraph(f"Bewegungsanalyse ({start_date} bis {end_date})", title_style))
-            
+
             # KPI Sektion im PDF
             if hasattr(self, 'bewegungen_table_data') and 'kpis' in self.bewegungen_table_data:
                 kpi_data = []
@@ -770,7 +775,7 @@ class AuswertungenPage(QtWidgets.QWidget):
                             label, val = kpis[i+j]
                             row.append(Paragraph(f"<b>{label}:</b> {val}", styles['Normal']))
                     kpi_data.append(row)
-                
+
                 kpi_table = Table(kpi_data, colWidths=[2.5*inch, 2.5*inch])
                 kpi_table.setStyle(TableStyle([
                     ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f2f2f7')),
@@ -844,15 +849,16 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         op_id = self._begin_busy(self._export_charts_message or "Exportiere Diagramme …", delay_ms=0)
         try:
-            from matplotlib.backends.backend_pdf import PdfPages
             from datetime import datetime
+
+            from matplotlib.backends.backend_pdf import PdfPages
 
             if not hasattr(self, 'bewegungen_canvases') or not self.bewegungen_canvases:
                 QtWidgets.QMessageBox.warning(self, "Warnung", "Keine Diagramme zum Exportieren vorhanden.")
                 return
 
             with PdfPages(file_path) as pdf:
-                for title, fig in self.bewegungen_canvases:
+                for _title, fig in self.bewegungen_canvases:
                     pdf.savefig(fig, bbox_inches='tight')
 
                 # Metadaten
@@ -891,7 +897,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         sum_ist = sum(d[3] for d in data)
         quote = (sum_ist / sum_soll * 100) if sum_soll > 0 else 0
         luecken = sum(1 for d in data if d[3] < d[2])
-        
+
         self.add_kpi("Bestandsquote", f"{quote:.1f}", "%", AppleTheme.current_colors()['blue'])
         self.add_kpi("Kritische Lücken", luecken, "Items", AppleTheme.current_colors()['red'] if luecken > 0 else AppleTheme.current_colors()['green'])
         self.add_kpi("Gesamtbestand", int(sum_ist), "EH", AppleTheme.current_colors()['orange'])
@@ -961,7 +967,7 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         canvas = FigureCanvas(fig)
         canvas.setMinimumHeight(400)
-        
+
         chart_container = ModernChartContainer()
         chart_container.add_widget(canvas)
         self.content_layout.addWidget(chart_container)
@@ -994,7 +1000,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         top_name = data[0][label_field]
         top_value = data[0][2]
         total_volume = sum(d[2] for d in data)
-        
+
         self.add_kpi("Spitzenreiter", top_name, "", AppleTheme.current_colors()['purple'])
         self.add_kpi("Max. Volumen", int(top_value), "EH", AppleTheme.current_colors()['blue'])
         self.add_kpi("Gesamtvolumen", int(total_volume), "EH", AppleTheme.current_colors()['green'])
@@ -1021,7 +1027,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         table.horizontalHeader().setStretchLastSection(True)
         table.setMinimumHeight(220)
         table.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        
+
         table_card = ModernChartContainer("Ranking Tabelle")
         table_card.add_widget(table)
         self.content_layout.addWidget(table_card)
@@ -1042,7 +1048,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         # Werte an die Balken schreiben
         for bar in bars:
             width = bar.get_width()
-            ax.text(width + 0.1, bar.get_y() + bar.get_height()/2, 
+            ax.text(width + 0.1, bar.get_y() + bar.get_height()/2,
                     f'{int(width)}', ha='left', va='center', fontsize=9, fontweight='bold')
 
         plural_suffix = "e" if x_label == "Präparat" else "s"
@@ -1051,10 +1057,10 @@ class AuswertungenPage(QtWidgets.QWidget):
         ax.grid(True, alpha=0.1, axis='x')
 
         fig.tight_layout()
-        
+
         canvas = FigureCanvas(fig)
         canvas.setMinimumHeight(350)
-        
+
         chart_card = ModernChartContainer()
         chart_card.add_widget(canvas)
         self.content_layout.addWidget(chart_card)
@@ -1081,7 +1087,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         kritisch = sum(1 for row in data if (row[3] or 0) < (row[2] or 0))
         ueberschuss = sum(1 for row in data if (row[3] or 0) > (row[2] or 0))
         gesamt_zellen = len(data)
-        
+
         self.add_kpi("Fehlbestand", kritisch, "Zellen", AppleTheme.current_colors()['red'] if kritisch > 0 else AppleTheme.current_colors()['green'])
         self.add_kpi("Überschuss", ueberschuss, "Zellen", AppleTheme.current_colors()['blue'])
         self.add_kpi("Gesamtmatrix", gesamt_zellen, "Kombis", AppleTheme.current_colors()['secondary_label'])
@@ -1117,8 +1123,8 @@ class AuswertungenPage(QtWidgets.QWidget):
 
 
         # Heatmap erstellen
-        import matplotlib.pyplot as plt
         import matplotlib.colors as mcolors
+        import matplotlib.pyplot as plt
         AppleTheme.setup_matplotlib(plt)
 
         fig = Figure(figsize=(10, 8))
@@ -1127,7 +1133,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         # Custom Colormap: Rot -> Weiß -> Grün
         # Wir nutzen eine divergierende Map: Rot für Fehlbestand, Weiß für Punktlandung, Grün für Überschuss
         cmap = mcolors.LinearSegmentedColormap.from_list("apple_matrix", ["#ff3b30", "#ffffff", "#34c759"])
-        
+
         # Normierung so, dass 0 immer in der Mitte (Weiß) ist
         vmin = matrix.min() if matrix.min() < 0 else -1
         vmax = matrix.max() if matrix.max() > 0 else 1
@@ -1147,17 +1153,17 @@ class AuswertungenPage(QtWidgets.QWidget):
                 for j in range(len(praeparate)):
                     val = int(matrix[i, j])
                     if val != 0:
-                        ax.text(j, i, f"{val:+d}", ha="center", va="center", 
-                               color="black" if abs(val) < 5 else "white", 
+                        ax.text(j, i, f"{val:+d}", ha="center", va="center",
+                               color="black" if abs(val) < 5 else "white",
                                fontsize=7, fontweight='bold')
 
         ax.set_title("Bestands-Abweichungs-Matrix (Differenz)", fontsize=12, fontweight='bold', pad=20)
-        
+
         fig.tight_layout()
 
         canvas = FigureCanvas(fig)
         canvas.setMinimumHeight(450)
-        
+
         chart_card = ModernChartContainer()
         chart_card.add_widget(canvas)
         self.content_layout.addWidget(chart_card)
@@ -1196,7 +1202,7 @@ class AuswertungenPage(QtWidgets.QWidget):
             "GROUP BY verfall_monat\n"
             "ORDER BY verfall_monat"
         )
-        
+
         data = self.db.cur.execute(sql, selected_ids).fetchall()
 
         if not data:
@@ -1206,9 +1212,10 @@ class AuswertungenPage(QtWidgets.QWidget):
             return
 
         import datetime
-        from dateutil.relativedelta import relativedelta
+
         import matplotlib.pyplot as plt
         import numpy as np
+        from dateutil.relativedelta import relativedelta
 
         # Filtere auf die nächsten 24 Monate inkl. historisch (bereits verfallen)
         today = datetime.date.today()
@@ -1216,7 +1223,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         future_cutoff = (today + relativedelta(months=24)).strftime("%Y-%m")
 
         filtered_data = [d for d in data if d[0] and d[0] <= future_cutoff]
-        
+
         if not filtered_data:
             no_data = QtWidgets.QLabel("Keine Verfalldaten bis zum gewählten Horizont gefunden.")
             no_data.setStyleSheet(f"color: {AppleTheme.current_colors()['secondary_label']}; font-size: 14px; padding: 20px;")
@@ -1243,7 +1250,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         mengen = [d[1] for d in filtered_data]
 
         x = np.arange(len(monate))
-        
+
         # Color coding: Red for past, Orange for < 3 months, Green for rest
         bar_colors = []
         for m in monate:
@@ -1284,7 +1291,7 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         canvas = FigureCanvas(fig)
         canvas.setMinimumHeight(400)
-        
+
         chart_card = ModernChartContainer("Verlauf drohender Verfallsdaten")
         chart_card.add_widget(canvas)
         self.content_layout.addWidget(chart_card)
@@ -1306,23 +1313,23 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         op_id = self._begin_busy(self._export_report_message or "Erstelle Bericht …", delay_ms=0)
         try:
-            from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
             from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 
             doc = SimpleDocTemplate(file_path, pagesize=A4, topMargin=0.5*inch)
             elements = []
             styles = getSampleStyleSheet()
-            
+
             elements.append(Paragraph(f"{title} - Bericht", ParagraphStyle('T', parent=styles['Heading1'], fontSize=18, spaceAfter=20)))
-            
+
             # Daten extrahieren
             data = []
             headers = [table.horizontalHeaderItem(i).text() for i in range(table.columnCount())]
             data.append(headers)
-            
+
             for row in range(table.rowCount()):
                 row_data = [table.item(row, col).text() if table.item(row, col) else "" for col in range(table.columnCount())]
                 data.append(row_data)
@@ -1358,7 +1365,7 @@ class AuswertungenPage(QtWidgets.QWidget):
         try:
             from matplotlib.backends.backend_pdf import PdfPages
             with PdfPages(file_path) as pdf:
-                for label, fig in canvases:
+                for _label, fig in canvases:
                     pdf.savefig(fig, bbox_inches='tight')
             QtWidgets.QMessageBox.information(self, "Erfolg", "Grafiken wurden gespeichert.")
         except Exception as e:

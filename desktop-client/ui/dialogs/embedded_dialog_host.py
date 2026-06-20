@@ -1,6 +1,6 @@
 """Hilfsfunktionen für integrierte Dialoge im Hauptfenster."""
 
-from PySide6 import QtWidgets, QtCore
+from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
 
 from apple_theme import AppleTheme
@@ -60,7 +60,7 @@ def _embedded_card_stylesheet() -> str:
     c = AppleTheme.current_colors()
     bg = c["bg_secondary"]
     lbl = c["label"]
-    sec = c["secondary_label"]
+    _sec = c["secondary_label"]
     sep = c["separator"]
     inp = c["bg_tertiary"]
     return (

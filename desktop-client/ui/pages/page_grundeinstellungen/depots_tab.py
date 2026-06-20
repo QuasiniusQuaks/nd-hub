@@ -1,11 +1,10 @@
 """Depots-Verwaltung - CRUD für Depots."""
 from PySide6 import QtWidgets
+
 from db_manager import Database, fill_table
 from icon_manager import IconManager
-from ui.utils import create_card_widget
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
-
-
+from ui.utils import create_card_widget
 
 
 class DepotsPage(QtWidgets.QWidget):
@@ -16,18 +15,18 @@ class DepotsPage(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(20)
-        
+
         title = QtWidgets.QLabel("Depots verwalten")
         title.setProperty("class", "page-title")
         layout.addWidget(title)
-        
+
         card = create_card_widget()
         card_layout = QtWidgets.QVBoxLayout(card)
-        
+
         self.table = QtWidgets.QTableWidget()
         self.table.setAlternatingRowColors(True)
         card_layout.addWidget(self.table)
-        
+
         btns = QtWidgets.QHBoxLayout()
         btns.setSpacing(12)
         self.btn_add = QtWidgets.QPushButton("Neues Depot")
@@ -43,13 +42,13 @@ class DepotsPage(QtWidgets.QWidget):
         btns.addWidget(self.btn_delete)
         btns.addStretch()
         card_layout.addLayout(btns)
-        
+
         layout.addWidget(card)
-        
+
         self.btn_add.clicked.connect(self.add_depot)
         self.btn_edit.clicked.connect(self.edit_depot)
         self.btn_delete.clicked.connect(self.delete_depot)
-        
+
         self.refresh()
 
     def refresh(self):

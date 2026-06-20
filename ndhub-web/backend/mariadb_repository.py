@@ -8,9 +8,9 @@ This module enables incremental runtime cutover:
 
 from __future__ import annotations
 
-from datetime import date
 import json
 import logging
+from datetime import UTC, date
 from typing import Any
 
 import pymysql
@@ -1868,7 +1868,7 @@ class MariaDbRepository:
     ) -> list[dict[str, Any]]:
         safe_limit = max(1, min(int(limit), 100))
         safe_critical_days = max(1, min(int(critical_days), 365))
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         since_date = None
         if since_iso:
@@ -1912,9 +1912,9 @@ class MariaDbRepository:
             try:
                 verfall_day = datetime.strptime(verfall_text, "%Y-%m-%d").date()
                 event_day = verfall_day - timedelta(days=safe_critical_days)
-                row["event_at"] = datetime.combine(event_day, datetime.min.time(), tzinfo=timezone.utc).isoformat()
+                row["event_at"] = datetime.combine(event_day, datetime.min.time(), tzinfo=UTC).isoformat()
             except ValueError:
-                row["event_at"] = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).isoformat()
+                row["event_at"] = datetime.combine(today, datetime.min.time(), tzinfo=UTC).isoformat()
         return rows
 
     # ---- audit -------------------------------------------------------------

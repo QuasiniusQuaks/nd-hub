@@ -2,27 +2,26 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from datetime import date
-from pathlib import Path
-from typing import Optional
-from datetime import datetime, timezone
+import csv
+import io
+import json
+import logging
+import os
 import re
 import shutil
 import sqlite3
-import os
-import json
-import logging
-from io import BytesIO
-import csv
-import io
 import tempfile
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timezone
+from io import BytesIO
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
 try:
     import pandas as pd
 except ImportError:  # pragma: no cover - optional runtime dependency
@@ -44,7 +43,6 @@ from backend.config import resolve_db_path
 from backend.database import SqliteRepository
 from security_manager import SecurityManager
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +54,7 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     token: str
     username: str
-    role: Optional[str]
+    role: str | None
     requires_password_change: bool = False
     permissions: list[str] = Field(default_factory=list)
 
@@ -70,17 +68,17 @@ class UserCreateRequest(BaseModel):
     username: str = Field(min_length=3)
     password: str = Field(min_length=8)
     role: str = Field(min_length=1)
-    email: Optional[str] = None
+    email: str | None = None
     is_active: bool = True
-    permissions: Optional[list[str]] = None
+    permissions: list[str] | None = None
 
 
 class UserUpdateRequest(BaseModel):
-    username: Optional[str] = Field(default=None, min_length=3)
-    role: Optional[str] = None
-    email: Optional[str] = None
-    is_active: Optional[bool] = None
-    permissions: Optional[list[str]] = None
+    username: str | None = Field(default=None, min_length=3)
+    role: str | None = None
+    email: str | None = None
+    is_active: bool | None = None
+    permissions: list[str] | None = None
 
 
 class UserPasswordResetRequest(BaseModel):
@@ -95,14 +93,14 @@ class BewegungCreateRequest(BaseModel):
     verfall: date
     datum: date
     anzahl: int = Field(gt=0)
-    empfaenger: Optional[str] = None
+    empfaenger: str | None = None
 
 
 class DepotUpsertRequest(BaseModel):
     name: str = Field(min_length=1)
-    adresse: Optional[str] = None
-    telefon: Optional[str] = None
-    email: Optional[str] = None
+    adresse: str | None = None
+    telefon: str | None = None
+    email: str | None = None
 
 
 class PraeparatUpsertRequest(BaseModel):
@@ -120,9 +118,9 @@ class DepotAssignmentsUpdateRequest(BaseModel):
 
 class KontaktUpsertRequest(BaseModel):
     name: str = Field(min_length=1)
-    rolle: Optional[str] = None
-    telefon: Optional[str] = None
-    email: Optional[str] = None
+    rolle: str | None = None
+    telefon: str | None = None
+    email: str | None = None
 
 
 class EmailRecipientPreviewRequest(BaseModel):

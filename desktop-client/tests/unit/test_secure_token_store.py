@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests für Fix #2: Sicherer Token-Speicher (SecureTokenStore).
 
@@ -10,14 +9,13 @@ Stellt sicher, dass:
 """
 from __future__ import annotations
 
-import os
 import configparser
-
-import pytest
+import os
 
 # Vor dem Import sicherstellen, dass cryptography + keyring vorhanden sind
 import cryptography  # noqa: F401
 import keyring  # noqa: F401
+import pytest
 
 from core.config_manager import ConfigManager, reset_secure_store_cache
 

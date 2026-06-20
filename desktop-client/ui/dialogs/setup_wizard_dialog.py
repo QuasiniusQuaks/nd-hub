@@ -1,26 +1,28 @@
-# -*- coding: utf-8 -*-
 """Einrichtungswizard: 5 Schritte (Institution, Praeparate, Depots, Kontakt+Zuordnungen, Review), transaktionaler Abschluss."""
 from __future__ import annotations
 
 import copy
 import json
 import logging
+from typing import Any
+from urllib import error as url_error
+from urllib import request as url_request
 from urllib.parse import urlencode, urlparse
-from urllib import error as url_error, request as url_request
-from typing import Any, Dict, List, Optional
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from apple_theme import AppleTheme
 from core.setup_wizard_contract import (
     DRAFT_VERSION as _DRAFT_VERSION,
+)
+from core.setup_wizard_contract import (
     validate_depot_kontakt_and_assignments,
     validate_depot_stamm_rows,
     validate_email_required,
     validate_institution_dict,
     validate_praeparate_names,
 )
-from db_manager import Database, DB
+from db_manager import DB, Database
 
 logger = logging.getLogger("ND-Hub")
 
@@ -33,7 +35,7 @@ def _require_http_scheme(url: str) -> str:
     return url
 
 
-def _empty_draft() -> Dict[str, Any]:
+def _empty_draft() -> dict[str, Any]:
     return {
         "version": _DRAFT_VERSION,
         "institution": {
@@ -51,7 +53,7 @@ def _empty_draft() -> Dict[str, Any]:
     }
 
 
-def _default_depot_row() -> Dict[str, Any]:
+def _default_depot_row() -> dict[str, Any]:
     return {
         "name": "",
         "strasse": "",
@@ -67,11 +69,11 @@ def _default_depot_row() -> Dict[str, Any]:
     }
 
 
-def _depot_assignments_from_dict(d: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _depot_assignments_from_dict(d: dict[str, Any]) -> list[dict[str, Any]]:
     """Liefert normierte Zuordnungen [{name, sollbestand}] aus Entwurfsfeldern (v2/v3)."""
     aa = d.get("praeparat_assignments")
     if isinstance(aa, list) and aa:
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for item in aa:
             if not isinstance(item, dict):
                 continue
@@ -95,13 +97,13 @@ class SetupWizardDialog(QtWidgets.QDialog):
 
     _STEP_COUNT = 7
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget], db: Database) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None, db: Database) -> None:
         super().__init__(parent)
         self.db = db
-        self._backdrop: Optional[QtWidgets.QWidget] = None
+        self._backdrop: QtWidgets.QWidget | None = None
         self._last_geocode_query: str = ""
-        self._last_geocode_result: tuple[Optional[float], Optional[float]] = (None, None)
-        self._prae_rows: List[Dict[str, str]] = []
+        self._last_geocode_result: tuple[float | None, float | None] = (None, None)
+        self._prae_rows: list[dict[str, str]] = []
         self.setWindowTitle("Einrichtungswizard")
         self.setWindowModality(QtCore.Qt.WindowModal)
         self.setModal(True)
@@ -110,7 +112,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
         self.setMinimumSize(980, 720)
         self._resize_for_screen_ratio()
         self._step_index = 0
-        self._depot_rows: List[Dict[str, Any]] = []
+        self._depot_rows: list[dict[str, Any]] = []
 
         c = AppleTheme.current_colors()
         self._apply_base_styles(c)
@@ -181,7 +183,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
         root.addLayout(btn_row)
         self._load_draft_into_ui()
 
-    def _apply_base_styles(self, colors: Dict[str, str]) -> None:
+    def _apply_base_styles(self, colors: dict[str, str]) -> None:
         bg = colors.get("bg_secondary", colors.get("bg_primary", "#f5f5f7"))
         lbl = colors.get("label", "#111")
         inp_bg = colors.get("bg_secondary", "#ffffff")
@@ -436,7 +438,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
         lay.addWidget(self._review_text, 1)
         return w
 
-    def _parse_float_optional(self, raw: str) -> Optional[float]:
+    def _parse_float_optional(self, raw: str) -> float | None:
         s = (raw or "").strip().replace(",", ".")
         if not s:
             return None
@@ -445,7 +447,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
         except ValueError:
             return None
 
-    def _load_json_draft(self) -> Dict[str, Any]:
+    def _load_json_draft(self) -> dict[str, Any]:
         raw = self.db.get_app_setting(DB.SETTING_SETUP_WIZARD_DRAFT, "").strip()
         if not raw:
             return _empty_draft()
@@ -505,7 +507,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
             out["depots"].append(row)
         return out
 
-    def _prefill_institution_from_db_if_empty(self, draft: Dict[str, Any]) -> None:
+    def _prefill_institution_from_db_if_empty(self, draft: dict[str, Any]) -> None:
         inst = draft.get("institution") or {}
         if str(inst.get("name") or "").strip():
             return
@@ -597,7 +599,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
         else:
             self._d_kontakt_context.setText("")
 
-    def _praeparat_names_from_list(self) -> List[str]:
+    def _praeparat_names_from_list(self) -> list[str]:
         return [str(p.get("name") or "").strip() for p in self._prae_rows if str(p.get("name") or "").strip()]
 
     def _save_depot_form_to_row(self, row: int) -> None:
@@ -617,7 +619,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
             self._depot_rows[row] = prev
         else:
             if self._depot_inner_stack.currentIndex() == 1:
-                contacts: List[Dict[str, str]] = []
+                contacts: list[dict[str, str]] = []
                 for r in range(self._kontakt_table.rowCount()):
                     n = self._kontakt_table.item(r, 0).text().strip() if self._kontakt_table.item(r, 0) else ""
                     ro = self._kontakt_table.item(r, 1).text().strip() if self._kontakt_table.item(r, 1) else ""
@@ -638,7 +640,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
                 if item is not None:
                     item.setText(label)
                 return
-            assignments: List[Dict[str, Any]] = []
+            assignments: list[dict[str, Any]] = []
             for r in range(self._depot_pr_table.rowCount()):
                 chk = self._depot_pr_table.item(r, 0)
                 name_it = self._depot_pr_table.item(r, 1)
@@ -708,7 +710,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
         self._d_stadt.setText(str(d.get("stadt") or ""))
         self._load_contacts_for_depot(d)
 
-    def _load_contacts_for_depot(self, depot_row: Dict[str, Any]) -> None:
+    def _load_contacts_for_depot(self, depot_row: dict[str, Any]) -> None:
         contacts = depot_row.get("contacts") if isinstance(depot_row.get("contacts"), list) else []
         if not contacts:
             contacts = [
@@ -752,7 +754,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
         row = self._depot_list.currentRow()
         if row < 0:
             row = 0
-        assign_map: Dict[str, int] = {}
+        assign_map: dict[str, int] = {}
         for a in self._depot_rows[row].get("praeparat_assignments") or []:
             if isinstance(a, dict):
                 n = str(a.get("name") or "").strip()
@@ -821,7 +823,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
             self._depot_list.setCurrentRow(min(row, self._depot_list.count() - 1))
         self._on_depot_row_changed(self._depot_list.currentRow())
 
-    def _collect_draft(self) -> Dict[str, Any]:
+    def _collect_draft(self) -> dict[str, Any]:
         cur_dep = self._depot_list.currentRow()
         if cur_dep >= 0:
             self._save_depot_form_to_row(cur_dep)
@@ -835,8 +837,8 @@ class SetupWizardDialog(QtWidgets.QDialog):
             lat, lon = None, None
         else:
             lat, lon = self._geocode_address_if_possible(inst_address)
-        prs: List[Dict[str, str]] = [dict(p) for p in self._prae_rows if str(p.get("name") or "").strip()]
-        depots_out: List[Dict[str, Any]] = []
+        prs: list[dict[str, str]] = [dict(p) for p in self._prae_rows if str(p.get("name") or "").strip()]
+        depots_out: list[dict[str, Any]] = []
         for d in self._depot_rows:
             depots_out.append(
                 {
@@ -878,7 +880,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
 
     def _fill_review(self) -> None:
         d = self._collect_draft()
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"Betriebsmodus: {self._current_operating_mode()}")
         lines.append("")
         inst = d.get("institution") or {}
@@ -1131,7 +1133,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
             return
         host = self.parent()
         if isinstance(host, QtWidgets.QWidget) and hasattr(host, "show_toast"):
-            getattr(host, "show_toast")("Einrichtung abgeschlossen.", "success")
+            host.show_toast("Einrichtung abgeschlossen.", "success")
         self.accept()
 
     def _add_praeparat_row(self) -> None:
@@ -1195,7 +1197,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
 
     def _resize_for_screen_ratio(self, ratio: float = 0.92) -> None:
         ratio = min(max(ratio, 0.1), 1.0)
-        available_geo: Optional[QtCore.QRect] = None
+        available_geo: QtCore.QRect | None = None
         parent = self.parentWidget()
         if parent is not None and parent.windowHandle() is not None and parent.windowHandle().screen() is not None:
             available_geo = parent.windowHandle().screen().availableGeometry()
@@ -1290,7 +1292,7 @@ class SetupWizardDialog(QtWidgets.QDialog):
             return False
         return True
 
-    def _geocode_address_if_possible(self, query: str) -> tuple[Optional[float], Optional[float]]:
+    def _geocode_address_if_possible(self, query: str) -> tuple[float | None, float | None]:
         q = (query or "").strip()
         if not q:
             return None, None

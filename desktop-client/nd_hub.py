@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 """
 ND-Hub – Die ND-Hub-Verwaltung – Modern UI Edition 2025
@@ -16,26 +15,16 @@ Features:
 Abhängigkeiten:
 pip install PySide6 reportlab matplotlib pywin32 pandas openpyxl
 """
-import sys
-from ui.resources import LOGO_BASE64
 import os
+import sys
 import time
+from enum import IntEnum
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
-from icon_manager import IconManager
-from ui.dialogs.embedded_dialog_host import exec_embedded_dialog, install_embedded_dialog_patches
-
-# import win32com.client  # Windows-only Outlook integration
-
-from security_manager import SecurityManager
-from verfallmanager import VerfallManager
 
 # ===== NEUE IMPORTS FÜR APPLE-STYLE =====
 from apple_theme import AppleTheme
-
-from typing import Optional
-from enum import IntEnum
 
 # Core Modules
 from core.config_manager import ConfigManager
@@ -48,18 +37,24 @@ from core.data_access_layer import (
 from core.error_handler import setup_global_error_handler
 from core.sync_service import DesktopSyncService
 from core.sync_worker import SyncWorkerRunner
+from icon_manager import IconManager
+
+# import win32com.client  # Windows-only Outlook integration
+from security_manager import SecurityManager
+from ui.dialogs.embedded_dialog_host import exec_embedded_dialog, install_embedded_dialog_patches
+from ui.resources import LOGO_BASE64
+from verfallmanager import VerfallManager
 
 # Versionsnummer
 VERSION = "0.42"
 
-# ============================================================================= 
+# =============================================================================
 # NEUE KOMPONENTEN in v1.0
 # -Benutzerverwaltung & Verschlüsselung
 #   -Verfallsdatenüberwachung
 # =============================================================================
 
 import logging
-from typing import Optional
 
 # Initialisiere Konfiguration (vor dem Logging)
 config = ConfigManager()
@@ -70,6 +65,7 @@ os.environ.setdefault("NUMEXPR_MAX_THREADS", "8")
 os.environ.setdefault("NUMEXPR_NUM_THREADS", "8")
 
 from logging.handlers import RotatingFileHandler
+
 
 def _build_logging_handlers():
     """Erzeugt Logging-Handler mit robuster Fallback-Strategie."""
@@ -151,36 +147,36 @@ from db_manager import Database
 
 class MainWindow(QtWidgets.QMainWindow):
     """Hauptfenster der ND-Hub-Verwaltung"""
-    
-    def __init__(self, config: ConfigManager, parent: Optional[QtWidgets.QWidget] = None):
-               
+
+    def __init__(self, config: ConfigManager, parent: QtWidgets.QWidget | None = None):
+
         super().__init__(parent)
         self.config = config
         self._setup_wizard_prompted_session = False
         self._startup_profiling = os.environ.get("ND_HUB_PROFILE_STARTUP", "0") == "1"
         self._startup_t0 = time.perf_counter()
         self._startup_last = self._startup_t0
-        
+
         # Pfade aus Konfiguration beziehen
         db_path = self.config.get_db_path()
         attachment_folder = os.path.join(self.config.data_dir, "Attachments")
-        
+
         # Ordner sicherstellen
         os.makedirs(attachment_folder, exist_ok=True)
 
-        logger.info(f"ND-Hub initialisiert mit:")
+        logger.info("ND-Hub initialisiert mit:")
         logger.info(f"  - Datenverzeichnis: {self.config.data_dir}")
         logger.info(f"  - Datenbank: {db_path}")
         logger.info(f"  - Anhänge: {attachment_folder}")
-        
+
         # Initialisierung in logischen Blöcken
         self.db_path = db_path
         self.attachment_folder = attachment_folder
-        
+
         # Security zuerst (blockierend)
         self._init_security(db_path)
         self._profile_startup("Security abgeschlossen")
-        
+
         # Core-Komponenten
         self._init_database(db_path)
         self._init_data_access_layer()
@@ -188,17 +184,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self._init_managers(db_path)
         self._init_multi_user_mode()
         self._profile_startup("Core-Komponenten initialisiert")
-        
+
         # Cache für Performance-Optimierung
         self.cache = Cache()
-        
+
         # UI aufbauen
         self._init_window()
         self._init_ui()
         self._init_pages()
         self._setup_integrated_login()
         self._profile_startup("UI und erste Seite bereit")
-        
+
         # Timer starten
         self._init_timers()
         self._profile_startup("Timer gestartet")
@@ -215,7 +211,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._startup_last = now
         if final:
             logger.info("[startup] Profiling abgeschlossen")
-        
+
     # ============================================================
     # SECURITY
     # ============================================================
@@ -227,7 +223,7 @@ class MainWindow(QtWidgets.QMainWindow):
         dieselbe Datei).
         """
         self.security = SecurityManager(database=self.db)
-    
+
     def _handle_successful_login(self, username: str) -> None:
         """Zeigt Post-Login-Dialogs (Willkommen, Passwort-Warnung)"""
         self._init_multi_user_mode()
@@ -244,7 +240,7 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         else:
             logger.info("Anmeldung erfolgreich: %s (%s)", username, self.security.get_current_role())
-        
+
         # Warnung bei unsicherem Passwort (delegiert an SecurityManager)
         if hasattr(self, 'security') and getattr(self.security, 'is_using_default_password', lambda: False)():
             QtWidgets.QMessageBox.warning(
@@ -253,7 +249,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Aus Sicherheitsgründen MÜSSEN Sie Ihr Standard-Passwort jetzt ändern, bevor Sie das System weiter verwenden."
             )
             self.change_user_password()
-            
+
             # Re-evaluierung nach dem Dialog
             if getattr(self.security, 'is_using_default_password', lambda: False)():
                 QtWidgets.QMessageBox.critical(
@@ -321,7 +317,7 @@ class MainWindow(QtWidgets.QMainWindow):
             exec_embedded_dialog(self, dlg)
         except Exception:
             logger.exception("Einrichtungswizard konnte nicht geöffnet werden")
-    
+
     # ============================================================
     # INITIALISIERUNG
     # ============================================================
@@ -391,7 +387,7 @@ class MainWindow(QtWidgets.QMainWindow):
             current = self.stack.currentWidget()
             if current is not None:
                 self._apply_write_mode_to_page(current)
-    
+
     def _init_managers(self, db_path: str) -> None:
         """Initialisiert Business-Logic-Manager.
 
@@ -400,17 +396,17 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         self.verfallmanager = VerfallManager(database=self.db)
         logger.info("VerfallManager initialisiert (geteilt mit Database)")
-    
+
     def _init_window(self) -> None:
         """Konfiguriert Hauptfenster"""
         self.setStyleSheet(AppleTheme.get_stylesheet())
         self.setWindowTitle("ND-Hub")
         self.resize(1400, 800)
         self.setMinimumSize(UI.MIN_WINDOW_WIDTH, UI.MIN_WINDOW_HEIGHT)
-        
+
         # Window-Icon setzen
         self._set_window_icon()
-    
+
     def _set_window_icon(self) -> None:
         """Lädt Window-Icon (Base64 oder Datei)"""
         try:
@@ -422,22 +418,22 @@ class MainWindow(QtWidgets.QMainWindow):
                 return
         except Exception as e:
             logger.debug(f"Base64-Icon fehlgeschlagen: {e}")
-        
+
         # Fallback: Datei
         if os.path.exists("logo.png"):
             self.setWindowIcon(QtGui.QIcon("logo.png"))
             logger.debug("Window-Icon aus logo.png geladen")
-    
+
     def _init_ui(self) -> None:
         """Baut Haupt-UI auf (Sidebar + Stack)"""
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
-        
+
         main_layout = QtWidgets.QHBoxLayout(central)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         self.main_layout = main_layout
-        
+
         # Sidebar
         sidebar = self._create_sidebar()
         main_layout.addWidget(sidebar)
@@ -460,7 +456,7 @@ class MainWindow(QtWidgets.QMainWindow):
         banner_layout.addWidget(self.read_only_banner_label)
         banner_layout.addStretch()
         right_layout.addWidget(self.read_only_banner)
-        
+
         # Content-Stack
         self.stack = QtWidgets.QStackedWidget()
         self.stack.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -469,7 +465,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._update_sidebar_width(self.width())
         self._setup_feedback_layers()
         self._apply_chrome_overlay_styles()
-    
+
     def _create_sidebar(self) -> QtWidgets.QFrame:
         """Erstellt Sidebar mit Navigation"""
         sidebar = QtWidgets.QFrame()
@@ -481,7 +477,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QSizePolicy.Fixed,
             QtWidgets.QSizePolicy.Expanding
         )
-        
+
         layout = QtWidgets.QVBoxLayout(sidebar)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -501,7 +497,7 @@ class MainWindow(QtWidgets.QMainWindow):
         content_layout.addStretch()
         self._add_user_section(content_layout)
         layout.addLayout(content_layout)
-        
+
         return sidebar
 
     def _update_sidebar_width(self, window_width: int) -> None:
@@ -675,7 +671,7 @@ class MainWindow(QtWidgets.QMainWindow):
             x = max(8, self.toast_container.width() - toast.width() - x_margin)
             toast.setGeometry(x, y, toast.width(), height)
             y += height + 10
-    
+
     def _create_logo_container(self) -> QtWidgets.QWidget:
         """Erstellt Logo-Container (wiederverwendbar)"""
         container = QtWidgets.QWidget()
@@ -687,24 +683,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 margin: 0 12px 16px 12px;
             }
         """)
-        
+
         layout = QtWidgets.QVBoxLayout(container)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
-        
+
         # Logo laden
         logo_label = self._create_logo_label()
         layout.addWidget(logo_label)
-        
+
         # # Titel
         # title = QtWidgets.QLabel("Verwaltung ND-Hubs")
         # title.setFont(AppleTheme.get_font('title_3'))
         # title.setStyleSheet(f"color: {AppleTheme.COLORS['label']}; font-weight: 700; background: transparent;")
         # title.setAlignment(Qt.AlignCenter)
-        # layout.addWidget(title)      
-               
+        # layout.addWidget(title)
+
         return container
-    
+
     def _create_logo_label(self) -> QtWidgets.QWidget:
         """
         Erstellt Logo-Label mit abgerundeten Ecken und Beschriftung
@@ -715,60 +711,61 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)  # Abstand zwischen Logo und Text
-        
+
         try:
             import base64
-            from PySide6.QtGui import QPainter, QPainterPath
+
             from PySide6.QtCore import QRectF
-            
+            from PySide6.QtGui import QPainter, QPainterPath
+
             logo_data = base64.b64decode(LOGO_BASE64)
             pixmap = QtGui.QPixmap()
-            
+
             if pixmap.loadFromData(logo_data) and not pixmap.isNull():
                 # Logo skalieren
                 scaled_pixmap = pixmap.scaled(
                     84, 84,
-                    Qt.KeepAspectRatio, 
+                    Qt.KeepAspectRatio,
                     Qt.SmoothTransformation
                 )
-                
+
                 # Erstelle ein neues Pixmap mit transparentem Hintergrund
                 size = scaled_pixmap.size()
                 rounded_pixmap = QtGui.QPixmap(size)
                 rounded_pixmap.fill(Qt.transparent)
-                
+
                 # Male das Logo mit abgerundeten Ecken
                 painter = QPainter(rounded_pixmap)
                 painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                
+
                 # Erstelle Pfad mit abgerundeten Ecken
                 path = QPainterPath()
                 rect = QRectF(0, 0, size.width(), size.height())
                 radius = 16  # Radius anpassbar (8-20 empfohlen)
                 path.addRoundedRect(rect, radius, radius)
-                
+
                 # Clipping anwenden und Logo zeichnen
                 painter.setClipPath(path)
                 painter.drawPixmap(0, 0, scaled_pixmap)
                 painter.end()
-                
+
                 # Logo-Label
                 logo_label = QtWidgets.QLabel()
                 logo_label.setPixmap(rounded_pixmap)
                 logo_label.setAlignment(Qt.AlignCenter)
                 logo_label.setStyleSheet("QLabel { background: transparent; }")
                 layout.addWidget(logo_label)
-                
+
         except Exception as e:
             logger.debug(f"Logo-Fehler: {e}. Fallback auf Emoji.")
-            
+
             # Fallback: Emoji
             logo_label = QtWidgets.QLabel("")
             logo_label.setFont(AppleTheme.get_font('largetitle'))
             logo_label.setAlignment(Qt.AlignCenter)
             logo_label.setStyleSheet("QLabel { background: transparent; }")
             layout.addWidget(logo_label)
-        
+
         # ===== BRANDING UNTER DEM LOGO =====
         brand_label = QtWidgets.QLabel("ND-Hub")
         brand_label.setFont(AppleTheme.get_font('headline'))
@@ -798,9 +795,9 @@ class MainWindow(QtWidgets.QMainWindow):
         """)
         layout.addWidget(claim_label)
         # ===== ENDE BRANDING =====
-        
+
         return container
-    
+
     def _add_navigation_buttons(self, layout: QtWidgets.QVBoxLayout) -> None:
         """Fügt Navigations-Buttons zur Sidebar hinzu"""
         buttons = [
@@ -812,11 +809,11 @@ class MainWindow(QtWidgets.QMainWindow):
             ("E-Mail", PageIndex.EMAIL, "mail"),
             ("Grundeinstellungen", PageIndex.GRUNDEINSTELLUNGEN, "settings"),
         ]
-        
-        for text, page_idx, icon_name in buttons:
+
+        for text, _page_idx, icon_name in buttons:
             btn = self.create_sidebar_button(text, icon_name)
             layout.addWidget(btn)
-    
+
     def _add_user_section(self, layout: QtWidgets.QVBoxLayout) -> None:
         """Fügt User-Info und -Buttons zur Sidebar hinzu"""
         # Trennlinie
@@ -824,11 +821,11 @@ class MainWindow(QtWidgets.QMainWindow):
         separator.setFrameShape(QtWidgets.QFrame.HLine)
         separator.setStyleSheet("background-color: rgba(255, 255, 255, 0.2); margin: 10px 16px;")
         layout.addWidget(separator)
-        
+
         # User-Info-Widget
         user_widget = self._create_user_info_widget()
         layout.addWidget(user_widget)
-        
+
         # Profilbild für den aktuellen Benutzer
         self.btn_change_avatar = self._create_styled_button("Profilbild ändern", self.change_user_avatar)
         self.btn_change_avatar.setIcon(IconManager.get_icon("folder", color="#ecf0f1"))
@@ -842,7 +839,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_change_password = self._create_styled_button("Passwort ändern", self.change_user_password)
         self.btn_change_password.setIcon(IconManager.get_icon("key", color="#ecf0f1"))
         layout.addWidget(self.btn_change_password)
-        
+
         # Theme-Toggle
         text = " Dark Mode" if not AppleTheme.is_dark_mode else " Light Mode"
         icon_name = "moon" if not AppleTheme.is_dark_mode else "sun"
@@ -939,51 +936,51 @@ class MainWindow(QtWidgets.QMainWindow):
     def toggle_theme(self) -> None:
         """Schaltet zwischen Light- und Dark-Mode um"""
         AppleTheme.is_dark_mode = not AppleTheme.is_dark_mode
-        
+
         # UI aktualisieren
         self.setStyleSheet(AppleTheme.get_stylesheet())
         self._apply_chrome_overlay_styles()
-        
+
         # Toggle-Button Text aktualisieren
         text = " Dark Mode" if not AppleTheme.is_dark_mode else " Light Mode"
         icon_name = "moon" if not AppleTheme.is_dark_mode else "sun"
         self.btn_theme_toggle.setText(text)
         self.btn_theme_toggle.setIcon(IconManager.get_icon(icon_name, color="#ecf0f1"))
-        
+
         # Sidebar-Buttons aktualisieren (Farben neu laden)
         for btn in self.sidebar_buttons:
             btn.style().unpolish(btn)
             btn.style().polish(btn)
-        
+
         # Aktiven Button neu markieren
         self.set_active_button(self.stack.currentIndex())
-        
+
         # Aktuelle Seite benachrichtigen (speziell für Matplotlib/Charts)
         current_page = self.stack.currentWidget()
         if hasattr(current_page, "refresh_theme"):
             current_page.refresh_theme()
-        
+
         logging.info(f"Theme gewechselt: {'Dark' if AppleTheme.is_dark_mode else 'Light'} Mode")
-    
+
     def _create_user_info_widget(self) -> QtWidgets.QWidget:
         """Erstellt User-Info-Widget (Icon, Name, Rolle)"""
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(widget)
         layout.setContentsMargins(16, 8, 16, 8)
         layout.setSpacing(4)
-        
+
         # Icon
         self.user_avatar_label = QtWidgets.QLabel()
         self.user_avatar_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.user_avatar_label)
-        
+
         # Name
         self.user_name_label = QtWidgets.QLabel(self.security.get_current_user() or "Nicht angemeldet")
         c = AppleTheme.current_colors()
         self.user_name_label.setStyleSheet(f"color: {c['sidebar_text_active']}; font-size: 13px; font-weight: 600;")
         self.user_name_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.user_name_label)
-        
+
         # Rolle
         self.user_role_label = QtWidgets.QLabel(f"({self.security.get_current_role() or '-'})")
         self.user_role_label.setStyleSheet(f"color: {c['sidebar_text']}; font-size: 11px;")
@@ -994,7 +991,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.user_mode_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.user_mode_label)
         self._refresh_user_sidebar_state()
-        
+
         return widget
 
     def _refresh_user_sidebar_state(self) -> None:
@@ -1060,7 +1057,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.user_avatar_label.setPixmap(rounded)
                 return
         self.user_avatar_label.setPixmap(IconManager.get_pixmap("user", color="#ecf0f1", size=36))
-    
+
     def _create_styled_button(self, text: str, callback) -> QtWidgets.QPushButton:
         """Factory für Sidebar-Buttons (DRY)"""
         btn = QtWidgets.QPushButton(text)
@@ -1083,7 +1080,7 @@ class MainWindow(QtWidgets.QMainWindow):
         btn.setCursor(Qt.PointingHandCursor)
         btn.clicked.connect(callback)
         return btn
-    
+
     def _create_logout_button(self) -> QtWidgets.QPushButton:
         """Erstellt Logout-Button (spezielles Styling)"""
         btn = QtWidgets.QPushButton(" Abmelden")
@@ -1107,7 +1104,7 @@ class MainWindow(QtWidgets.QMainWindow):
         btn.setCursor(Qt.PointingHandCursor)
         btn.clicked.connect(self.logout)
         return btn
-    
+
     def _init_pages(self) -> None:
         """Erstellt Stack-Platzhalter und lädt Seiten bei Bedarf."""
         self._page_instances = {}
@@ -1165,7 +1162,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._page_instances[idx] = page
         self._install_page_enhancements(page)
         return page
-    
+
     def _init_timers(self) -> None:
         """Startet Auto-Refresh-Timer"""
         self.verfall_refresh_timer = QtCore.QTimer(self)
@@ -1534,7 +1531,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.confirm_overlay.raise_()
         self.confirm_overlay.show()
-    
+
     # ============================================================
     # EVENT HANDLERS
     # ============================================================
@@ -1548,7 +1545,7 @@ class MainWindow(QtWidgets.QMainWindow):
         btn.clicked.connect(lambda: self.on_sidebar_click(btn))
         self.sidebar_buttons.append(btn)
         return btn
-    
+
     def on_sidebar_click(self, clicked_btn: QtWidgets.QPushButton) -> None:
         """Handler für Sidebar-Navigation"""
         idx = self.sidebar_buttons.index(clicked_btn)
@@ -1571,7 +1568,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     f"Ihre Rolle: {self.security.get_current_role()}"
                 )
                 return
-        
+
         busy_op_id = -1
         try:
             page_name = PageIndex(idx).name.replace("_", " ").title() if idx in PageIndex._value2member_map_ else "Seite"
@@ -1604,10 +1601,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.set_active_button(PageIndex.DASHBOARD)
         finally:
             self._end_busy_operation(busy_op_id)
-        
+
         # Log bei Navigation (optional)
         # logger.debug(f"Seite gewechselt: Index {idx}")
-    
+
     def set_active_button(self, active_idx: int) -> None:
         """Markiert aktiven Sidebar-Button"""
         for i, btn in enumerate(self.sidebar_buttons):
@@ -1675,7 +1672,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_toast("Ungespeicherte Änderungen verworfen.", "warning", 2200)
             return True
         return False
-    
+
     def _get_verfall_data_hash(self):
         """Berechnet Hash der aktuellen Verfalldaten für Change-Detection"""
         try:
@@ -1688,28 +1685,28 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             logger.error(f"Fehler beim Berechnen des Verfall-Hash: {e}")
             return "error"
-    
+
     def refresh_verfall_widgets(self) -> None:
         """Aktualisiert Verfall-Widgets nur bei tatsächlichen Änderungen (Timer-Callback)"""
         try:
             current_hash = self._get_verfall_data_hash()
-            
+
             # Nur aktualisieren, wenn sich Daten geändert haben
             if current_hash != self.cache._last_verfall_hash:
                 if hasattr(self.page_dashboard, 'verfall_widget'):
                     self.page_dashboard.verfall_widget.refresh()
-                
+
                 if hasattr(self, 'verfall_indicator'):
                     self.verfall_indicator.refresh()
-                
+
                 self.cache._last_verfall_hash = current_hash
                 perf_logger.info("Verfall-Widgets aktualisiert (Daten geändert)")
             else:
                 perf_logger.debug("Verfall-Widgets: Keine Änderungen, Skip Refresh")
-                
+
         except Exception as e:
             logger.error(f"Fehler beim Refresh: {e}", exc_info=True)
-    
+
     # ============================================================
     # USER ACTIONS
     # ============================================================
@@ -1722,12 +1719,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         user_id = self.security.get_current_user_id()
         username = self.security.get_current_user()
-        
+
         dialog = ChangePasswordDialog(username, self)
         if exec_embedded_dialog(self, dialog) == QtWidgets.QDialog.Accepted:
             old_pw, new_pw = dialog.get_passwords()
             success, message = self.security.change_password(user_id, old_pw, new_pw)
-            
+
             if success:
                 QtWidgets.QMessageBox.information(self, "Erfolg", f"{message}\n\nIhr neues Passwort wurde gespeichert.")
                 self.show_toast("Passwort erfolgreich geändert.", "success")
@@ -1773,7 +1770,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_toast("Profilbild entfernt.", "success")
         else:
             QtWidgets.QMessageBox.warning(self, "Profilbild", message)
-    
+
     def open_user_management(self) -> None:
         """Öffnet integrierte Benutzerverwaltung in den Grundeinstellungen."""
 
@@ -1797,7 +1794,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if tabs.tabText(idx) == "Benutzer":
                 tabs.setCurrentIndex(idx)
                 return
-    
+
     def force_logout(self) -> None:
         """Meldet den Benutzer sofort ab und beendet die App (Zwang)"""
         username = self.security.get_current_user()
@@ -1848,7 +1845,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if current_page is not None and not self._confirm_discard_unsaved_changes(current_page):
             return
         self._show_logout_choice_overlay()
-    
+
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Cleanup beim Schließen"""
         if getattr(self, "_allow_close", False):
@@ -1897,7 +1894,7 @@ class MainWindow(QtWidgets.QMainWindow):
             event.ignore()
             return
         super().keyPressEvent(event)
-    
+
 
 # =============================================================================
 # Pages
@@ -1924,29 +1921,29 @@ if __name__ == "__main__":
     install_embedded_dialog_patches()
     app.setApplicationName("ND-Hub")
     app.setOrganizationName("ND-Hub Enterprise")
-    
+
     # Globaler Error Handler initialisieren
     error_handler = setup_global_error_handler(app)
-    
+
     # Logik für Datenbank-Pfad Erreichbarkeit
     db_path = config.get_db_path()
     db_dir = os.path.dirname(db_path)
     if not db_dir:
         db_dir = "."
-        
+
     if not os.path.exists(db_dir):
-        QtWidgets.QMessageBox.critical(None, "Fehler", 
+        QtWidgets.QMessageBox.critical(None, "Fehler",
             f"Der Speicherort der Datenbank ist nicht erreichbar!\n\nPfad: {db_path}\n\n"
             "Bitte stellen Sie sicher, dass:\n"
             "1. Das Laufwerk oder das Netzwerk verbunden ist\n"
             "2. Sie Zugriff auf den Ordner haben")
         sys.exit(1)
-    
+
     # Theme anwenden
     app.setStyleSheet(AppleTheme.get_stylesheet())
-    
+
     # MainWindow mit zentralem ConfigManager starten
     win = MainWindow(config)
     win.showFullScreen()
-    
+
     sys.exit(app.exec())

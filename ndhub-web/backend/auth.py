@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+import hashlib
 import secrets
 import sqlite3
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
-import hashlib
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -71,13 +71,13 @@ class TokenStore:
         except ValueError:
             return None
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
 
     def _load_persisted_tokens(self) -> None:
         if self._db is None:
             return
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self._db.execute("DELETE FROM auth_tokens WHERE revoked_at IS NULL AND expires_at <= ?", (now,))
         self._db.commit()
         rows = self._db.execute(
@@ -91,7 +91,7 @@ class TokenStore:
             expires_at = self._parse_iso_utc(expires_at_raw)
             if expires_at is None:
                 continue
-            if expires_at <= datetime.now(timezone.utc):
+            if expires_at <= datetime.now(UTC):
                 continue
             self._tokens[str(token)] = SessionInfo(
                 username=str(username or ""),
@@ -112,7 +112,7 @@ class TokenStore:
         token_label: str | None = None,
     ) -> str:
         token = secrets.token_urlsafe(32)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         ttl = self.ttl
         if ttl_hours is not None:
             ttl = timedelta(hours=max(1, min(int(ttl_hours), 24 * 365 * 20)))
@@ -166,7 +166,7 @@ class TokenStore:
                     self._tokens[token] = info
         if info is None:
             return None
-        if info.expires_at <= datetime.now(timezone.utc):
+        if info.expires_at <= datetime.now(UTC):
             self._tokens.pop(token, None)
             if self._db is not None:
                 self._db.execute("DELETE FROM auth_tokens WHERE token = ?", (token,))
@@ -178,7 +178,7 @@ class TokenStore:
         token = str(token or "")
         removed = self._tokens.pop(token, None) is not None
         if self._db is not None:
-            revoked_at = datetime.now(timezone.utc).isoformat()
+            revoked_at = datetime.now(UTC).isoformat()
             cur = self._db.execute(
                 "UPDATE auth_tokens SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL",
                 (revoked_at, token),
@@ -191,7 +191,7 @@ class TokenStore:
     def list_tokens(self, token_type: str | None = None) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         if self._db is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             for token, info in self._tokens.items():
                 rows.append(
                     {

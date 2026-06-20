@@ -4,8 +4,8 @@ from core.setup_wizard_contract import (
     validate_depot_kontakt_and_assignments,
     validate_depot_stamm_rows,
     validate_institution_dict,
-    validate_praeparate_names,
     validate_postleitzahl_optional,
+    validate_praeparate_names,
 )
 
 

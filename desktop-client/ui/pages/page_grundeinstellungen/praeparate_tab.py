@@ -1,10 +1,11 @@
 """Präparate-Verwaltung - CRUD für Präparate."""
 from PySide6 import QtWidgets
+
+from apple_theme import AppleTheme
 from db_manager import Database, fill_table
 from icon_manager import IconManager
-from apple_theme import AppleTheme
-from ui.utils import create_card_widget
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
+from ui.utils import create_card_widget
 
 
 class PraeparatDialog(QtWidgets.QDialog):
@@ -66,21 +67,21 @@ class PraeparatePage(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(20)
-        
+
         title = QtWidgets.QLabel("Präparate verwalten")
         title.setProperty("class", "page-title")
         layout.addWidget(title)
-        
+
         card = create_card_widget()
         card_layout = QtWidgets.QVBoxLayout(card)
-        
+
         self._info_muted = QtWidgets.QLabel("Der Sollbestand wird bei der Zuordnung zu Depots festgelegt.")
         self._apply_praeparate_info_style()
         card_layout.addWidget(self._info_muted)
-        
+
         self.table = QtWidgets.QTableWidget()
         card_layout.addWidget(self.table)
-        
+
         btns = QtWidgets.QHBoxLayout()
         btns.setSpacing(12)
         self.btn_add = QtWidgets.QPushButton("Neues Präparat")
@@ -96,13 +97,13 @@ class PraeparatePage(QtWidgets.QWidget):
         btns.addWidget(self.btn_delete)
         btns.addStretch()
         card_layout.addLayout(btns)
-        
+
         layout.addWidget(card)
-        
+
         self.btn_add.clicked.connect(self.add_item)
         self.btn_edit.clicked.connect(self.edit_item)
         self.btn_delete.clicked.connect(self.delete_item)
-        
+
         self.refresh()
 
     def _apply_praeparate_info_style(self) -> None:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Database-Layer für die ND-Hub Desktop-Anwendung.
 
 .. note::
@@ -17,24 +16,25 @@
    Operation explizit aufgerufen werden, damit der nächste Lesezugriff
    garantiert frische Daten sieht.
 """
-import sqlite3
+import json
+import logging
 import os
 import shutil
 import smtplib
+import sqlite3
 import time
 import uuid
-import json
 from datetime import datetime
 from email.message import EmailMessage
 from enum import StrEnum
-from typing import List, Dict, Tuple, Any
+from typing import Any
 
 from core.cache_helpers import cached_method, clear_all_caches
-from PySide6.QtCore import QDate, Qt
 from PySide6 import QtWidgets
+from PySide6.QtCore import QDate, Qt
 
-
-def _sync_payload_str(data: Dict[str, Any], key: str) -> Any:
+logger = logging.getLogger(__name__)
+def _sync_payload_str(data: dict[str, Any], key: str) -> Any:
     v = data.get(key)
     if v is None:
         return None
@@ -42,7 +42,7 @@ def _sync_payload_str(data: Dict[str, Any], key: str) -> Any:
     return s or None
 
 
-def _sync_payload_float(data: Dict[str, Any], key: str) -> Any:
+def _sync_payload_float(data: dict[str, Any], key: str) -> Any:
     v = data.get(key)
     if v is None:
         return None
@@ -124,24 +124,24 @@ class Database:
             self.conn = sqlite3.connect(self.path, timeout=30, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
             self.cur = self.conn.cursor()
-            
+
             # Journal-Modus auf WAL setzen für drastisch verbesserte Performance (gleichzeitiges Lesen/Schreiben)
             try:
                 result = self.cur.execute("PRAGMA journal_mode=WAL").fetchone()
                 print(f"Journal-Mode: {result[0]}")
-                
+
                 # Performance-Optimierungen
                 self.cur.execute("PRAGMA synchronous=NORMAL")  # Sicherer aber tausendfach schneller als FULL bei WAL
                 self.cur.execute("PRAGMA cache_size=-64000")   # ~64MB Cache (Wert ist negativ für KB)
                 self.cur.execute("PRAGMA mmap_size=268435456") # 256MB Memory-Mapping für extrem schnelles Lesen
                 self.cur.execute("PRAGMA temp_store=MEMORY")   # Temporäre Indizes/Suchen im RAM statt auf SSD
-                
+
             except sqlite3.OperationalError as e:
                 print(f"⚠ Performance PRAGMA Warnung: {e} - überspringe")
-            
+
             # Foreign Keys aktivieren
             self.cur.execute("PRAGMA foreign_keys=ON")
-            
+
         except sqlite3.Error as e:
             raise Exception(f"Datenbankverbindung fehlgeschlagen: {e}")
 
@@ -176,7 +176,7 @@ class Database:
                 FOREIGN KEY(depot_id) REFERENCES depots(id)
             )
         """)
-        
+
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS kontakte (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -188,7 +188,7 @@ class Database:
                 FOREIGN KEY(depot_id) REFERENCES depots(id)
             )
         """)
-        
+
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS praeparate (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -201,7 +201,7 @@ class Database:
                 hersteller TEXT
             )
         """)
-        
+
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS depot_praeparate (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,7 +212,7 @@ class Database:
                 FOREIGN KEY(praeparat_id) REFERENCES praeparate(id)
             )
         """)
-        
+
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS bewegungen (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -230,7 +230,7 @@ class Database:
             )
         """)
         self.conn.commit()
-        
+
         self.cur.execute("""
             CREATE TABLE IF NOT EXISTS meldungs_tracking (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -251,7 +251,7 @@ class Database:
             )
         """)
         self.conn.commit()
-        
+
         # Indizes für Performance (Phase 2 Optimierung)
         self.cur.execute("CREATE INDEX IF NOT EXISTS idx_bewegungen_depot ON bewegungen(depot_id)")
         self.cur.execute("CREATE INDEX IF NOT EXISTS idx_bewegungen_praeparat ON bewegungen(praeparat_id)")
@@ -399,7 +399,7 @@ class Database:
         self.cur.execute("UPDATE depots SET institution_id = ? WHERE institution_id IS NULL", (default_id,))
         self.conn.commit()
 
-    def record_sync_outbox(self, entity_name: str, operation: str, payload: Dict[str, Any], dedupe_key: str = None) -> int:
+    def record_sync_outbox(self, entity_name: str, operation: str, payload: dict[str, Any], dedupe_key: str = None) -> int:
         """Speichert eine lokale Aenderung fuer den spaeteren Sync."""
         payload_json = json.dumps(payload or {}, ensure_ascii=False)
         now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -424,7 +424,7 @@ class Database:
                 return int(row["id"])
         return 0
 
-    def enqueue_sync_change(self, entity_name: str, operation: str, payload: Dict[str, Any], dedupe_key: str = None) -> int:
+    def enqueue_sync_change(self, entity_name: str, operation: str, payload: dict[str, Any], dedupe_key: str = None) -> int:
         """Erzeugt einen eindeutigen Outbox-Eintrag fuer spaeteren Sync."""
         if not dedupe_key:
             dedupe_key = f"{entity_name}:{operation}:{int(time.time() * 1000)}:{uuid.uuid4().hex[:8]}"
@@ -435,7 +435,7 @@ class Database:
             dedupe_key=dedupe_key,
         )
 
-    def list_pending_sync_outbox(self, limit: int = 200) -> List[Dict[str, Any]]:
+    def list_pending_sync_outbox(self, limit: int = 200) -> list[dict[str, Any]]:
         """Liefert ausstehende Outbox-Eintraege fuer Push-Runs."""
         safe_limit = max(1, min(int(limit or 200), 2000))
         rows = self.cur.execute(
@@ -469,7 +469,7 @@ class Database:
             )
         return result
 
-    def get_sync_outbox_stats(self) -> Dict[str, Any]:
+    def get_sync_outbox_stats(self) -> dict[str, Any]:
         """Liefert aggregierte Outbox-Statistiken fuer Monitoring/Support."""
         status_rows = self.cur.execute(
             """
@@ -657,7 +657,7 @@ class Database:
         self.conn.commit()
         return len(ids)
 
-    def apply_remote_sync_change(self, entity_name: str, operation: str, payload: Dict[str, Any]) -> bool:
+    def apply_remote_sync_change(self, entity_name: str, operation: str, payload: dict[str, Any]) -> bool:
         """Wendet vom Server gepullte Aenderungen lokal an (ohne Outbox-Queueing)."""
         entity = (entity_name or "").strip().lower()
         op = (operation or "").strip().lower()
@@ -1281,7 +1281,7 @@ class Database:
     def get_praeparat_name(self, praeparat_id):
         row = self.cur.execute("SELECT name FROM praeparate WHERE id=?", (praeparat_id,)).fetchone()
         return row[0] if row else None
-    
+
     # ----- Präparate -----
     @cached_method(ttl_seconds=300, maxsize=64)
     def list_praeparate(self):
@@ -1427,8 +1427,8 @@ class Database:
 
     def get_depot_praeparat_assignments(self, depot_id):
         rows = self.cur.execute("""
-            SELECT praeparat_id, sollbestand 
-            FROM depot_praeparate 
+            SELECT praeparat_id, sollbestand
+            FROM depot_praeparate
             WHERE depot_id=?
         """, (depot_id,)).fetchall()
         return {r[0]: r[1] if r[1] is not None else 0 for r in rows}
@@ -1442,7 +1442,7 @@ class Database:
         self.cur.execute("DELETE FROM depot_praeparate WHERE depot_id=?", (depot_id,))
         for pid, sollbestand in praeparat_sollbestand_dict.items():
             self.cur.execute("""
-                INSERT INTO depot_praeparate (depot_id, praeparat_id, sollbestand) 
+                INSERT INTO depot_praeparate (depot_id, praeparat_id, sollbestand)
                 VALUES (?, ?, ?)
             """, (depot_id, pid, sollbestand))
         self.conn.commit()
@@ -1471,7 +1471,7 @@ class Database:
         return self.cur.execute("SELECT id, name, rolle, telefon, email FROM kontakte WHERE depot_id=? ORDER BY name", (depot_id,)).fetchall()
 
     def add_kontakt(self, depot_id, name, rolle, telefon, email):
-        self.cur.execute("INSERT INTO kontakte (depot_id, name, rolle, telefon, email) VALUES (?,?,?,?,?)", 
+        self.cur.execute("INSERT INTO kontakte (depot_id, name, rolle, telefon, email) VALUES (?,?,?,?,?)",
                         (depot_id, name, rolle, telefon, email))
         self.conn.commit()
         kontakt_id = self.cur.lastrowid
@@ -1490,7 +1490,7 @@ class Database:
         return kontakt_id
 
     def update_kontakt(self, kontakt_id, name, rolle, telefon, email):
-        self.cur.execute("UPDATE kontakte SET name=?, rolle=?, telefon=?, email=? WHERE id=?", 
+        self.cur.execute("UPDATE kontakte SET name=?, rolle=?, telefon=?, email=? WHERE id=?",
                         (name, rolle, telefon, email, kontakt_id))
         self.conn.commit()
         self.enqueue_sync_change(
@@ -1518,7 +1518,7 @@ class Database:
     def get_kontakte_by_depot_ids(self, depot_ids):
         if not depot_ids:
             return []
-        
+
         # Scanner-Schutz (False Positive Prävention): Typisierung erzwingen
         safe_depot_ids = tuple(int(d) for d in depot_ids)
         placeholders = ','.join('?' * len(safe_depot_ids))
@@ -1637,7 +1637,7 @@ class Database:
             return False
         return self.count_praeparate() == 0 or self.count_depots() == 0
 
-    def apply_setup_wizard_draft(self, draft: Dict[str, Any]) -> None:
+    def apply_setup_wizard_draft(self, draft: dict[str, Any]) -> None:
         """
         Schreibt Institution, Präparate, Depots, depot_praeparate und einen Depot-Kontakt
         (Tabelle kontakte) in einer Transaktion. Outbox-Einträge erfolgen erst nach COMMIT.
@@ -1656,10 +1656,10 @@ class Database:
         if not inst_name:
             raise RuntimeError("Institutionsname fehlt.")
 
-        new_praeparat_ids: List[int] = []
-        new_depot_ids: List[int] = []
-        new_kontakt_ids: List[int] = []
-        new_dp_keys: List[Tuple[int, int, int]] = []
+        new_praeparat_ids: list[int] = []
+        new_depot_ids: list[int] = []
+        new_kontakt_ids: list[int] = []
+        new_dp_keys: list[tuple[int, int, int]] = []
 
         try:
             self.cur.execute("BEGIN")
@@ -1691,7 +1691,7 @@ class Database:
                 ),
             )
 
-            name_to_id: Dict[str, int] = {}
+            name_to_id: dict[str, int] = {}
             for p in prs:
                 if not isinstance(p, dict):
                     continue
@@ -1803,7 +1803,7 @@ class Database:
                     new_kontakt_ids.append(int(self.cur.lastrowid))
 
                 assignments = d.get("praeparat_assignments")
-                rows_to_insert: List[Tuple[str, int]] = []
+                rows_to_insert: list[tuple[str, int]] = []
                 if isinstance(assignments, list) and assignments:
                     seen_a: set[str] = set()
                     for item in assignments:
@@ -2079,7 +2079,7 @@ class Database:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (depot_id, prae_id, charge, verfall, eingang, ausgang, empfaenger, anzahl, typ))
         self.conn.commit()
-        
+
         # Clear caches that depend on movement data
         if hasattr(self.get_all_praeparate_names, 'cache_clear'):
             self.get_all_praeparate_names.cache_clear()
@@ -2113,25 +2113,25 @@ class Database:
         """Bulk insert movements for better performance"""
         if not movements_data:
             return []
-        
+
         # Use executemany for bulk insert
         self.cur.executemany("""
             INSERT INTO bewegungen (depot_id, praeparat_id, charge, verfall, eingang_datum, ausgang_datum, empfaenger, anzahl, typ)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, movements_data)
         self.conn.commit()
-        
+
         # Clear caches
         if hasattr(self.get_all_praeparate_names, 'cache_clear'):
             self.get_all_praeparate_names.cache_clear()
         if hasattr(self.get_all_depot_names, 'cache_clear'):
             self.get_all_depot_names.cache_clear()
-        
+
         return [self.cur.lastrowid]
 
     def list_bewegungen_with_attachments(self, depot_id=None, typ=None, search_text=None):
         sql = """
-            SELECT 
+            SELECT
                 b.id, d.name AS depot, p.name AS praeparat, b.typ, b.charge, b.verfall,
                 b.eingang_datum, b.ausgang_datum, b.empfaenger, b.anzahl, b.datei_pfad
             FROM bewegungen b
@@ -2148,15 +2148,15 @@ class Database:
             params.append(typ)
         if search_text:
             sql += """ AND (
-                d.name LIKE ? OR 
-                p.name LIKE ? OR 
-                b.typ LIKE ? OR 
-                b.charge LIKE ? OR 
+                d.name LIKE ? OR
+                p.name LIKE ? OR
+                b.typ LIKE ? OR
+                b.charge LIKE ? OR
                 b.empfaenger LIKE ?
             )"""
             wildcard = f"%{search_text}%"
             params.extend([wildcard] * 5)
-            
+
         sql += " ORDER BY b.id DESC"
         return self.cur.execute(sql, params).fetchall()
 
@@ -2164,23 +2164,23 @@ class Database:
     def link_bewegung_with_attachment(self, bewegung_id: int, local_file_path: str, dest_folder: str, depot_name: str = None):
         if not os.path.exists(local_file_path):
             raise FileNotFoundError(f"Datei nicht gefunden: {local_file_path}")
-        
+
         now = datetime.now()
         year = now.strftime("%Y")
         month = now.strftime("%m")
-        
+
         if depot_name:
             safe_depot_name = "".join(c for c in depot_name if c.isalnum() or c in (' ', '_', '-'))
             full_dest = os.path.join(dest_folder, safe_depot_name, year, month)
         else:
             full_dest = os.path.join(dest_folder, year, month)
-        
+
         os.makedirs(full_dest, exist_ok=True)
-        
+
         ext = os.path.splitext(local_file_path)[1]
         filename = f"bewegung_{bewegung_id}_{now.strftime('%Y%m%d_%H%M%S')}{ext}"
         dest_path = os.path.join(full_dest, filename)
-        
+
         shutil.copy2(local_file_path, dest_path)
         self.cur.execute("UPDATE bewegungen SET datei_pfad=? WHERE id=?", (dest_path, bewegung_id))
         self.conn.commit()
@@ -2199,9 +2199,9 @@ class Database:
                            WHEN typ IN ('Abgang','Vernichtung') THEN -anzahl ELSE 0 END) AS saldo
                 FROM bewegungen GROUP BY depot_id, praeparat_id
             )
-            SELECT 
-                d.name AS Depot, 
-                p.name AS Präparat, 
+            SELECT
+                d.name AS Depot,
+                p.name AS Präparat,
                 dp.sollbestand AS Soll,
                 COALESCE(v.saldo, 0) AS Ist,
                 (COALESCE(v.saldo, 0) - dp.sollbestand) AS Differenz
@@ -2301,7 +2301,7 @@ class Database:
     def get_bewegungen_analyse(self, depot_ids=None, praeparat_ids=None, start_date=None, end_date=None):
         """Bewegungsanalyse für Diagramme"""
         sql = """
-            SELECT 
+            SELECT
                 d.name as depot_name,
                 p.name as praeparat_name,
                 b.typ,
@@ -2339,19 +2339,19 @@ class Database:
     def get_bestandsentwicklung(self, depot_ids=None, praeparat_ids=None):
         """Bestandsentwicklung mit Soll/Ist-Vergleich"""
         sql = """
-            SELECT 
+            SELECT
                 d.name as depot_name,
                 p.name as praeparat_name,
                 dp.sollbestand,
-                COALESCE(SUM(CASE 
+                COALESCE(SUM(CASE
                     WHEN b.typ = 'Zugang' THEN b.anzahl
                     WHEN b.typ IN ('Abgang', 'Vernichtung') THEN -b.anzahl
-                    ELSE 0 
+                    ELSE 0
                 END), 0) as ist_bestand,
-                COALESCE(SUM(CASE 
+                COALESCE(SUM(CASE
                     WHEN b.typ = 'Zugang' THEN b.anzahl
                     WHEN b.typ IN ('Abgang', 'Vernichtung') THEN -b.anzahl
-                    ELSE 0 
+                    ELSE 0
                 END), 0) - dp.sollbestand as differenz
             FROM depot_praeparate dp
             JOIN depots d ON d.id = dp.depot_id
@@ -2378,7 +2378,7 @@ class Database:
     def get_depot_ranking(self, praeparat_ids=None, start_date=None, end_date=None, limit=10):
         """Top Depots nach Bewegungen"""
         sql = """
-            SELECT 
+            SELECT
                 d.name as depot_name,
                 p.name as praeparat_name,
                 SUM(CASE WHEN b.typ = 'Abgang' THEN b.anzahl ELSE 0 END) as abgaben_gesamt
@@ -2402,7 +2402,7 @@ class Database:
             sql += " AND b.ausgang_datum <= ?"
             params.append(end_date)
 
-        sql += f" GROUP BY d.name, p.name ORDER BY abgaben_gesamt DESC LIMIT ?"
+        sql += " GROUP BY d.name, p.name ORDER BY abgaben_gesamt DESC LIMIT ?"
         params.append(limit)
 
         return self.cur.execute(sql, params).fetchall()
@@ -2410,7 +2410,7 @@ class Database:
     def get_praeparat_ranking(self, depot_ids=None, start_date=None, end_date=None, limit=10):
         """Top Präparate nach Bewegungen"""
         sql = """
-            SELECT 
+            SELECT
                 p.name as praeparat_name,
                 d.name as depot_name,
                 SUM(CASE WHEN b.typ = 'Abgang' THEN b.anzahl ELSE 0 END) as abgaben_gesamt
@@ -2434,7 +2434,7 @@ class Database:
             sql += " AND b.ausgang_datum <= ?"
             params.append(end_date)
 
-        sql += f" GROUP BY p.name, d.name ORDER BY abgaben_gesamt DESC LIMIT ?"
+        sql += " GROUP BY p.name, d.name ORDER BY abgaben_gesamt DESC LIMIT ?"
         params.append(limit)
 
         return self.cur.execute(sql, params).fetchall()
@@ -2442,14 +2442,14 @@ class Database:
     def get_matrix_data(self):
         """Matrix-Daten für Heatmap (Depot × Präparat)"""
         sql = """
-            SELECT 
+            SELECT
                 d.name as depot_name,
                 p.name as praeparat_name,
                 dp.sollbestand,
-                COALESCE(SUM(CASE 
+                COALESCE(SUM(CASE
                     WHEN b.typ = 'Zugang' THEN b.anzahl
                     WHEN b.typ IN ('Abgang', 'Vernichtung') THEN -b.anzahl
-                    ELSE 0 
+                    ELSE 0
                 END), 0) as ist_bestand
             FROM depot_praeparate dp
             JOIN depots d ON d.id = dp.depot_id
@@ -2459,14 +2459,14 @@ class Database:
             ORDER BY d.name, p.name
         """
         return self.cur.execute(sql).fetchall()
-    
+
     # In der Database-Klasse:
 
     def reset_test_data(self) -> tuple[bool, str, dict]:
         """
         Setzt Test-Daten zurück (Bewegungen + E-Mail-Verlauf).
         Behält alle Stammdaten (Depots, Kontakte, Präparate, Zuordnungen).
-        
+
         Returns:
             (success: bool, message: str, statistics: dict)
         """
@@ -2478,10 +2478,10 @@ class Database:
                     (table_name,)
                 ).fetchone()
                 return result is not None
-            
+
             # Statistik VOR dem Löschen sammeln
             stats_before = {}
-            
+
             # Bewegungen zählen
             if table_exists('bewegungen'):
                 stats_before['bewegungen'] = self.cur.execute(
@@ -2489,7 +2489,7 @@ class Database:
                 ).fetchone()[0]
             else:
                 stats_before['bewegungen'] = 0
-            
+
             # E-Mail-Verlauf zählen (MIT UNTERSTRICH!)
             if table_exists('email_verlauf'):
                 stats_before['email_verlauf'] = self.cur.execute(
@@ -2497,52 +2497,52 @@ class Database:
                 ).fetchone()[0]
             else:
                 stats_before['email_verlauf'] = 0
-            
+
             # Prüfen ob überhaupt etwas zu löschen ist
             total_to_delete = stats_before['bewegungen'] + stats_before['email_verlauf']
             if total_to_delete == 0:
                 return True, "Datenbank ist bereits leer - nichts zu tun!", stats_before
-            
+
             # Transaktionsbasiertes Löschen
             self.cur.execute("BEGIN TRANSACTION")
-            
+
             deleted = {}
-            
+
             # 1. Bewegungen löschen
             if table_exists('bewegungen') and stats_before['bewegungen'] > 0:
                 self.cur.execute("DELETE FROM bewegungen")
                 deleted['bewegungen'] = self.cur.rowcount
             else:
                 deleted['bewegungen'] = 0
-            
+
             # 2. E-Mail-Verlauf löschen (MIT UNTERSTRICH!)
             if table_exists('email_verlauf') and stats_before['email_verlauf'] > 0:
                 self.cur.execute("DELETE FROM email_verlauf")
                 deleted['email_verlauf'] = self.cur.rowcount
             else:
                 deleted['email_verlauf'] = 0
-            
+
             # 3. Meldungstracking zurücksetzen (falls vorhanden)
             if table_exists('meldungs_tracking'):
                 self.cur.execute(
                     "UPDATE meldungs_tracking SET bewegungen_erhalten = 0, bestand_erhalten = 0"
                 )
-            
+
             # Transaktion abschließen
             self.conn.commit()
-            
+
             # Erfolgs-Nachricht zusammenstellen
             msg_parts = ["Test-Daten erfolgreich zurückgesetzt!\n"]
             if deleted['bewegungen'] > 0:
                 msg_parts.append(f"  • {deleted['bewegungen']} Bewegungen gelöscht")
             if deleted.get('email_verlauf', 0) > 0:
                 msg_parts.append(f"  • {deleted['email_verlauf']} E-Mail-Einträge gelöscht")
-            
+
             msg_parts.append("\nStammdaten bleiben erhalten:")
             msg_parts.append("  • Depots, Kontakte, Präparate, Zuordnungen")
-            
+
             return True, "\n".join(msg_parts), deleted
-            
+
         except sqlite3.Error as e:
             self.conn.rollback()
             return False, f"❌ Datenbankfehler: {e}", {}
