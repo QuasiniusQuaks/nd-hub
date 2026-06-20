@@ -1,26 +1,20 @@
 """Database-Layer für die ND-Hub Desktop-Anwendung.
 
 .. note::
-   Dieses Modul verwendet ``functools.lru_cache`` an mehreren Stellen für
-   Lookup-Methoden (siehe Issue #11). Die Methode ist auf **Instanzen**
-   der ``Database``-Klasse angewendet, was zwei bekannte Risiken hat:
+   Dieses Modul verwendet ``cachetools.TTLCache`` über
+   ``core.cache_helpers.cached_method`` für Lookup-Methoden (siehe Issue #35).
+   Der Decorator legt pro Instanz einen TTL-Cache an und bietet zwei
+   Vorteile gegenüber ``functools.lru_cache``:
 
-   1. **Memory-Leak pro Instanz**: ``self`` ist Teil des Cache-Keys,
-      daher hält jede ``Database``-Instanz ihren eigenen Cache. Bei
-      vielen kurzlebigen Instanzen sammelt sich Cache bis zum GC.
-      Mitigation: ``Database`` wird als Singleton verwendet (siehe
-      ``nd_hub.py`` → ``self.db = Database(db_path)``).
-   2. **Stale Cache bei DB-Mutationen**: ``lru_cache`` invalidiert nicht
-      automatisch bei ``UPDATE``/``INSERT``/``DELETE``. Die
-      ``_clear_lookup_caches()``-Methode ist die zentrale Anlaufstelle
-      nach Mutationen — sie MUSS nach jedem schreibenden Query aufgerufen
-      werden. Bekannte Aufrufer sind in dieser Datei mit
-      ``self._clear_lookup_caches()`` markiert.
+   1. **TTL-basierte Eviction**: Einträge verfallen automatisch nach
+      konfigurierbarer Zeit (Standard 300s für Stammdaten), was
+      veraltete Werte reduziert.
+   2. **Explizite Invalidierung**: ``clear_all_caches(self)`` leert alle
+      Method-Caches einer Instanz auf einmal.
 
-   Für den Wechsel auf ``cachetools.TTLCache`` (TTL-basiertes Caching)
-   siehe Issue #17 — bewusst aufgeschoben, weil lru_cache für den
-   Single-User-Desktop gut funktioniert und die Risiken durch das
-   Singleton-Pattern mitigiert sind.
+   Trotzdem muss ``_clear_lookup_caches()`` nach jeder schreibenden
+   Operation explizit aufgerufen werden, damit der nächste Lesezugriff
+   garantiert frische Daten sieht.
 """
 import json
 import logging
@@ -32,9 +26,10 @@ import time
 import uuid
 from datetime import datetime
 from email.message import EmailMessage
-from functools import lru_cache
+from enum import StrEnum
 from typing import Any
 
+from core.cache_helpers import cached_method, clear_all_caches
 from PySide6 import QtWidgets
 from PySide6.QtCore import QDate, Qt
 
@@ -69,33 +64,39 @@ def _coerce_opt_float(v: Any) -> Any:
 _MISSING = object()
 
 
-class DB:
-    TABLE_DEPOTS = "depots"
-    TABLE_KONTAKTE = "kontakte"
-    TABLE_PRAEPARATE = "praeparate"
-    TABLE_DEPOT_PRAEPARATE = "depot_praeparate"
-    TABLE_BEWEGUNGEN = "bewegungen"
-    TABLE_EMAIL_VERLAUF = "email_verlauf"
-    TABLE_EINSTELLUNGEN = "einstellungen"
-    TABLE_TRACKING = "meldungs_tracking"
-    TYP_ZUGANG = "Zugang"
-    TYP_ABGANG = "Abgang"
-    TYP_VERNICHTUNG = "Vernichtung"
-    SETTING_AUTO_BACKUP = "auto_backup"
-    SETTING_LETZTES_BACKUP = "letztes_backup"
-    SETTING_PASSWORD_HASH = "password_hash"  # gitleaks:allow nosec B105: settings KEY name, not a secret
-    SETTING_MAX_BACKUPS = "max_backups"
-    SETTING_SMTP_HOST = "smtp_host"
-    SETTING_SMTP_PORT = "smtp_port"
-    SETTING_SMTP_USERNAME = "smtp_username"
-    SETTING_SMTP_PASSWORD = "smtp_password"  # gitleaks:allow nosec B105: settings KEY name, not a secret
-    SETTING_SMTP_USE_TLS = "smtp_use_tls"
-    SETTING_SMTP_USE_SSL = "smtp_use_ssl"
-    SETTING_SMTP_FROM_ADDRESS = "smtp_from_address"
-    SETTING_SMTP_FROM_NAME = "smtp_from_name"
-    SETTING_SETUP_WIZARD_COMPLETED = "setup_wizard_completed"
-    SETTING_SETUP_WIZARD_LAST_STEP = "setup_wizard_last_step"
-    SETTING_SETUP_WIZARD_DRAFT = "setup_wizard_draft"
+class TableName(StrEnum):
+    """Namen der Datenbank-Tabellen."""
+    DEPOTS = "depots"
+    KONTAKTE = "kontakte"
+    PRAEPARATE = "praeparate"
+    DEPOT_PRAEPARATE = "depot_praeparate"
+    BEWEGUNGEN = "bewegungen"
+    EMAIL_VERLAUF = "email_verlauf"
+    EINSTELLUNGEN = "einstellungen"
+    TRACKING = "meldungs_tracking"
+
+
+class SettingKey(StrEnum):
+    """Schlüssel für die Anwendungs-Einstellungen (Tabelle ``einstellungen``)."""
+    AUTO_BACKUP = "auto_backup"
+    LETZTES_BACKUP = "letztes_backup"
+    PASSWORD_HASH = "password_hash"  # gitleaks:allow nosec B105: settings KEY name, not a secret
+    MAX_BACKUPS = "max_backups"
+    SMTP_HOST = "smtp_host"
+    SMTP_PORT = "smtp_port"
+    SMTP_USERNAME = "smtp_username"
+    SMTP_PASSWORD = "smtp_password"  # gitleaks:allow nosec B105: settings KEY name, not a secret
+    SMTP_USE_TLS = "smtp_use_tls"
+    SMTP_USE_SSL = "smtp_use_ssl"
+    SMTP_FROM_ADDRESS = "smtp_from_address"
+    SMTP_FROM_NAME = "smtp_from_name"
+    SETUP_WIZARD_COMPLETED = "setup_wizard_completed"
+    SETUP_WIZARD_LAST_STEP = "setup_wizard_last_step"
+    SETUP_WIZARD_DRAFT = "setup_wizard_draft"
+
+
+# Rückwärtskompatibler Alias (deprecated, wird schrittweise entfernt)
+DB = SettingKey
 
 
 class Database:
@@ -1058,22 +1059,11 @@ class Database:
         self.write_lease_owner = False
 
     def _clear_lookup_caches(self):
-        """Leert Caches, die von Stammdaten-Abfragen abhängen."""
-        cache_methods = [
-            self.list_depots,
-            self.list_praeparate,
-            self.get_depot_name,
-            self.get_all_depot_names,
-            self.get_all_praeparate_names,
-            self.get_depot_id_by_name,
-            self.get_praeparat_id_by_name,
-        ]
-        for method in cache_methods:
-            if hasattr(method, "cache_clear"):
-                method.cache_clear()
+        """Leert alle TTL-Caches, die von Stammdaten-Abfragen abhängen."""
+        clear_all_caches(self)
 
     # ----- Depots -----
-    @lru_cache(maxsize=64)
+    @cached_method(ttl_seconds=300, maxsize=64)
     def list_depots(self):
         return self.cur.execute(
             """
@@ -1282,22 +1272,22 @@ class Database:
         )
         self._clear_lookup_caches()
 
-    @lru_cache(maxsize=128)
+    @cached_method(ttl_seconds=300, maxsize=128)
     def get_depot_name(self, depot_id):
         row = self.cur.execute("SELECT name FROM depots WHERE id=?", (depot_id,)).fetchone()
         return row[0] if row else None
 
-    @lru_cache(maxsize=256)
+    @cached_method(ttl_seconds=300, maxsize=256)
     def get_praeparat_name(self, praeparat_id):
         row = self.cur.execute("SELECT name FROM praeparate WHERE id=?", (praeparat_id,)).fetchone()
         return row[0] if row else None
 
     # ----- Präparate -----
-    @lru_cache(maxsize=64)
+    @cached_method(ttl_seconds=300, maxsize=64)
     def list_praeparate(self):
         return self.cur.execute("SELECT id, name FROM praeparate ORDER BY name").fetchall()
 
-    @lru_cache(maxsize=64)
+    @cached_method(ttl_seconds=300, maxsize=64)
     def list_praeparate_extended(self):
         return self.cur.execute(
             """
@@ -2288,20 +2278,20 @@ class Database:
             results[year] = self.cur.execute(sql, (depot_name, start, end)).fetchall()
         return results
 
-    @lru_cache(maxsize=128)
+    @cached_method(ttl_seconds=300, maxsize=128)
     def get_all_praeparate_names(self):
         return [row[0] for row in self.cur.execute("SELECT name FROM praeparate ORDER BY name").fetchall()]
 
-    @lru_cache(maxsize=128)
+    @cached_method(ttl_seconds=300, maxsize=128)
     def get_all_depot_names(self):
         return [row[0] for row in self.cur.execute("SELECT name FROM depots ORDER BY name").fetchall()]
 
-    @lru_cache(maxsize=256)
+    @cached_method(ttl_seconds=300, maxsize=256)
     def get_depot_id_by_name(self, name):
         row = self.cur.execute("SELECT id FROM depots WHERE name=?", (name,)).fetchone()
         return row[0] if row else None
 
-    @lru_cache(maxsize=256)
+    @cached_method(ttl_seconds=300, maxsize=256)
     def get_praeparat_id_by_name(self, name):
         row = self.cur.execute("SELECT id FROM praeparate WHERE name=?", (name,)).fetchone()
         return row[0] if row else None
