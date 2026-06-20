@@ -287,7 +287,7 @@ class ImportPage(QtWidgets.QWidget):
                 try:
                     if pd.isna(anzahl) or int(anzahl) <= 0:
                         errors.append(f"Zeile {idx+5}: Anzahl muss > 0 sein")
-                except:
+                except (ValueError, TypeError):
                     errors.append(f"Zeile {idx+5}: Ungültige Anzahl '{anzahl}'")
 
                 key = (
@@ -391,7 +391,7 @@ class ImportPage(QtWidgets.QWidget):
                         datum_obj = pd.to_datetime(datum, dayfirst=True).strftime('%Y-%m-%d')
                     else:
                         datum_obj = pd.to_datetime(datum).strftime('%Y-%m-%d')
-                except:
+                except (ValueError, TypeError):
                     datum_obj = str(datum)
                 
                 try:
@@ -399,7 +399,7 @@ class ImportPage(QtWidgets.QWidget):
                         verfall_obj = pd.to_datetime(verfall, dayfirst=True).strftime('%Y-%m-%d')
                     else:
                         verfall_obj = pd.to_datetime(verfall).strftime('%Y-%m-%d')
-                except:
+                except (ValueError, TypeError):
                     verfall_obj = str(verfall)
                 
                 eingang = datum_obj if typ == 'Zugang' else None
