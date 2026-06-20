@@ -8,6 +8,8 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Optional
 
+from db_manager import Database
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,7 +113,7 @@ class VerfallManager:
 
     def _validate_all_columns(self):
         """Validiert alle erkannten Spaltennamen gegen die Whitelist."""
-        for attr_name in ('menge_column', 'datum_column', 'typ_column', 
+        for attr_name in ('menge_column', 'datum_column', 'typ_column',
                           'praeparat_name_column', 'depot_name_column', 'pzn_column'):
             col = getattr(self, attr_name, None)
             if col and not self._validate_column_name(col):
@@ -347,7 +349,7 @@ class VerfallManager:
 
             # Kategorie und Tage bis Verfall
             select_parts.append(f"""
-                CASE 
+                CASE
                     WHEN b.{self.datum_column} <= ? THEN 'kritisch'
                     WHEN b.{self.datum_column} <= ? THEN 'warnung'
                     WHEN b.{self.datum_column} <= ? THEN 'achtung'
@@ -377,7 +379,7 @@ class VerfallManager:
 
             # Menge > 0
             where_parts.append(f"b.{self.menge_column} > 0")
-            
+
             # Datum <= Achtung (zeigt auch verfallene Präparate)
             where_parts.append(f"b.{self.datum_column} <= ?")
 
@@ -389,7 +391,7 @@ class VerfallManager:
 
             # Komplette Query
             query = f"""  # nosec B608: column names validated against ALLOWED_COLUMNS
-                SELECT 
+                SELECT
                     {', '.join(select_parts)}
                 {from_part}
                 {where_clause}
@@ -400,8 +402,8 @@ class VerfallManager:
             logger.info(query[:500] + "..." if len(query) > 500 else query)
 
             params = (kritisch_datum, warnung_datum, achtung_datum, achtung_datum)
-            rows = self.cur.execute(query, params).fetchall()          
-                       
+            rows = self.cur.execute(query, params).fetchall()
+
         except sqlite3.OperationalError as e:
             logger.error(f"Datenbankfehler: {e}")
             logger.info("Versuche Minimal-Query...")
@@ -572,14 +574,14 @@ class VerfallManager:
 
             # Wähle relevante Spalten
             if self.has_pzn and df['pzn'].any():
-                columns = ['depot_name', 'praeparat_name', 'pzn', 'menge', 
+                columns = ['depot_name', 'praeparat_name', 'pzn', 'menge',
                           'verfallsdatum', 'tage_bis_verfall', 'kategorie']
-                column_names = ['Depot', 'Präparat', 'PZN', 'Menge', 
+                column_names = ['Depot', 'Präparat', 'PZN', 'Menge',
                                'Verfallsdatum', 'Tage bis Verfall', 'Kategorie']
             else:
-                columns = ['depot_name', 'praeparat_name', 'menge', 
+                columns = ['depot_name', 'praeparat_name', 'menge',
                           'verfallsdatum', 'tage_bis_verfall', 'kategorie']
-                column_names = ['Depot', 'Präparat', 'Menge', 
+                column_names = ['Depot', 'Präparat', 'Menge',
                                'Verfallsdatum', 'Tage bis Verfall', 'Kategorie']
 
             df = df[columns]

@@ -36,26 +36,26 @@ class VerfallWidget(QtWidgets.QWidget):
             self.card.setStyleSheet(f"QWidget {{ background-color: {c['bg_secondary']}; }}")
             self.card.style().unpolish(self.card)
             self.card.style().polish(self.card)
-            
+
         if hasattr(self, 'refresh_btn'):
             self.refresh_btn.setStyleSheet(f"""
                 QPushButton {{ background-color: {c['bg_tertiary']}; border: none; border-radius: 8px; font-size: 16px; }}
                 QPushButton:hover {{ background-color: {c['hover']}; }}
             """)
-            
+
         if hasattr(self, 'list_widget'):
             self.list_widget.setStyleSheet(f"""
                 QListWidget {{ background-color: {c['bg_tertiary']}; border: 1px solid {c['separator']}; border-radius: 8px; font-size: 13px; }}
                 QListWidget::item {{ padding: 8px 12px; border-bottom: 1px solid {c['separator']}; }}
                 QListWidget::item:hover {{ background-color: {c['hover']}; }}
             """)
-            
+
         if hasattr(self, 'details_btn'):
             self.details_btn.setStyleSheet(f"""
                 QPushButton {{ background-color: {c['blue']}; color: white; border: none; border-radius: 8px; padding: 10px; font-weight: 600; font-size: 14px; }}
                 QPushButton:hover {{ background-color: {c['blue']}cc; }}
             """)
-            
+
         self.refresh()
         self.update()
 

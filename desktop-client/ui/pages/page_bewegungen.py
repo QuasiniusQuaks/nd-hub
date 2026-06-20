@@ -16,66 +16,66 @@ class BewegungenPage(QtWidgets.QWidget):
         self.security = security
         self.attachment_base_folder = attachment_base_folder
         self.attachment_file = None
-        
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(20)
-        
+
         title = QtWidgets.QLabel("Bewegungen erfassen")
         title.setProperty("class", "page-title")
         layout.addWidget(title)
-        
+
         card = create_card_widget()
         card_layout = QtWidgets.QVBoxLayout(card)
-        
+
         form = QtWidgets.QFormLayout()
         form.setSpacing(16)
         form.setLabelAlignment(Qt.AlignRight)
         form.setRowWrapPolicy(QtWidgets.QFormLayout.WrapLongRows)
-        
+
         self.cb_typ = QtWidgets.QComboBox()
         self.cb_typ.addItems(["Zugang", "Abgang", "Vernichtung"])
         form.addRow("Typ:", self.cb_typ)
-        
+
         self.cb_depot = QtWidgets.QComboBox()
         self.cb_depot.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         form.addRow("Depot:", self.cb_depot)
-        
+
         self.cb_praeparat = QtWidgets.QComboBox()
         self.cb_praeparat.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         form.addRow("Präparat:", self.cb_praeparat)
-        
+
         self.e_charge = QtWidgets.QLineEdit()
         form.addRow("Charge:", self.e_charge)
-        
+
         self.d_verfall = QtWidgets.QDateEdit(calendarPopup=True)
         self.d_verfall.setDisplayFormat("yyyy-MM-dd")
         self.d_verfall.setDate(QDate.currentDate())
         form.addRow("Verfall:", self.d_verfall)
-        
+
         self.d_eingang = QtWidgets.QDateEdit(calendarPopup=True)
         self.d_eingang.setDisplayFormat("yyyy-MM-dd")
         self.d_eingang.setDate(QDate.currentDate())
         form.addRow("Eingangsdatum:", self.d_eingang)
-        
+
         self.d_ausgang = QtWidgets.QDateEdit(calendarPopup=True)
         self.d_ausgang.setDisplayFormat("yyyy-MM-dd")
         self.d_ausgang.setDate(QDate.currentDate())
         form.addRow("Ausgangsdatum:", self.d_ausgang)
-        
+
         self.e_empfaenger = QtWidgets.QLineEdit()
         form.addRow("Empfänger:", self.e_empfaenger)
-        
+
         self.spin_anzahl = QtWidgets.QSpinBox()
         self.spin_anzahl.setRange(1, 1000000)
         self.spin_anzahl.setValue(1)
         form.addRow("Anzahl:", self.spin_anzahl)
-        
+
         attach_widget = QtWidgets.QWidget()
         attach_layout = QtWidgets.QHBoxLayout(attach_widget)
         attach_layout.setContentsMargins(0, 0, 0, 0)
         attach_layout.setSpacing(12)
-        
+
         self.lbl_attachment = QtWidgets.QLabel("Keine Datei ausgewählt")
         self.lbl_attachment.setObjectName("attachment_label")
         self.lbl_attachment.setWordWrap(True)
@@ -87,29 +87,29 @@ class BewegungenPage(QtWidgets.QWidget):
         self.btn_clear_file.setObjectName("btn_delete")
         self.btn_clear_file.setFixedWidth(36)
         self.btn_clear_file.setVisible(False)
-        
+
         attach_layout.addWidget(self.lbl_attachment, 1)
         attach_layout.addWidget(self.btn_select_file)
         attach_layout.addWidget(self.btn_clear_file)
-        
+
         form.addRow("PDF-Anhang:", attach_widget)
         card_layout.addLayout(form)
-        
+
         self.btn_save = QtWidgets.QPushButton(" Bewegung speichern")
         self.btn_save.setIcon(IconManager.get_icon("save"))
         self.btn_save.setObjectName("btn_save")
         self.btn_save.setMinimumHeight(44)
         card_layout.addWidget(self.btn_save)
-        
+
         layout.addWidget(card)
         layout.addStretch()
-        
+
         self.btn_save.clicked.connect(self.save)
         self.btn_select_file.clicked.connect(self.select_attachment)
         self.btn_clear_file.clicked.connect(self.clear_attachment)
         self.cb_typ.currentIndexChanged.connect(self.update_visibility)
         self.cb_depot.currentIndexChanged.connect(self.refresh_praeparate_for_depot)
-        
+
         self.refresh_depots()
         self.refresh_praeparate_for_depot()
         self.update_visibility()
@@ -167,7 +167,7 @@ class BewegungenPage(QtWidgets.QWidget):
         if self.cb_depot.count() == 0 or self.cb_praeparat.count() == 0:
             QtWidgets.QMessageBox.warning(self, "Hinweis", "Bitte Depot und Präparat anlegen/zuordnen.")
             return
-        
+
         depot_id = self.cb_depot.currentData()
         if self.security and not self.security.has_depot_access(int(depot_id), write=True):
             QtWidgets.QMessageBox.warning(self, "Keine Berechtigung", "Sie dürfen in dieses Depot nicht schreiben.")
@@ -180,13 +180,13 @@ class BewegungenPage(QtWidgets.QWidget):
         ausgang = to_iso(self.d_ausgang.date()) if typ in ("Abgang", "Vernichtung") else None
         empfaenger = self.e_empfaenger.text().strip() if typ == "Abgang" else None
         anzahl = int(self.spin_anzahl.value())
-        
+
         if not (charge and verfall and anzahl > 0):
             QtWidgets.QMessageBox.warning(self, "Fehlende Angaben", "Bitte Charge, Verfall und Anzahl angeben.")
             return
-        
+
         last_id = self.db.insert_bewegung(depot_id, prae_id, charge, verfall, eingang, ausgang, empfaenger, anzahl, typ)
-        
+
         if self.attachment_file:
             try:
                 depot_name = self.db.get_depot_name(depot_id)
@@ -200,9 +200,9 @@ class BewegungenPage(QtWidgets.QWidget):
                 return
         else:
             msg = "✅ Bewegung erfolgreich gespeichert!"
-        
+
         QtWidgets.QMessageBox.information(self, "Gespeichert", msg)
-        
+
         self.e_charge.clear()
         self.e_empfaenger.clear()
         self.spin_anzahl.setValue(1)

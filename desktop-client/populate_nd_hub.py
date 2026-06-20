@@ -305,7 +305,7 @@ def populate():
     # ---- 3. Sollbestände je Depot ----
     print("\n[3/5] Definiere Sollbestände...")
     soll_count = 0
-    for depot_name, depot_id in depot_ids.items():
+    for _depot_name, depot_id in depot_ids.items():
         # Jedes Depot hat 50-80% der Präparate
         anzahl_praep = random.randint(
             int(len(PRAEPARATE) * 0.5),
@@ -335,7 +335,7 @@ def populate():
     print("\n[4/5] Erzeuge Bestandsbewegungen...")
     bew_count = 0
 
-    for depot_name, depot_id in depot_ids.items():
+    for _depot_name, depot_id in depot_ids.items():
         # Alle Soll-Einträge dieses Depots holen
         soll_entries = cur.execute(
             "SELECT praeparat_id, sollbestand FROM depot_praeparate WHERE depot_id = ?",
@@ -362,8 +362,8 @@ def populate():
                 eingang = random_eingang(1, 12)
 
                 cur.execute("""
-                    INSERT INTO bewegungen 
-                    (depot_id, praeparat_id, charge, verfall, eingang_datum, 
+                    INSERT INTO bewegungen
+                    (depot_id, praeparat_id, charge, verfall, eingang_datum,
                      ausgang_datum, empfaenger, anzahl, typ, datei_pfad)
                     VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, 'Zugang', NULL)
                 """, (depot_id, praep_id, charge, verfall, eingang, menge))
@@ -382,12 +382,12 @@ def populate():
     ]
 
     # Für ca. 15% der Depots einige Ausgänge erzeugen
-    for depot_name, depot_id in depot_ids.items():
+    for _depot_name, depot_id in depot_ids.items():
         # 5-15 Ausgänge pro Depot
         n_ausgaenge = random.randint(5, 15)
         eingaenge = cur.execute(
-            """SELECT id, praeparat_id, charge, verfall, anzahl 
-               FROM bewegungen 
+            """SELECT id, praeparat_id, charge, verfall, anzahl
+               FROM bewegungen
                WHERE depot_id = ? AND typ = 'Zugang' AND ausgang_datum IS NULL
                ORDER BY RANDOM() LIMIT ?""",
             (depot_id, n_ausgaenge)
@@ -401,7 +401,7 @@ def populate():
 
             # Neuen Ausgangs-Eintrag erzeugen
             cur.execute("""
-                INSERT INTO bewegungen 
+                INSERT INTO bewegungen
                 (depot_id, praeparat_id, charge, verfall, eingang_datum,
                  ausgang_datum, empfaenger, anzahl, typ, datei_pfad)
                 VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 'Abgang', NULL)
@@ -414,13 +414,13 @@ def populate():
     # ---- 5. Warnung-Einstellungen ----
     print("\n[5/5] Setze Warneinstellungen...")
     cur.execute("""
-        UPDATE warnung_einstellungen 
+        UPDATE warnung_einstellungen
         SET kritisch_tage = 30, warnung_tage = 90, achtung_tage = 180
         WHERE id = 1
     """)
     if cur.rowcount == 0:
         cur.execute("""
-            INSERT INTO warnung_einstellungen 
+            INSERT INTO warnung_einstellungen
             (kritisch_tage, warnung_tage, achtung_tage, email_benachrichtigung)
             VALUES (30, 90, 180, 0)
         """)

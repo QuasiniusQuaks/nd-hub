@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 ALLOWED_MOVEMENT_TYPES = {"Zugang", "Abgang", "Vernichtung"}
@@ -1235,7 +1235,7 @@ class SqliteRepository:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+                    datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
                     (betreff or "").strip(),
                     nachricht or "",
                     depot_names or "",
@@ -1951,9 +1951,9 @@ class SqliteRepository:
             try:
                 verfall_day = datetime.strptime(verfall_text, "%Y-%m-%d").date()
                 event_day = verfall_day - timedelta(days=safe_critical_days)
-                row["event_at"] = datetime.combine(event_day, datetime.min.time(), tzinfo=timezone.utc).isoformat()
+                row["event_at"] = datetime.combine(event_day, datetime.min.time(), tzinfo=UTC).isoformat()
             except ValueError:
-                row["event_at"] = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).isoformat()
+                row["event_at"] = datetime.combine(today, datetime.min.time(), tzinfo=UTC).isoformat()
         return rows
 
     def log_audit(
@@ -1972,7 +1972,7 @@ class SqliteRepository:
         if not safe_resource:
             raise ValueError("Audit resource_type darf nicht leer sein.")
         details_json = json.dumps(details or {}, ensure_ascii=True)
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         with self._connect() as conn:
             cur = conn.cursor()
             cur.execute(
@@ -2058,7 +2058,7 @@ class SqliteRepository:
         safe_batch = (batch_id or "").strip()
         if not safe_batch:
             raise ValueError("batch_id darf nicht leer sein.")
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         result_json = json.dumps(result or {}, ensure_ascii=True)
         with self._connect() as conn:
             conn.execute(
@@ -2094,7 +2094,7 @@ class SqliteRepository:
         safe_batch = (batch_id or "").strip()
         if not safe_batch:
             raise ValueError("batch_id darf nicht leer sein.")
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         result_json = json.dumps(result or {}, ensure_ascii=True)
         with self._connect() as conn:
             conn.execute(

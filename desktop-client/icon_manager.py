@@ -60,35 +60,35 @@ class IconManager:
         """Returns a QIcon for the given symbol name and color."""
         if name not in cls.ICONS:
             return QIcon()
-        
+
         svg_xml = cls.ICONS[name].replace("{COLOR}", color)
-        
+
         renderer = QSvgRenderer(svg_xml.encode('utf-8'))
         pixmap = QPixmap(size, size)
         pixmap.fill(Qt.transparent)
-        
+
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
         renderer.render(painter)
         painter.end()
-        
+
         return QIcon(pixmap)
-        
+
     @classmethod
     def get_pixmap(cls, name, color="#2c3e50", size=24):
         """Returns a QPixmap for the given symbol name and color."""
         if name not in cls.ICONS:
             return QPixmap()
-            
+
         svg_xml = cls.ICONS[name].replace("{COLOR}", color)
-        
+
         renderer = QSvgRenderer(svg_xml.encode('utf-8'))
         pixmap = QPixmap(size, size)
         pixmap.fill(Qt.transparent)
-        
+
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
         renderer.render(painter)
         painter.end()
-        
+
         return pixmap

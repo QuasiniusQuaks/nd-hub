@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 
-from backend.app import create_app
 from fastapi.testclient import TestClient
+
+from backend.app import create_app
 
 
 def _seed_master_and_movements(db_path: str) -> None:
@@ -107,7 +108,7 @@ def test_bewegungen_supports_has_attachment_filter(monkeypatch, tmp_path):
     rows = with_pdf.json()
     assert len(rows) == 1
     assert rows[0]["charge"] == "A-100"
-    assert rows[0]["has_attachment"] in {1, True}
+    assert rows[0]["has_attachment"] in {1}
 
 
 def test_bewegungen_supports_praeparat_filter(monkeypatch, tmp_path):
