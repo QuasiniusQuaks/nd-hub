@@ -43,9 +43,9 @@ Wichtig:
 from __future__ import annotations
 
 import functools
-import inspect
 import logging
-from typing import Any, Callable, Optional, Type, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 logger = logging.getLogger("ND-Hub.ExceptionDecorators")
 
@@ -53,7 +53,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def swallow_exceptions(
-    *exception_types: Type[BaseException],
+    *exception_types: type[BaseException],
     default: Any = None,
     message: str = "Fehler in {}",
     level: int = logging.ERROR,

@@ -7,7 +7,7 @@ Split-Adressfelder fuer Institution und Depots entsprechen dem Server-Modell und
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 DRAFT_VERSION = 3
 
@@ -56,7 +56,7 @@ _PLZ_RE = re.compile(r"^\d{5}$")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-def validate_postleitzahl_optional(value: str) -> Tuple[bool, str]:
+def validate_postleitzahl_optional(value: str) -> tuple[bool, str]:
     """Wenn gesetzt, muss PLZ exakt 5 Ziffern sein (für zukuenftige Schema-Felder)."""
     s = (value or "").strip()
     if not s:
@@ -66,7 +66,7 @@ def validate_postleitzahl_optional(value: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_email_required(value: str) -> Tuple[bool, str]:
+def validate_email_required(value: str) -> tuple[bool, str]:
     s = (value or "").strip()
     if not s:
         return False, "E-Mail ist Pflicht."
@@ -75,14 +75,14 @@ def validate_email_required(value: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_institution_dict(inst: Dict[str, Any]) -> Tuple[bool, str]:
+def validate_institution_dict(inst: dict[str, Any]) -> tuple[bool, str]:
     name = str(inst.get("name") or "").strip()
     if not name:
         return False, "Institutionsname fehlt."
     return True, ""
 
 
-def validate_praeparate_names(names: List[str]) -> Tuple[bool, str]:
+def validate_praeparate_names(names: list[str]) -> tuple[bool, str]:
     cleaned = [n.strip() for n in names if n and str(n).strip()]
     if not cleaned:
         return False, "Mindestens ein Praeparat."
@@ -92,7 +92,7 @@ def validate_praeparate_names(names: List[str]) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_depot_stamm_rows(rows: List[Dict[str, Any]]) -> Tuple[bool, str]:
+def validate_depot_stamm_rows(rows: list[dict[str, Any]]) -> tuple[bool, str]:
     if not rows:
         return False, "Mindestens ein Notfalldepot."
     for d in rows:
@@ -103,9 +103,9 @@ def validate_depot_stamm_rows(rows: List[Dict[str, Any]]) -> Tuple[bool, str]:
 
 
 def validate_depot_kontakt_and_assignments(
-    rows: List[Dict[str, Any]],
+    rows: list[dict[str, Any]],
     prae_names_lower: set[str],
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     for d in rows:
         nm = str(d.get("name") or "").strip()
         em = str(d.get("email") or "").strip()

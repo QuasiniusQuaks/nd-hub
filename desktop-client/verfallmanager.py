@@ -6,7 +6,9 @@ Version: 1.2 - Mit automatischer Synonym-Erkennung
 import logging
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
+
+from db_manager import Database
 
 logger = logging.getLogger(__name__)
 
@@ -111,14 +113,14 @@ class VerfallManager:
 
     def _validate_all_columns(self):
         """Validiert alle erkannten Spaltennamen gegen die Whitelist."""
-        for attr_name in ('menge_column', 'datum_column', 'typ_column', 
+        for attr_name in ('menge_column', 'datum_column', 'typ_column',
                           'praeparat_name_column', 'depot_name_column', 'pzn_column'):
             col = getattr(self, attr_name, None)
             if col and not self._validate_column_name(col):
                 logger.warning(f"Setze {attr_name} auf None (Whitelist-Verletzung)")
                 setattr(self, attr_name, None)
 
-    def _find_column(self, table_name: str, column_names: List[str], synonym_key: str) -> str:
+    def _find_column(self, table_name: str, column_names: list[str], synonym_key: str) -> str:
         """
         Findet eine Spalte anhand von Synonymen
 
@@ -286,7 +288,7 @@ class VerfallManager:
             self.conn.commit()
             logger.info("Standard-Warnungs-Einstellungen erstellt")
 
-    def getverfallendepraeparate(self, kategorie: str = None) -> List[Dict]:
+    def getverfallendepraeparate(self, kategorie: str = None) -> list[dict]:
         """
         Holt alle verfallenden Präparate aus bestehendem System
         SMART: Nutzt automatisch erkannte Spaltennamen
@@ -347,7 +349,7 @@ class VerfallManager:
 
             # Kategorie und Tage bis Verfall
             select_parts.append(f"""
-                CASE 
+                CASE
                     WHEN b.{self.datum_column} <= ? THEN 'kritisch'
                     WHEN b.{self.datum_column} <= ? THEN 'warnung'
                     WHEN b.{self.datum_column} <= ? THEN 'achtung'
@@ -377,7 +379,7 @@ class VerfallManager:
 
             # Menge > 0
             where_parts.append(f"b.{self.menge_column} > 0")
-            
+
             # Datum <= Achtung (zeigt auch verfallene Präparate)
             where_parts.append(f"b.{self.datum_column} <= ?")
 
@@ -389,7 +391,7 @@ class VerfallManager:
 
             # Komplette Query
             query = f"""  # nosec B608: column names validated against ALLOWED_COLUMNS
-                SELECT 
+                SELECT
                     {', '.join(select_parts)}
                 {from_part}
                 {where_clause}
@@ -400,8 +402,8 @@ class VerfallManager:
             logger.info(query[:500] + "..." if len(query) > 500 else query)
 
             params = (kritisch_datum, warnung_datum, achtung_datum, achtung_datum)
-            rows = self.cur.execute(query, params).fetchall()          
-                       
+            rows = self.cur.execute(query, params).fetchall()
+
         except sqlite3.OperationalError as e:
             logger.error(f"Datenbankfehler: {e}")
             logger.info("Versuche Minimal-Query...")
@@ -460,7 +462,7 @@ class VerfallManager:
         logger.info(f"✓ {len(result)} verfallende Präparate gefunden")
         return result
 
-    def getstatistics(self) -> Dict:
+    def getstatistics(self) -> dict:
         """Gibt Statistiken über verfallende Präparate zurück"""
         verfallende = self.getverfallendepraeparate()
 
@@ -478,7 +480,7 @@ class VerfallManager:
 
         return stats
 
-    def getverfallendebydepot(self) -> Dict[int, List[Dict]]:
+    def getverfallendebydepot(self) -> dict[int, list[dict]]:
         """Gruppiert verfallende Präparate nach Depot"""
         verfallende = self.getverfallendepraeparate()
 
@@ -491,7 +493,7 @@ class VerfallManager:
 
         return by_depot
 
-    def getkritischedepots(self) -> List[Tuple[str, int]]:
+    def getkritischedepots(self) -> list[tuple[str, int]]:
         """Gibt Depots mit den meisten kritischen Präparaten zurück"""
         kritische = self.getverfallendepraeparate(kategorie='kritisch')
 
@@ -572,14 +574,14 @@ class VerfallManager:
 
             # Wähle relevante Spalten
             if self.has_pzn and df['pzn'].any():
-                columns = ['depot_name', 'praeparat_name', 'pzn', 'menge', 
+                columns = ['depot_name', 'praeparat_name', 'pzn', 'menge',
                           'verfallsdatum', 'tage_bis_verfall', 'kategorie']
-                column_names = ['Depot', 'Präparat', 'PZN', 'Menge', 
+                column_names = ['Depot', 'Präparat', 'PZN', 'Menge',
                                'Verfallsdatum', 'Tage bis Verfall', 'Kategorie']
             else:
-                columns = ['depot_name', 'praeparat_name', 'menge', 
+                columns = ['depot_name', 'praeparat_name', 'menge',
                           'verfallsdatum', 'tage_bis_verfall', 'kategorie']
-                column_names = ['Depot', 'Präparat', 'Menge', 
+                column_names = ['Depot', 'Präparat', 'Menge',
                                'Verfallsdatum', 'Tage bis Verfall', 'Kategorie']
 
             df = df[columns]
@@ -596,7 +598,7 @@ class VerfallManager:
             logger.error(f"Fehler beim Excel-Export: {e}")
             return False
 
-    def getnaechsteverfaelle(self, limit: int = 10) -> List[Dict]:
+    def getnaechsteverfaelle(self, limit: int = 10) -> list[dict]:
         """Gibt die nächsten X verfallenden Präparate zurück"""
         verfallende = self.getverfallendepraeparate()
         return verfallende[:limit]

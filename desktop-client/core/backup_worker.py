@@ -32,7 +32,6 @@ import os
 import shutil
 import sqlite3
 import time
-from typing import List, Optional
 
 from PySide6 import QtCore
 
@@ -88,8 +87,8 @@ class BackupRestoreRunnable(QtCore.QRunnable):
         # im UI-Thread, um sie schließen zu können. Im Worker ist das nicht
         # thread-safe — daher wird das Schließen via Signal an den UI-Thread
         # delegiert. Hier vorbereitet, falls wir es später umstellen.
-        self._emergency_backup: Optional[str] = None
-        self._restored_size_kb: Optional[float] = None
+        self._emergency_backup: str | None = None
+        self._restored_size_kb: float | None = None
 
     def run(self) -> None:  # noqa: D401 — Qt-API
         try:
@@ -168,7 +167,7 @@ class BackupRestoreRunnable(QtCore.QRunnable):
         # 5. Backup-Datei rüberkopieren
         self._emit("Backup wird wiederhergestellt...", 5)
         restored = False
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for attempt in range(10):
             try:
                 shutil.copy2(self.restore_file, self.db_path)

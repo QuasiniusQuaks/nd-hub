@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, Protocol, Tuple
+from typing import Any, Protocol
 from urllib import error, request
 from urllib.parse import urlencode, urlparse
 
@@ -25,7 +25,7 @@ class OperatingMode(str, Enum):
     REMOTE_ONLY = "remote_only"
 
     @classmethod
-    def from_raw(cls, value: str) -> "OperatingMode":
+    def from_raw(cls, value: str) -> OperatingMode:
         normalized = (value or "").strip().lower()
         for candidate in cls:
             if candidate.value == normalized:
@@ -38,8 +38,8 @@ class LocalSyncOutbox(Protocol):
         self,
         entity_name: str,
         operation: str,
-        payload: Dict[str, Any],
-        dedupe_key: Optional[str] = None,
+        payload: dict[str, Any],
+        dedupe_key: str | None = None,
     ) -> int:
         ...
 
@@ -69,13 +69,13 @@ class BackendApiClient:
         url = f"{self.config.normalized_base_url}{self.config.health_endpoint}"
         req = request.Request(_require_http_scheme(url), method="GET", headers=self._headers())
         try:
-            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:  # nosec B310: URL scheme validated by _require_http_scheme  # nosec B310: URL scheme validated by _require_http_scheme  # nosec B310: URL scheme validated by _require_http_scheme
+            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:  # nosec B310: URL scheme validated by _require_http_scheme
                 return 200 <= response.status < 300
         except (error.URLError, TimeoutError, OSError) as exc:
             logger.info("Backend-Healthcheck nicht erreichbar: %s", exc)
             return False
 
-    def pull_changes(self, cursor: Optional[str], entities: Optional[list], limit: int = 500) -> Dict[str, Any]:
+    def pull_changes(self, cursor: str | None, entities: list | None, limit: int = 500) -> dict[str, Any]:
         payload = {
             "cursor": cursor,
             "entities": entities or [],
@@ -83,23 +83,23 @@ class BackendApiClient:
         }
         return self._post_json("/sync/pull", payload)
 
-    def push_changes(self, batch_id: str, changes: list) -> Dict[str, Any]:
+    def push_changes(self, batch_id: str, changes: list) -> dict[str, Any]:
         payload = {
             "batch_id": batch_id,
             "changes": changes,
         }
         return self._post_json("/sync/push", payload)
 
-    def get_sync_status(self) -> Dict[str, Any]:
+    def get_sync_status(self) -> dict[str, Any]:
         return self._get_json("/sync/status")
 
-    def get_sync_ops_stats(self) -> Dict[str, Any]:
+    def get_sync_ops_stats(self) -> dict[str, Any]:
         return self._get_json("/sync/ops/stats")
 
-    def list_sync_tokens(self) -> Dict[str, Any]:
+    def list_sync_tokens(self) -> dict[str, Any]:
         return self._get_json("/auth/desktop-sync-tokens")
 
-    def create_sync_token(self, username: str, expires_in_hours: int = 72, note: str = "") -> Dict[str, Any]:
+    def create_sync_token(self, username: str, expires_in_hours: int = 72, note: str = "") -> dict[str, Any]:
         payload = {
             "username": username,
             "expires_in_hours": max(1, int(expires_in_hours or 72)),
@@ -107,7 +107,7 @@ class BackendApiClient:
         }
         return self._post_json("/auth/desktop-sync-token", payload)
 
-    def revoke_sync_token(self, token_id: str) -> Dict[str, Any]:
+    def revoke_sync_token(self, token_id: str) -> dict[str, Any]:
         return self._post_json("/auth/desktop-sync-token/revoke", {"token_id": str(token_id)})
 
     def get_audit_logs(
@@ -116,7 +116,7 @@ class BackendApiClient:
         action: str = "",
         page: int = 1,
         page_size: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         params = {
             "page": max(1, int(page or 1)),
             "page_size": max(1, min(int(page_size or 50), 200)),
@@ -127,10 +127,10 @@ class BackendApiClient:
             params["action"] = action
         return self._get_json(f"/audit-logs?{urlencode(params)}")
 
-    def get_permissions_catalog(self) -> Dict[str, Any]:
+    def get_permissions_catalog(self) -> dict[str, Any]:
         return self._get_json("/permissions/catalog")
 
-    def _post_json(self, route_path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _post_json(self, route_path: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not self.is_configured():
             raise RuntimeError("Backend-URL ist nicht konfiguriert")
         url = f"{self.config.normalized_base_url}{route_path}"
@@ -151,7 +151,7 @@ class BackendApiClient:
         except (error.URLError, TimeoutError, OSError) as exc:
             raise RuntimeError(f"Sync-Aufruf fehlgeschlagen: {exc}") from exc
 
-    def _get_json(self, route_path: str) -> Dict[str, Any]:
+    def _get_json(self, route_path: str) -> dict[str, Any]:
         if not self.is_configured():
             raise RuntimeError("Backend-URL ist nicht konfiguriert")
         url = f"{self.config.normalized_base_url}{route_path}"
@@ -166,8 +166,8 @@ class BackendApiClient:
         except (error.URLError, TimeoutError, OSError) as exc:
             raise RuntimeError(f"Sync-Aufruf fehlgeschlagen: {exc}") from exc
 
-    def _headers(self, content_type: str | None = None) -> Dict[str, str]:
-        headers: Dict[str, str] = {}
+    def _headers(self, content_type: str | None = None) -> dict[str, str]:
+        headers: dict[str, str] = {}
         if content_type:
             headers["Content-Type"] = content_type
         token = (self.config.access_token or "").strip()
@@ -188,13 +188,13 @@ class DataAccessRouter:
         self,
         local_db: LocalSyncOutbox,
         operating_mode: OperatingMode,
-        api_client: Optional[BackendApiClient] = None,
+        api_client: BackendApiClient | None = None,
     ):
         self.local_db = local_db
         self.operating_mode = operating_mode
         self.api_client = api_client
 
-    def resolve_effective_mode(self) -> Tuple[OperatingMode, str]:
+    def resolve_effective_mode(self) -> tuple[OperatingMode, str]:
         if self.operating_mode == OperatingMode.LOCAL_ONLY:
             return OperatingMode.LOCAL_ONLY, "local-only konfiguriert"
 
@@ -215,9 +215,9 @@ class DataAccessRouter:
         self,
         entity_name: str,
         operation: str,
-        payload: Dict[str, Any],
-        dedupe_key: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        payload: dict[str, Any],
+        dedupe_key: str | None = None,
+    ) -> dict[str, Any]:
         """
         Registriert lokale Schreiboperation fuer spaeteren Sync.
         Der eigentliche Fach-Write findet weiterhin im lokalen DB-Layer statt.

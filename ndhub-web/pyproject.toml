@@ -1,0 +1,31 @@
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+  "build",
+  "dist",
+  "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+  "E402",  # imports not at top — bewusst (App-State vor Modul-Importen)
+  "E501",  # line too long — 100 Zeichen sind Richtwert, keine harte Policy
+  "B008",  # function calls in default args — FastAPI Dependencies
+  "B019",  # cache auf Methoden — bekannt
+  "B023",  # loop variable in lambda — bewusst
+  "B904",  # raise without from — bewusstes Design
+  "UP006", # typing.X statt builtins — Kompatibilität
+  "UP035", # typing.X deprecated — gleicher Grund
+  "UP045", # Optional[X] Lesbarkeit
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["backend/tests"]
+addopts = "-q -m 'not performance' --cov=backend --cov-report=term-missing --cov-fail-under=30"
+markers = [
+  "integration: tests spanning multiple components",
+  "performance: slower performance-oriented checks",
+]

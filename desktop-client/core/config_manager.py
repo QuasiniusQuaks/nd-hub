@@ -23,10 +23,10 @@ def reset_secure_store_cache():
 
 class ConfigManager:
     """Zentrales Konfigurationsmanagement für ND-Hub."""
-    
+
     APP_NAME = "ND-Hub"
     DEFAULT_CONFIG_FILENAME = "settings.ini"
-    
+
     def __init__(self):
         self.data_dir = self._get_app_data_dir()
         self.config_path = os.path.join(self.data_dir, self.DEFAULT_CONFIG_FILENAME)
@@ -40,7 +40,7 @@ class ConfigManager:
             base_dir = os.environ.get('APPDATA', os.path.expanduser("~"))
         else:
             base_dir = os.path.expanduser("~")
-        
+
         data_dir = os.path.join(base_dir, self.APP_NAME)
         return data_dir
 
@@ -69,7 +69,7 @@ class ConfigManager:
         """Setzt Standardwerte für die Konfiguration."""
         if 'General' not in self.config:
             self.config['General'] = {}
-        
+
         self.config['General']['database_path'] = os.path.join(self.data_dir, "nd_hub.db")
         self.config['General']['log_level'] = "INFO"
         self.config['General']['theme'] = "light"

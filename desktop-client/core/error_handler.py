@@ -10,7 +10,7 @@ logger = logging.getLogger("ND-Hub.ErrorHandler")
 
 class GlobalErrorHandler(QtCore.QObject):
     """Globaler Error-Handling Mechanismus für PySide6 Anwendungen."""
-    
+
     error_occurred = QtCore.Signal(str, str)
 
     def __init__(self, parent=None):
@@ -43,7 +43,7 @@ class GlobalErrorHandler(QtCore.QObject):
         msg_box.setInformativeText(short_msg)
         msg_box.setDetailedText(full_traceback)
         msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        
+
         # Sicherstellen, dass Dialog immer im Vordergrund ist
         msg_box.setWindowFlags(msg_box.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
         exec_embedded_dialog(self.parent(), msg_box)

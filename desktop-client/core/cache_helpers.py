@@ -31,7 +31,8 @@ Hintergrund (Issue #17, Audit 2026-06):
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, Dict, Tuple, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 try:
     from cachetools import TTLCache
@@ -47,7 +48,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 # bei GC der Instanz wird auch der Cache per weakref cleanup.
 import weakref
 
-_METHOD_CACHES: "weakref.WeakKeyDictionary[Any, Dict[str, Any]]" = weakref.WeakKeyDictionary()
+_METHOD_CACHES: weakref.WeakKeyDictionary[Any, dict[str, Any]] = weakref.WeakKeyDictionary()
 
 
 def cached_method(
@@ -124,7 +125,7 @@ def clear_all_caches(instance: Any) -> None:
         _METHOD_CACHES[instance].clear()
 
 
-def cache_info(instance: Any, method_name: str) -> Dict[str, int]:
+def cache_info(instance: Any, method_name: str) -> dict[str, int]:
     """Liefert Cache-Statistiken für eine Methode (hits/misses/Größe)."""
     if HAS_CACHETOOLS and instance in _METHOD_CACHES:
         cache = _METHOD_CACHES[instance].get(method_name)

@@ -14,7 +14,7 @@ import smtplib
 import sqlite3
 import tempfile
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from email.message import EmailMessage
 from io import BytesIO
@@ -43,6 +43,13 @@ from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+# ---- Rate-Limit fuer /auth/login (Fix fuer #32) ----
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.requests import Request as _StarletteRequest
+from starlette.responses import JSONResponse as _JSONResponse
+# ---- /Rate-Limit ----
 try:
     import pandas as pd
 except ImportError:  # pragma: no cover - optional runtime dependency
@@ -53,8 +60,6 @@ try:
 except ImportError:  # pragma: no cover - optional runtime dependency
     Workbook = None
     DataValidation = None
-
-from security_manager import SecurityManager
 
 from backend.auth import (
     SessionInfo,
@@ -74,6 +79,7 @@ from backend.config import (
 )
 from backend.database import SqliteRepository
 from backend.mariadb_repository import MariaDbRepository
+from security_manager import SecurityManager
 
 
 def _require_http_scheme(url: str) -> str:
@@ -677,7 +683,7 @@ def _build_report_export_filename(
         parts.append(f"h{max(1, int(horizon_months))}m")
     if limit is not None:
         parts.append(f"top{max(1, int(limit))}")
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    stamp = datetime.now(UTC).strftime("%Y%m%d")
     safe_extension = _safe_report_filename_token(extension) or "csv"
     return f"{'_'.join(parts)}_{stamp}.{safe_extension}"
 
@@ -1022,8 +1028,8 @@ def _parse_iso_datetime(value: object) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _create_backup_snapshot(source_db_path: Path, backups_dir: Path, label: str) -> Path:
@@ -1053,7 +1059,7 @@ def _create_mariadb_backup_snapshot(backups_dir: Path, label: str) -> Path:
     payload: dict[str, object] = {
         "engine": "mariadb",
         "database": settings.database,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "tables": {},
     }
     conn = pymysql.connect(
@@ -1109,7 +1115,7 @@ def _list_backup_files(backups_dir: Path, limit: int = 200) -> list[dict]:
             {
                 "filename": path.name,
                 "size_bytes": int(stat.st_size),
-                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
                 "kind": "mariadb_json" if path.name.endswith(".mariadb.json") else "sqlite_file",
             }
         )
@@ -1120,7 +1126,7 @@ def _list_backup_files(backups_dir: Path, limit: int = 200) -> list[dict]:
 
 def _run_auto_backup_if_due(source_db_path: Path, backups_dir: Path, interval_hours: int) -> Path | None:
     safe_interval_hours = max(1, min(int(interval_hours), 24 * 30))
-    now_ts = datetime.now(timezone.utc).timestamp()
+    now_ts = datetime.now(UTC).timestamp()
     latest_auto_mtime = None
     for path in backups_dir.glob("ndhub_auto_*.db"):
         try:
@@ -1138,7 +1144,7 @@ def _run_auto_backup_if_due(source_db_path: Path, backups_dir: Path, interval_ho
 
 def _run_auto_backup_if_due_mariadb(backups_dir: Path, interval_hours: int) -> Path | None:
     safe_interval_hours = max(1, min(int(interval_hours), 24 * 30))
-    now_ts = datetime.now(timezone.utc).timestamp()
+    now_ts = datetime.now(UTC).timestamp()
     latest_auto_mtime = None
     for path in backups_dir.glob("ndhub_auto_*.mariadb.json"):
         try:
@@ -1308,7 +1314,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return f"{token[:4]}{'*' * (len(token) - 8)}{token[-4:]}"
 
     def _resolve_archive_status(expires_at: datetime | None, revoked_at: datetime | None, token: str) -> str:
-        if isinstance(expires_at, datetime) and expires_at <= datetime.now(timezone.utc):
+        if isinstance(expires_at, datetime) and expires_at <= datetime.now(UTC):
             return "abgelaufen"
         if revoked_at is not None:
             return "widerrufen"
@@ -1475,6 +1481,101 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return response
     # ---- /Security-Middleware ----
 
+    # ---- Login-Rate-Limit (Fix für #32) ----
+    # Per-IP via slowapi (ENV-konfigurierbar; Default 5/min).
+    # Per-Username-Lockout: 10 Fehlversuche -> 15 min Sperre (ENV-konfigurierbar).
+    # Audit-Log-Eintrag bei Lockout.
+    _login_ip_limit = os.environ.get("ND_HUB_LOGIN_IP_LIMIT", "5/minute")
+    _login_max_fails = int(os.environ.get("ND_HUB_LOGIN_MAX_FAILS", "10"))
+    _login_lockout_seconds = int(os.environ.get("ND_HUB_LOGIN_LOCKOUT_SECONDS", "900"))
+
+    login_limiter = Limiter(key_func=get_remote_address, default_limits=[_login_ip_limit])
+    app.state.login_limiter = login_limiter
+
+    # Per-Username-Lockout-Tracker auf app.state (statt closure-lokal),
+    # damit er pro App-Instanz eindeutig ist und von Tests verifiziert werden kann.
+    # Struktur: {username: (fails, lockout_until_epoch)}
+    # In-Memory (Single-Instance). Thread-safe via Lock.
+    import threading as _threading
+    app.state.login_lockout_state = {}
+    app.state.login_lockout_lock = _threading.Lock()
+    app.state.login_max_fails = _login_max_fails
+    app.state.login_lockout_seconds = _login_lockout_seconds
+
+    def _check_login_lockout(username: str) -> int | None:
+        """Returnt verbleibende Sekunden, wenn locked; sonst None."""
+        with app.state.login_lockout_lock:
+            entry = app.state.login_lockout_state.get(username)
+            if not entry:
+                return None
+            fails, lockout_until = entry
+            # Eintraege mit unendlicher Ablaufzeit sind reine Counter
+            # (noch nicht max_fails erreicht) und sperren nicht.
+            if lockout_until == float("inf"):
+                return None
+            now = datetime.now().timestamp()
+            if lockout_until > now:
+                return int(lockout_until - now)
+            # Lockout abgelaufen — Counter zuruecksetzen
+            app.state.login_lockout_state.pop(username, None)
+            return None
+
+    def _record_login_failure(username: str) -> int | None:
+        """Verzeichnet einen Fehlversuch. Returnt lockout-Restsekunden, wenn Lockout ausgeloest."""
+        with app.state.login_lockout_lock:
+            state = app.state.login_lockout_state
+            entry = state.get(username)
+            if entry is None:
+                fails, lockout_until = 0, 0.0
+            else:
+                fails, lockout_until = entry
+            fails += 1
+            if fails >= app.state.login_max_fails:
+                lockout_until = datetime.now().timestamp() + app.state.login_lockout_seconds
+                state[username] = (fails, lockout_until)
+                return app.state.login_lockout_seconds
+            # Counter-Eintrag ohne aktiven Lockout: Ablaufzeit auf 'unendlich'
+            # setzen, damit _check_login_lockout ihn nicht als 'abgelaufen'
+            # verwirft, bevor max_fails erreicht ist.
+            state[username] = (fails, float("inf"))
+            return None
+
+    def _clear_login_lockout(username: str) -> None:
+        with app.state.login_lockout_lock:
+            app.state.login_lockout_state.pop(username, None)
+
+    def _audit_login_lockout(username: str, ip: str) -> None:
+        """Audit-Log-Eintrag bei Lockout. Best-effort, kein Raise bei Fehler."""
+        try:
+            security.log_activity(
+                user_id=0,
+                username=username,
+                action="login_lockout",
+                details=f"ip={ip} max_fails={app.state.login_max_fails} lockout_seconds={app.state.login_lockout_seconds}",
+                ip=ip,
+            )
+        except Exception:
+            logger.warning("Audit-Log fuer login_lockout fehlgeschlagen", exc_info=True)
+
+    # slowapi-Exception-Handler: 429 + Retry-After-Header bei IP-Limit
+    async def _rate_limit_handler(_request: _StarletteRequest, exc: RateLimitExceeded):
+        # Retry-After aus slowapi-Limit-Strategie ableiten
+        retry_after = 60  # Default-Fallback
+        try:
+            # slowapi speichert Limit in exc.limit, Detail in exc.detail
+            if hasattr(exc, "limit") and exc.limit and hasattr(exc.limit, "seconds"):
+                retry_after = exc.limit.seconds
+        except Exception:
+            pass
+        return _JSONResponse(
+            status_code=429,
+            content={"detail": f"Zu viele Login-Versuche. Bitte {retry_after}s warten."},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+    # ---- /Login-Rate-Limit ----
+
     app.mount(
         "/web",
         StaticFiles(directory=app.state.web_dir, html=False),
@@ -1490,13 +1591,36 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return {"status": "ok", "db_engine": str(app.state.db_engine)}
 
     @app.post("/auth/login", response_model=LoginResponse)
-    def login(payload: LoginRequest) -> LoginResponse:
-        ok, _message = security.authenticate(payload.username.strip(), payload.password)
+    @login_limiter.limit(_login_ip_limit)
+    def login(payload: LoginRequest, request: Request) -> LoginResponse:
+        # Fix #32: per-Username-Lockout pruefen BEVOR authenticate() laeuft
+        # (verhindert, dass PBKDF2-CPU-Zeit verschwendet wird, waehrend locked)
+        username_attempt = payload.username.strip()
+        remaining_lockout = _check_login_lockout(username_attempt)
+        if remaining_lockout is not None:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Account temporaer gesperrt. Bitte {remaining_lockout}s warten.",
+                headers={"Retry-After": str(remaining_lockout)},
+            )
+        ok, _message = security.authenticate(username_attempt, payload.password)
         if not ok:
+            lockout_seconds = _record_login_failure(username_attempt)
+            if lockout_seconds is not None:
+                # Lockout frisch ausgeloest
+                _audit_login_lockout(username_attempt, request.client.host if request.client else "unknown")
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Account gesperrt nach {app.state.login_max_fails} Fehlversuchen. "
+                           f"Bitte {lockout_seconds}s warten.",
+                    headers={"Retry-After": str(lockout_seconds)},
+                )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Benutzername oder Passwort ungueltig.",
             )
+        # Erfolgreich: Lockout-Counter zuruecksetzen
+        _clear_login_lockout(username_attempt)
         username = security.get_current_user() or payload.username
         user_flags = _get_user_flags(security, username)
         token = token_store.issue(
@@ -2269,7 +2393,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return {
             "filename": backup_path.name,
             "size_bytes": int(stat.st_size),
-            "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            "created_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
         }
 
     @app.get("/admin/backup/download")
@@ -3186,13 +3310,13 @@ def create_app(db_path: str | None = None) -> FastAPI:
     ) -> dict:
         allowed_ids = set(_allowed_depot_ids(session, require_write=False))
         if session.role != "Admin" and not allowed_ids:
-            return {"since": (since or "").strip() or None, "next_since": datetime.now(timezone.utc).isoformat(), "rows": [], "counts": {"kritisch": 0, "warnung": 0, "achtung": 0, "gesamt": 0}}
+            return {"since": (since or "").strip() or None, "next_since": datetime.now(UTC).isoformat(), "rows": [], "counts": {"kritisch": 0, "warnung": 0, "achtung": 0, "gesamt": 0}}
         safe_critical, safe_warning, safe_attention = _normalize_verfall_thresholds(
             critical_days=critical_days,
             warning_days=warning_days,
             attention_days=attention_days,
         )
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
         rows = repository.list_new_critical_expiry_events(
             since_iso=(since or "").strip() or None,
             limit=limit,
@@ -3276,7 +3400,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         except OSError as exc:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Datei konnte nicht gespeichert werden.") from exc
         stored_name = Path(filename).name
-        uploaded_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        uploaded_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
         repository.set_bewegung_attachment(
             bewegung_id=bewegung_id,
             datei_pfad=str(target_path),
@@ -4468,7 +4592,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
     def sync_status(session: SessionInfo = Depends(get_current_session)) -> dict[str, Any]:
         _ = session
         return {
-            "server_time": datetime.now(timezone.utc).isoformat(),
+            "server_time": datetime.now(UTC).isoformat(),
             "min_supported_client_version": "1.0.0",
             "features": {
                 "entities": ["institutions", "depots", "praeparate", "kontakte", "depot_praeparate", "bewegungen"],
@@ -4496,7 +4620,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             if built is not None and _is_sync_change_allowed_for_session(session, built):
                 transformed_changes.append(built)
         result["changes"] = transformed_changes
-        result["server_time"] = datetime.now(timezone.utc).isoformat()
+        result["server_time"] = datetime.now(UTC).isoformat()
         return result
 
     @app.post("/sync/push")
@@ -4604,7 +4728,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         session: SessionInfo = Depends(require_permission("audit_view")),
     ) -> dict[str, Any]:
         stats = repository.get_sync_ops_stats()
-        stats["server_time"] = datetime.now(timezone.utc).isoformat()
+        stats["server_time"] = datetime.now(UTC).isoformat()
         stats["requested_by"] = session.username
         return stats
 

@@ -14,14 +14,14 @@ class KontaktePage(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(20)
-        
+
         title = QtWidgets.QLabel("Ansprechpartner verwalten")
         title.setProperty("class", "page-title")
         layout.addWidget(title)
-        
+
         card = create_card_widget()
         card_layout = QtWidgets.QVBoxLayout(card)
-        
+
         top = QtWidgets.QHBoxLayout()
         top.setSpacing(12)
         lbl_depot = QtWidgets.QLabel("Depot:")
@@ -32,11 +32,11 @@ class KontaktePage(QtWidgets.QWidget):
         top.addWidget(self.cb_depot, 1)
         top.addStretch()
         card_layout.addLayout(top)
-        
+
         self.table = QtWidgets.QTableWidget()
         self.table.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         card_layout.addWidget(self.table)
-        
+
         btns = QtWidgets.QHBoxLayout()
         btns.setSpacing(12)
         self.btn_add = QtWidgets.QPushButton("Neuer Ansprechpartner")
@@ -52,14 +52,14 @@ class KontaktePage(QtWidgets.QWidget):
         btns.addWidget(self.btn_delete)
         btns.addStretch()
         card_layout.addLayout(btns)
-        
+
         layout.addWidget(card)
-        
+
         self.btn_add.clicked.connect(self.add_kontakt)
         self.btn_edit.clicked.connect(self.edit_kontakt)
         self.btn_delete.clicked.connect(self.delete_kontakt)
         self.cb_depot.currentIndexChanged.connect(self.refresh)
-        
+
         self.refresh_depots()
         self.refresh()
 

@@ -20,7 +20,6 @@ import os
 import platform
 import socket
 import uuid
-from typing import Optional
 
 logger = logging.getLogger("ND-Hub.SecureTokenStore")
 
@@ -45,7 +44,7 @@ def _machine_specific_seed() -> bytes:
 
     if platform.system() == "Linux":
         try:
-            with open("/etc/machine-id", "r", encoding="utf-8") as f:
+            with open("/etc/machine-id", encoding="utf-8") as f:
                 parts.append(f.read().strip())
         except OSError:
             pass
@@ -133,7 +132,7 @@ class SecureTokenStore:
 
     # ------------------------------------------------------------------ Public API
 
-    def get(self) -> Optional[str]:
+    def get(self) -> str | None:
         """
         Liefert das gespeicherte Token oder None.
 

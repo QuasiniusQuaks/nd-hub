@@ -69,13 +69,13 @@ class TestMatrixLookupPerformance:
         m_fast, _, _ = _fast_matrix(data)
         assert deps == sorted(set(row[0] for row in data))
         assert praep == sorted(set(row[1] for row in data))
-        for d in deps:
-            for p in praep:
+        for _d in deps:
+            for _p in praep:
                 # Beide Indizes aus den Maps ableiten
                 pass  # Wird unten geprüft
         # Gesamtvergleich: Beide Matrizen müssen an gleicher Stelle gleiche Werte haben
-        for i, d in enumerate(deps):
-            for j, p in enumerate(praep):
+        for i, _d in enumerate(deps):
+            for j, _p in enumerate(praep):
                 if m_slow[i][j] != 0.0:
                     # In der Slow-Variante überschreiben sich Werte, in der Fast-Variante ebenso.
                     # Wir prüfen, dass die _letzte_ Schreibung gleich ist.
@@ -83,7 +83,7 @@ class TestMatrixLookupPerformance:
                     pass
         # Pragmatischer: Prüfe, dass die Fast-Variante ein valides Mapping
         # für alle Datenpunkte erzeugt.
-        for depot_name, praep_name, soll, ist in data:
+        for depot_name, praep_name, _soll, _ist in data:
             i = deps.index(depot_name) if depot_name in deps else -1
             j = praep.index(praep_name) if praep_name in praep else -1
             assert i >= 0 and j >= 0, "Datenpunkt fehlt in Matrix"
