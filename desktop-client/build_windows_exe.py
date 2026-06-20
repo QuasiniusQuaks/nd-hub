@@ -1,6 +1,6 @@
+import os
 import subprocess
 import sys
-import os
 
 APP_VERSION = "0.42"
 SETUP_SCRIPT = "setup_nd-hub-V042.iss"

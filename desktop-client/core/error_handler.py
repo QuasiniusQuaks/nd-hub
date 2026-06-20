@@ -1,8 +1,9 @@
-# -*- coding: utf-8 -*-
+import logging
 import sys
 import traceback
-import logging
-from PySide6 import QtWidgets, QtCore
+
+from PySide6 import QtCore, QtWidgets
+
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 
 logger = logging.getLogger("ND-Hub.ErrorHandler")

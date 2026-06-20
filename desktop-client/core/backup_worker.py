@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Async Backup-Restore-Worker für ND-Hub Desktop-Client.
 
 Hintergrund (Issue #7, Audit 2026-06):

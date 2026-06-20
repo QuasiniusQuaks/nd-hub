@@ -1,20 +1,19 @@
-# -*- coding: utf-8 -*-
 """
 SecurityManager - Benutzerverwaltung und Authentifizierung
 Version: 2.0 (V32 - Kryptobereinigt)
 """
 
-import sqlite3
-import os
-import logging
 import hashlib
 import hmac
+import logging
+import os
 import secrets
 import shutil
+import sqlite3
 import threading
-from typing import Optional, List, Tuple
-from datetime import datetime
 from contextlib import suppress
+from datetime import datetime
+from typing import List, Optional, Tuple
 
 try:
     import pymysql

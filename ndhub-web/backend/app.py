@@ -2,37 +2,47 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from datetime import date
-from pathlib import Path
-from typing import Any, Optional
-from datetime import datetime, timezone
-import re
-import os
-import shutil
-import sqlite3
-import json
-import smtplib
-import hashlib
-from io import BytesIO
 import csv
+import hashlib
 import io
-import tempfile
+import json
 import logging
-from urllib.parse import urlencode, urlparse
-from urllib.request import urlopen, Request as UrlRequest
+import os
+import re
+import shutil
+import smtplib
+import sqlite3
+import tempfile
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from email.message import EmailMessage
+from io import BytesIO
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlencode, urlparse
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
 try:
     import pandas as pd
 except ImportError:  # pragma: no cover - optional runtime dependency
@@ -43,6 +53,8 @@ try:
 except ImportError:  # pragma: no cover - optional runtime dependency
     Workbook = None
     DataValidation = None
+
+from security_manager import SecurityManager
 
 from backend.auth import (
     SessionInfo,
@@ -56,13 +68,12 @@ from backend.config import (
     resolve_db_engine,
     resolve_dual_write_sqlite,
     resolve_email_delivery_settings,
-    resolve_max_backup_restore_mb,
     resolve_mariadb_settings,
+    resolve_max_backup_restore_mb,
     resolve_runtime_paths,
 )
 from backend.database import SqliteRepository
 from backend.mariadb_repository import MariaDbRepository
-from security_manager import SecurityManager
 
 
 def _require_http_scheme(url: str) -> str:
@@ -789,7 +800,13 @@ def _pdf_response(filename: str, title: str, headers: list[str], rows: list[list
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from reportlab.platypus import (
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
     except ImportError as exc:  # pragma: no cover
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PDF-Export erfordert reportlab.") from exc
 

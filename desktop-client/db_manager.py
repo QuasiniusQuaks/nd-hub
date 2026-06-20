@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Database-Layer für die ND-Hub Desktop-Anwendung.
 
 .. note::
@@ -23,19 +22,20 @@
    Single-User-Desktop gut funktioniert und die Risiken durch das
    Singleton-Pattern mitigiert sind.
 """
-import sqlite3
+import json
 import os
 import shutil
 import smtplib
+import sqlite3
 import time
 import uuid
-import json
 from datetime import datetime
 from email.message import EmailMessage
 from functools import lru_cache
-from typing import List, Dict, Tuple, Any
-from PySide6.QtCore import QDate, Qt
+from typing import Any, Dict, List, Tuple
+
 from PySide6 import QtWidgets
+from PySide6.QtCore import QDate, Qt
 
 
 def _sync_payload_str(data: Dict[str, Any], key: str) -> Any:

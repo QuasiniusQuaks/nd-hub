@@ -1,14 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 VerfallWidget - Dashboard-Widget für Verfallsdatum-Warnungen
 Version: 1.0 - Angepasst an bestehendes Verfall-System
 """
 
-from PySide6 import QtWidgets, QtCore, QtGui
-from verfallmanager import VerfallManager
-from apple_theme import AppleTheme
 import logging
+
+from PySide6 import QtCore, QtGui, QtWidgets
+
+from apple_theme import AppleTheme
 from icon_manager import IconManager
+from verfallmanager import VerfallManager
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import json
@@ -8,7 +7,6 @@ from enum import Enum
 from typing import Any, Dict, Optional, Protocol, Tuple
 from urllib import error, request
 from urllib.parse import urlencode, urlparse
-
 
 logger = logging.getLogger("ND-Hub.DataAccess")
 

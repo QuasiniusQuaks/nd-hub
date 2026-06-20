@@ -28,8 +28,8 @@ def _draft():
 
 class SetupWizardApplyTests(unittest.TestCase):
     def test_apply_inserts_rows(self):
-        import tempfile
         import os
+        import tempfile
 
         fd, path = tempfile.mkstemp(suffix=".db")
         os.close(fd)
@@ -59,8 +59,8 @@ class SetupWizardApplyTests(unittest.TestCase):
             os.unlink(path)
 
     def test_second_apply_raises(self):
-        import tempfile
         import os
+        import tempfile
 
         fd, path = tempfile.mkstemp(suffix=".db")
         os.close(fd)

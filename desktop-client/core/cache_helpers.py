@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Cache-Helper für ND-Hub: Wrapper um ``cachetools.TTLCache`` für Instanzmethoden.
 
 Hintergrund (Issue #17, Audit 2026-06):

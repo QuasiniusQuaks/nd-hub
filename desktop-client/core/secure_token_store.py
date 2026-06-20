@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Sichere Token-Speicherung mit 3-stufigem Backend.
 

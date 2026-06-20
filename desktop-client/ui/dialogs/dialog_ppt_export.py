@@ -1,7 +1,10 @@
 import os
-from PySide6 import QtWidgets, QtCore
-from icon_manager import IconManager
+
+from PySide6 import QtCore, QtWidgets
+
 from apple_theme import AppleTheme
+from icon_manager import IconManager
+
 
 class PPTExportDialog(QtWidgets.QDialog):
     def __init__(self, db_manager, default_depot_ids=None, parent=None):

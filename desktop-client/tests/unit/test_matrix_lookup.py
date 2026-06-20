@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tests für Fix #3: O(1)-Matrix-Lookup in der Heatmap-Generierung.
 
@@ -8,8 +7,8 @@ Nachher: Lookup-Maps → O(n) Setup + O(1) pro Iteration.
 """
 from __future__ import annotations
 
-import time
 import random
+import time
 
 
 def _build_data(n_depots: int, n_praeparate: int, density: float = 0.3):

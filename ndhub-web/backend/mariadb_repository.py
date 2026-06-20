@@ -8,9 +8,9 @@ This module enables incremental runtime cutover:
 
 from __future__ import annotations
 
-from datetime import date
 import json
 import logging
+from datetime import date
 from typing import Any
 
 import pymysql

@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 VerfallManager - Verwaltung von Verfallsdatum-Warnungen
 Version: 1.2 - Mit automatischer Synonym-Erkennung
 """
 
+import logging
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Tuple, Dict, Optional
-import logging
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

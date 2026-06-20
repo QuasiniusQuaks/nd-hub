@@ -2,27 +2,27 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from datetime import date
-from pathlib import Path
-from typing import Optional
-from datetime import datetime, timezone
+import csv
+import io
+import json
+import logging
+import os
 import re
 import shutil
 import sqlite3
-import os
-import json
-import logging
-from io import BytesIO
-import csv
-import io
 import tempfile
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timezone
+from io import BytesIO
+from pathlib import Path
+from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
 try:
     import pandas as pd
 except ImportError:  # pragma: no cover - optional runtime dependency
@@ -43,7 +43,6 @@ from backend.auth import (
 from backend.config import resolve_db_path
 from backend.database import SqliteRepository
 from security_manager import SecurityManager
-
 
 logger = logging.getLogger(__name__)
 

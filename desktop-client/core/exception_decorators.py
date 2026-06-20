@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Decorator für defensive Exception-Behandlung im Desktop-Client.
 
 Dieses Modul bietet wiederverwendbare Decorators, die das in der ND-Hub

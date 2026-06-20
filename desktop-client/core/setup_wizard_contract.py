@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Datenvertrag und Feld-Mapping: Desktop-Einrichtungswizard <-> SQLite-Stammdaten.
 

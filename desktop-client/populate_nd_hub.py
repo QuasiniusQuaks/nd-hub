@@ -18,9 +18,9 @@ Präparate orientieren sich an typischen Notfalldepot-Sortimenten:
 - Sonstige Notfallpräparate
 """
 
-import sqlite3
-import random  # nosec B311: non-cryptographic demo/test data generation only
 import os
+import random  # nosec B311: non-cryptographic demo/test data generation only
+import sqlite3
 from datetime import datetime, timedelta
 
 # Dynamischer Pfad zur Datenbank

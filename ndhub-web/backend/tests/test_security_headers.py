@@ -18,9 +18,8 @@ os.environ.setdefault("ND_HUB_INITIAL_ADMIN_PASSWORD", "InitPass!12345")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from fastapi.testclient import TestClient  # noqa: E402
-
 from app import create_app  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 class SecurityHeadersTests(unittest.TestCase):

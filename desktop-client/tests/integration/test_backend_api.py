@@ -1,6 +1,6 @@
-import sqlite3
 import io
 import json
+import sqlite3
 from datetime import date, timedelta
 
 from fastapi.testclient import TestClient

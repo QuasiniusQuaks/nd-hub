@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+
 def resolve_db_path() -> str:
     """Resolve database path for backend usage."""
     env_path = os.environ.get("ND_HUB_DB_PATH", "").strip()

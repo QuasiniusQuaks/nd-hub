@@ -1,19 +1,18 @@
-# -*- coding: utf-8 -*-
 """
 SecurityManager - Benutzerverwaltung und Authentifizierung
 Version: 2.0 (V32 - Kryptobereinigt)
 """
 
-import sqlite3
-import os
-import logging
 import hashlib
 import hmac
+import json
+import logging
+import os
 import secrets
 import shutil
-import json
-from typing import Optional, List, Tuple
+import sqlite3
 from datetime import datetime
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

@@ -1,26 +1,28 @@
-# -*- coding: utf-8 -*-
 """Einrichtungswizard: 5 Schritte (Institution, Praeparate, Depots, Kontakt+Zuordnungen, Review), transaktionaler Abschluss."""
 from __future__ import annotations
 
 import copy
 import json
 import logging
-from urllib.parse import urlencode, urlparse
-from urllib import error as url_error, request as url_request
 from typing import Any, Dict, List, Optional
+from urllib import error as url_error
+from urllib import request as url_request
+from urllib.parse import urlencode, urlparse
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from apple_theme import AppleTheme
 from core.setup_wizard_contract import (
     DRAFT_VERSION as _DRAFT_VERSION,
+)
+from core.setup_wizard_contract import (
     validate_depot_kontakt_and_assignments,
     validate_depot_stamm_rows,
     validate_email_required,
     validate_institution_dict,
     validate_praeparate_names,
 )
-from db_manager import Database, DB
+from db_manager import DB, Database
 
 logger = logging.getLogger("ND-Hub")
 
