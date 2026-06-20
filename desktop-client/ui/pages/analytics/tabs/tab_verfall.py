@@ -1,6 +1,6 @@
 """Verfall-Tab — Prognose, Risiko-Score, Charge-Trace.
 
-Issue #42 Phase 1.
+Issue #42 Phase 1+2 — mit interaktivem Forecast-Chart und Cross-Filter.
 """
 
 from __future__ import annotations
@@ -12,31 +12,68 @@ from PySide6 import QtWidgets
 from apple_theme import AppleTheme
 from ui.utils import configure_responsive_table
 
+from .._charts.forecast_band import ForecastBandChart
+from .._filters.cross_filter_state import CrossFilterState
 from ._base_tab import BaseTab
 
 logger = logging.getLogger(__name__)
 
 
 class TabVerfall(BaseTab):
-    """Verfall-Analyse: Warnings, Forecast, Charge-Liste."""
+    """Verfall-Analyse: Warnings, Forecast-Chart, Charge-Liste."""
+
+    def __init__(self, db, queries, parent=None) -> None:
+        super().__init__(db, queries, parent)
+        self._filter_state = CrossFilterState.instance()
+        self._filter_state.add_listener(self._on_filter_changed)
+
+    def _on_filter_changed(self, state) -> None:
+        """Cross-Filter geändert → Tab neu laden."""
+        self.refresh()
 
     def refresh(self) -> None:
         self._clear_content()
 
-        # 1. Verfall-Warnings (nächste 30 Tage)
+        # 1. Interaktiver Forecast-Chart
+        card_forecast = self._make_card("📈 Verfall-Forecast (nächste 12 Monate)")
+        chart_forecast = self._build_forecast_chart()
+        card_forecast.layout().addWidget(chart_forecast)
+
+        # 2. Verfall-Warnings (nächste 30 Tage)
         card_warn = self._make_card("🚨 Verfälle in den nächsten 30 Tagen")
         table_warn = self._build_warnings_table()
         card_warn.layout().addWidget(table_warn)
 
-        # 2. Verfall-Forecast (12 Monate)
-        card_forecast = self._make_card("Verfall-Forecast (nächste 12 Monate)")
-        table_forecast = self._build_forecast_table()
-        card_forecast.layout().addWidget(table_forecast)
-
         self.content_layout.addStretch()
+
+    def _build_forecast_chart(self) -> ForecastBandChart:
+        """Interaktiver Forecast-Chart aus get_verfall_forecast()."""
+        rows = self.queries.get_verfall_forecast(months=12)
+        chart = ForecastBandChart(width=6, height=3)
+
+        if not rows:
+            chart.plot([], [], title="Verfall-Forecast")
+            return chart
+
+        months = [str(r["monat"]) for r in rows]
+        values = [int(r["verfallende_einheiten"]) for r in rows]
+
+        # Einfaches Konfidenz-Band: ±20% um den Wert
+        confidence_band = [(v * 0.8, v * 1.2) for v in values]
+
+        chart.plot(months, values, title="Verfallende Einheiten pro Monat",
+                   confidence_band=confidence_band)
+        return chart
 
     def _build_warnings_table(self) -> QtWidgets.QTableWidget:
         rows = self.queries.get_verfall_warnings(days=30)
+
+        # Cross-Filter anwenden
+        if self._filter_state.state.depot_ids:
+            rows = [r for r in rows if r["depot_id"] in self._filter_state.state.depot_ids]
+        if self._filter_state.state.praeparat_ids:
+            rows = [r for r in rows if r["praeparat_id"] in self._filter_state.state.praeparat_ids]
+
         headers = ["Präparat", "Depot", "Charge", "Verfall", "Menge"]
         table = self._create_table(headers, len(rows))
 
@@ -53,21 +90,6 @@ class TabVerfall(BaseTab):
 
         if not rows:
             self._add_empty_hint(table, "Keine Verfälle in den nächsten 30 Tagen ✅")
-
-        return table
-
-    def _build_forecast_table(self) -> QtWidgets.QTableWidget:
-        rows = self.queries.get_verfall_forecast(months=12)
-        headers = ["Monat", "Verfallende Einheiten", "Anzahl Chargen"]
-        table = self._create_table(headers, len(rows))
-
-        for i, row in enumerate(rows):
-            table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["monat"])))
-            table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row["verfallende_einheiten"])))
-            table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(row["anzahl_chargen"])))
-
-        if not rows:
-            self._add_empty_hint(table, "Keine Verfallsdaten für Forecast verfügbar.")
 
         return table
 

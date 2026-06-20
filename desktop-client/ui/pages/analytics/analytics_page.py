@@ -20,6 +20,7 @@ from db_manager import Database
 
 from ._db.analytics_queries import AnalyticsQueries
 from ._filters.global_filter_bar import GlobalFilterBar
+from ._filters.layout_persistence import LayoutPersistence
 from ._widgets.insight_banner import InsightBanner
 from .tabs.tab_bestand import TabBestand
 from .tabs.tab_bewegungen import TabBewegungen
@@ -65,6 +66,9 @@ class AnalyticsPage(QtWidgets.QWidget):
         self.insight_banner = InsightBanner(db)
         content_layout.addWidget(self.insight_banner)
 
+        # Layout-Persistenz (Phase 2)
+        self.layout_persistence = LayoutPersistence(data_dir=".")
+
         # 2. Globale Filter-Leiste (sticky)
         self.filter_bar = GlobalFilterBar(db)
         content_layout.addWidget(self.filter_bar)
@@ -87,6 +91,7 @@ class AnalyticsPage(QtWidgets.QWidget):
         self.insight_banner.insightClicked.connect(self._on_insight_clicked)
 
         # Initiale Daten laden
+        self._load_layout()
         self.refresh()
 
     def refresh(self) -> None:
@@ -116,3 +121,32 @@ class AnalyticsPage(QtWidgets.QWidget):
         idx = tab_map.get(insight_type, 0)
         self.tabs.setCurrentIndex(idx)
         self._refresh_active_tab()
+
+    # ── Layout-Persistenz (Phase 2) ─────────────────────────────────
+
+    def _load_layout(self) -> None:
+        """Lädt gespeicherten Layout-State (aktiver Tab + Filter)."""
+        state = self.layout_persistence.load_layout()
+        if state is None:
+            return
+
+        try:
+            idx = state.get("active_tab", 0)
+            if 0 <= idx < self.tabs.count():
+                self.tabs.setCurrentIndex(idx)
+        except Exception:
+            logger.debug("Layout-Load: Tab-Index ungültig")
+
+    def save_layout(self) -> None:
+        """Speichert aktuellen Layout-State (für App-Close oder manuellen Save)."""
+        from ._filters.cross_filter_state import CrossFilterState
+
+        filter_state = CrossFilterState.instance()
+        state = {
+            "active_tab": self.tabs.currentIndex(),
+            "date_range_days": filter_state.state.date_range_days,
+            "depot_ids": list(filter_state.state.depot_ids),
+            "praeparat_ids": list(filter_state.state.praeparat_ids),
+            "compare_mode": self.filter_bar.is_compare_mode(),
+        }
+        self.layout_persistence.save_layout(state)

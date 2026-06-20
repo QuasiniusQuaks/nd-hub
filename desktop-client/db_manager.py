@@ -253,6 +253,17 @@ class Database:
         """)
         self.conn.commit()
 
+        # Analytics Saved Views (Issue #42 Phase 2)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS analytics_saved_views (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                filter_json TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now', 'localtime'))
+            )
+        """)
+        self.conn.commit()
+
         # Indizes für Performance (Phase 2 Optimierung)
         self.cur.execute("CREATE INDEX IF NOT EXISTS idx_bewegungen_depot ON bewegungen(depot_id)")
         self.cur.execute("CREATE INDEX IF NOT EXISTS idx_bewegungen_praeparat ON bewegungen(praeparat_id)")
@@ -2814,6 +2825,76 @@ class Database:
         emails = self.cur.execute(sql_emails).fetchall()
         permissions = self.cur.execute(sql_permissions).fetchall()
         return {"email_verlauf": emails, "permissions": permissions}
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Saved Views CRUD (Issue #42 Phase 2)
+    # ─────────────────────────────────────────────────────────────────────
+
+    def save_analytics_view(self, name: str, filter_json: str) -> bool:
+        """Speichert eine Analytics-View (Filter-Konfiguration als JSON).
+
+        Args:
+            name: Eindeutiger Name für die View.
+            filter_json: JSON-String mit Filter-Konfiguration
+                         (depot_ids, praeparat_ids, date_range_days, compare_mode).
+
+        Returns:
+            True bei Erfolg, False bei Fehler.
+        """
+        try:
+            self.cur.execute(
+                "INSERT INTO analytics_saved_views (name, filter_json) VALUES (?, ?)",
+                (name, filter_json),
+            )
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            # Name existiert bereits → upsert
+            self.cur.execute(
+                "UPDATE analytics_saved_views SET filter_json = ?, created_at = datetime('now', 'localtime') WHERE name = ?",
+                (filter_json, name),
+            )
+            self.conn.commit()
+            return True
+        except Exception:
+            logger.exception("save_analytics_view fehlgeschlagen")
+            return False
+
+    def get_analytics_views(self) -> list[sqlite3.Row]:
+        """Lädt alle gespeicherten Analytics-Views.
+
+        Returns:
+            Liste von Rows mit id, name, filter_json, created_at (neueste zuerst).
+        """
+        sql = """
+            SELECT id, name, filter_json, created_at
+            FROM analytics_saved_views
+            ORDER BY created_at DESC
+        """
+        return self.cur.execute(sql).fetchall()
+
+    def get_analytics_view(self, name: str) -> sqlite3.Row | None:
+        """Lädt eine spezifische Analytics-View nach Namen.
+
+        Returns:
+            Row oder None wenn nicht gefunden.
+        """
+        return self.cur.execute(
+            "SELECT id, name, filter_json, created_at FROM analytics_saved_views WHERE name = ?",
+            (name,),
+        ).fetchone()
+
+    def delete_analytics_view(self, name: str) -> bool:
+        """Löscht eine gespeicherte Analytics-View.
+
+        Returns:
+            True bei Erfolg, False wenn nicht gefunden.
+        """
+        self.cur.execute(
+            "DELETE FROM analytics_saved_views WHERE name = ?", (name,)
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
 
     # In der Database-Klasse:
 
