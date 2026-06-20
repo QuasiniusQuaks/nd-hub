@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-
 from backend.app import create_app
+from fastapi.testclient import TestClient
 
 
 def test_sync_ops_stats_endpoint_reports_batches(monkeypatch, tmp_path):

@@ -4,9 +4,8 @@ import json
 import sqlite3
 from datetime import datetime
 
-from fastapi.testclient import TestClient
-
 from backend.app import create_app
+from fastapi.testclient import TestClient
 from security_manager import SecurityManager
 
 

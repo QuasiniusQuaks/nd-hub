@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi.testclient import TestClient
-
 from backend.app import create_app
+from fastapi.testclient import TestClient
 
 
 def _seed_masterdata(db_path: str) -> None:

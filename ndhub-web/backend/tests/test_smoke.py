@@ -10,9 +10,8 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.app import create_app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
