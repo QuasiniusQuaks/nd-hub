@@ -35,3 +35,4 @@ node_modules/
 
 # --- MkDocs ---
 site/
+nd_hub_backend.db
