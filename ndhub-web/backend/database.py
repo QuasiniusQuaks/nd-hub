@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
-import json
 from typing import Any
-
 
 ALLOWED_MOVEMENT_TYPES = {"Zugang", "Abgang", "Vernichtung"}
 

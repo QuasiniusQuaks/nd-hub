@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
-import os
-import sys
 import configparser
 import logging
+import os
+import sys
 
 logger = logging.getLogger("ND-Hub.Config")
 

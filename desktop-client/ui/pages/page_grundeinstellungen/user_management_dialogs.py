@@ -1,9 +1,10 @@
 """Dialogs für Benutzerverwaltung (Add/Edit)."""
-from PySide6 import QtWidgets
-from PySide6.QtCore import Qt
-from apple_theme import AppleTheme
 import re
 
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
+
+from apple_theme import AppleTheme
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

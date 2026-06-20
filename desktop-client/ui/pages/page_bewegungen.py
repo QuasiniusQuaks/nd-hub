@@ -2,11 +2,12 @@
 import os
 
 from PySide6 import QtWidgets
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import QDate, Qt
 
 from db_manager import Database, to_iso
 from icon_manager import IconManager
 from ui.utils import create_card_widget
+
 
 class BewegungenPage(QtWidgets.QWidget):
     def __init__(self, db: Database, attachment_base_folder: str, security=None, parent=None):

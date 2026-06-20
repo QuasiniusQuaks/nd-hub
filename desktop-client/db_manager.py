@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Database-Layer für die ND-Hub Desktop-Anwendung.
 
 .. note::
@@ -23,22 +22,23 @@
    Single-User-Desktop gut funktioniert und die Risiken durch das
    Singleton-Pattern mitigiert sind.
 """
-import sqlite3
+import json
 import os
 import shutil
 import smtplib
+import sqlite3
 import time
 import uuid
-import json
 from datetime import datetime
 from email.message import EmailMessage
 from functools import lru_cache
-from typing import List, Dict, Tuple, Any
-from PySide6.QtCore import QDate, Qt
+from typing import Any
+
 from PySide6 import QtWidgets
+from PySide6.QtCore import QDate, Qt
 
 
-def _sync_payload_str(data: Dict[str, Any], key: str) -> Any:
+def _sync_payload_str(data: dict[str, Any], key: str) -> Any:
     v = data.get(key)
     if v is None:
         return None
@@ -46,7 +46,7 @@ def _sync_payload_str(data: Dict[str, Any], key: str) -> Any:
     return s or None
 
 
-def _sync_payload_float(data: Dict[str, Any], key: str) -> Any:
+def _sync_payload_float(data: dict[str, Any], key: str) -> Any:
     v = data.get(key)
     if v is None:
         return None
@@ -397,7 +397,7 @@ class Database:
         self.cur.execute("UPDATE depots SET institution_id = ? WHERE institution_id IS NULL", (default_id,))
         self.conn.commit()
 
-    def record_sync_outbox(self, entity_name: str, operation: str, payload: Dict[str, Any], dedupe_key: str = None) -> int:
+    def record_sync_outbox(self, entity_name: str, operation: str, payload: dict[str, Any], dedupe_key: str = None) -> int:
         """Speichert eine lokale Aenderung fuer den spaeteren Sync."""
         payload_json = json.dumps(payload or {}, ensure_ascii=False)
         now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -422,7 +422,7 @@ class Database:
                 return int(row["id"])
         return 0
 
-    def enqueue_sync_change(self, entity_name: str, operation: str, payload: Dict[str, Any], dedupe_key: str = None) -> int:
+    def enqueue_sync_change(self, entity_name: str, operation: str, payload: dict[str, Any], dedupe_key: str = None) -> int:
         """Erzeugt einen eindeutigen Outbox-Eintrag fuer spaeteren Sync."""
         if not dedupe_key:
             dedupe_key = f"{entity_name}:{operation}:{int(time.time() * 1000)}:{uuid.uuid4().hex[:8]}"
@@ -433,7 +433,7 @@ class Database:
             dedupe_key=dedupe_key,
         )
 
-    def list_pending_sync_outbox(self, limit: int = 200) -> List[Dict[str, Any]]:
+    def list_pending_sync_outbox(self, limit: int = 200) -> list[dict[str, Any]]:
         """Liefert ausstehende Outbox-Eintraege fuer Push-Runs."""
         safe_limit = max(1, min(int(limit or 200), 2000))
         rows = self.cur.execute(
@@ -467,7 +467,7 @@ class Database:
             )
         return result
 
-    def get_sync_outbox_stats(self) -> Dict[str, Any]:
+    def get_sync_outbox_stats(self) -> dict[str, Any]:
         """Liefert aggregierte Outbox-Statistiken fuer Monitoring/Support."""
         status_rows = self.cur.execute(
             """
@@ -655,7 +655,7 @@ class Database:
         self.conn.commit()
         return len(ids)
 
-    def apply_remote_sync_change(self, entity_name: str, operation: str, payload: Dict[str, Any]) -> bool:
+    def apply_remote_sync_change(self, entity_name: str, operation: str, payload: dict[str, Any]) -> bool:
         """Wendet vom Server gepullte Aenderungen lokal an (ohne Outbox-Queueing)."""
         entity = (entity_name or "").strip().lower()
         op = (operation or "").strip().lower()
@@ -1646,7 +1646,7 @@ class Database:
             return False
         return self.count_praeparate() == 0 or self.count_depots() == 0
 
-    def apply_setup_wizard_draft(self, draft: Dict[str, Any]) -> None:
+    def apply_setup_wizard_draft(self, draft: dict[str, Any]) -> None:
         """
         Schreibt Institution, Präparate, Depots, depot_praeparate und einen Depot-Kontakt
         (Tabelle kontakte) in einer Transaktion. Outbox-Einträge erfolgen erst nach COMMIT.
@@ -1665,10 +1665,10 @@ class Database:
         if not inst_name:
             raise RuntimeError("Institutionsname fehlt.")
 
-        new_praeparat_ids: List[int] = []
-        new_depot_ids: List[int] = []
-        new_kontakt_ids: List[int] = []
-        new_dp_keys: List[Tuple[int, int, int]] = []
+        new_praeparat_ids: list[int] = []
+        new_depot_ids: list[int] = []
+        new_kontakt_ids: list[int] = []
+        new_dp_keys: list[tuple[int, int, int]] = []
 
         try:
             self.cur.execute("BEGIN")
@@ -1700,7 +1700,7 @@ class Database:
                 ),
             )
 
-            name_to_id: Dict[str, int] = {}
+            name_to_id: dict[str, int] = {}
             for p in prs:
                 if not isinstance(p, dict):
                     continue
@@ -1812,7 +1812,7 @@ class Database:
                     new_kontakt_ids.append(int(self.cur.lastrowid))
 
                 assignments = d.get("praeparat_assignments")
-                rows_to_insert: List[Tuple[str, int]] = []
+                rows_to_insert: list[tuple[str, int]] = []
                 if isinstance(assignments, list) and assignments:
                     seen_a: set[str] = set()
                     for item in assignments:
@@ -2411,7 +2411,7 @@ class Database:
             sql += " AND b.ausgang_datum <= ?"
             params.append(end_date)
 
-        sql += f" GROUP BY d.name, p.name ORDER BY abgaben_gesamt DESC LIMIT ?"
+        sql += " GROUP BY d.name, p.name ORDER BY abgaben_gesamt DESC LIMIT ?"
         params.append(limit)
 
         return self.cur.execute(sql, params).fetchall()
@@ -2443,7 +2443,7 @@ class Database:
             sql += " AND b.ausgang_datum <= ?"
             params.append(end_date)
 
-        sql += f" GROUP BY p.name, d.name ORDER BY abgaben_gesamt DESC LIMIT ?"
+        sql += " GROUP BY p.name, d.name ORDER BY abgaben_gesamt DESC LIMIT ?"
         params.append(limit)
 
         return self.cur.execute(sql, params).fetchall()

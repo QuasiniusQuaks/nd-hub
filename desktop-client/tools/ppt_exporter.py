@@ -1,15 +1,16 @@
-from datetime import datetime, date
-from dateutil.relativedelta import relativedelta
 from collections import defaultdict
+from datetime import date, datetime
+
+from dateutil.relativedelta import relativedelta
 
 try:
     from pptx import Presentation
-    from pptx.util import Inches, Pt
-    from pptx.enum.text import PP_ALIGN
-    from pptx.dml.color import RGBColor
     from pptx.chart.data import CategoryChartData, ChartData
+    from pptx.dml.color import RGBColor
     from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
     from pptx.enum.shapes import MSO_SHAPE
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Inches, Pt
 except ModuleNotFoundError:
     Presentation = None
 

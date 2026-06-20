@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 VerfallManager - Verwaltung von Verfallsdatum-Warnungen
 Version: 1.2 - Mit automatischer Synonym-Erkennung
 """
 
+import logging
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Tuple, Dict, Optional
-import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +118,7 @@ class VerfallManager:
                 logger.warning(f"Setze {attr_name} auf None (Whitelist-Verletzung)")
                 setattr(self, attr_name, None)
 
-    def _find_column(self, table_name: str, column_names: List[str], synonym_key: str) -> str:
+    def _find_column(self, table_name: str, column_names: list[str], synonym_key: str) -> str:
         """
         Findet eine Spalte anhand von Synonymen
 
@@ -287,7 +286,7 @@ class VerfallManager:
             self.conn.commit()
             logger.info("Standard-Warnungs-Einstellungen erstellt")
 
-    def getverfallendepraeparate(self, kategorie: str = None) -> List[Dict]:
+    def getverfallendepraeparate(self, kategorie: str = None) -> list[dict]:
         """
         Holt alle verfallenden Präparate aus bestehendem System
         SMART: Nutzt automatisch erkannte Spaltennamen
@@ -461,7 +460,7 @@ class VerfallManager:
         logger.info(f"✓ {len(result)} verfallende Präparate gefunden")
         return result
 
-    def getstatistics(self) -> Dict:
+    def getstatistics(self) -> dict:
         """Gibt Statistiken über verfallende Präparate zurück"""
         verfallende = self.getverfallendepraeparate()
 
@@ -479,7 +478,7 @@ class VerfallManager:
 
         return stats
 
-    def getverfallendebydepot(self) -> Dict[int, List[Dict]]:
+    def getverfallendebydepot(self) -> dict[int, list[dict]]:
         """Gruppiert verfallende Präparate nach Depot"""
         verfallende = self.getverfallendepraeparate()
 
@@ -492,7 +491,7 @@ class VerfallManager:
 
         return by_depot
 
-    def getkritischedepots(self) -> List[Tuple[str, int]]:
+    def getkritischedepots(self) -> list[tuple[str, int]]:
         """Gibt Depots mit den meisten kritischen Präparaten zurück"""
         kritische = self.getverfallendepraeparate(kategorie='kritisch')
 
@@ -597,7 +596,7 @@ class VerfallManager:
             logger.error(f"Fehler beim Excel-Export: {e}")
             return False
 
-    def getnaechsteverfaelle(self, limit: int = 10) -> List[Dict]:
+    def getnaechsteverfaelle(self, limit: int = 10) -> list[dict]:
         """Gibt die nächsten X verfallenden Präparate zurück"""
         verfallende = self.getverfallendepraeparate()
         return verfallende[:limit]

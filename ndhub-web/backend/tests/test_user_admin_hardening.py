@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-
 from backend.app import create_app
+from fastapi.testclient import TestClient
 
 
 def _admin_headers(client: TestClient) -> dict[str, str]:

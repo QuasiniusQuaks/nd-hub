@@ -7,9 +7,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 import re
 import sqlite3
+from dataclasses import dataclass
 from typing import Any, Iterable
 
 from backend.config import resolve_mariadb_settings

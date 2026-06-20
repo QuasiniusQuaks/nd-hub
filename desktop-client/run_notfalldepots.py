@@ -9,8 +9,9 @@ in diesem Quellcode-Verzeichnis, sondern werden automatisch nach
 ~/ND-Hub/ umgeleitet (siehe nd_hub.get_data_dir()).
 """
 
-import sys
 import os
+import sys
+
 
 # --- AUTO-VENV BOOTSTRAP ---
 def _ensure_venv():
@@ -39,8 +40,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Now run the main application
 if __name__ == "__main__":
-    from nd_hub import MainWindow, config
     from PySide6 import QtWidgets
+
+    from nd_hub import MainWindow, config
     from ui.dialogs.embedded_dialog_host import install_embedded_dialog_patches
     
     # ---------------------------------------------------------------

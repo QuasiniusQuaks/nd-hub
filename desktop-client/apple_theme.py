@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 Apple-Style Theme für die Notfalldepots Verwaltung
 Version 2.0 - Optimiert ohne unnötige Borders
 """
 from PySide6 import QtGui
-from PySide6.QtWidgets import QGraphicsDropShadowEffect
 from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QGraphicsDropShadowEffect
 
 
 class AppleTheme:

@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """SVG Icon Manager for Notfalldepots"""
-from PySide6.QtGui import QIcon, QPixmap, QPainter
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
+
 
 class IconManager:
     # Feather Icons (MIT License) embedded as SVG strings

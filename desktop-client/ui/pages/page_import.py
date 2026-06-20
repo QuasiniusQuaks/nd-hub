@@ -1,18 +1,20 @@
 """Import-Funktionalität - Excel/CSV-Datenimport."""
-import os
 import hashlib
+import os
 from datetime import datetime
 
 import pandas as pd
+
 HAS_PANDAS = True
 
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 
+from apple_theme import AppleTheme
 from db_manager import Database
 from icon_manager import IconManager
-from apple_theme import AppleTheme
-from ui.utils import create_card_widget, configure_responsive_table
+from ui.utils import configure_responsive_table, create_card_widget
+
 
 class ImportPage(QtWidgets.QWidget):
     def __init__(self, db: Database, parent=None):
@@ -447,9 +449,9 @@ class ImportPage(QtWidgets.QWidget):
         
         try:
             from openpyxl import Workbook
-            from openpyxl.worksheet.datavalidation import DataValidation
-            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
             from openpyxl.utils import get_column_letter
+            from openpyxl.worksheet.datavalidation import DataValidation
             
             # Workbook erstellen
             wb = Workbook()

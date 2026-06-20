@@ -18,9 +18,9 @@ Präparate orientieren sich an typischen Notfalldepot-Sortimenten:
 - Sonstige Notfallpräparate
 """
 
-import sqlite3
-import random  # nosec B311: non-cryptographic demo/test data generation only
 import os
+import random  # nosec B311: non-cryptographic demo/test data generation only
+import sqlite3
 from datetime import datetime, timedelta
 
 # Dynamischer Pfad zur Datenbank
@@ -303,7 +303,7 @@ def populate():
     print(f"  [OK] {len(PRAEPARATE)} Präparate angelegt")
 
     # ---- 3. Sollbestände je Depot ----
-    print(f"\n[3/5] Definiere Sollbestände...")
+    print("\n[3/5] Definiere Sollbestände...")
     soll_count = 0
     for depot_name, depot_id in depot_ids.items():
         # Jedes Depot hat 50-80% der Präparate
@@ -332,7 +332,7 @@ def populate():
     print(f"  [OK] {soll_count} Sollbestand-Einträge")
 
     # ---- 4. Bewegungen (Eingang) – Aktueller Bestand ----
-    print(f"\n[4/5] Erzeuge Bestandsbewegungen...")
+    print("\n[4/5] Erzeuge Bestandsbewegungen...")
     bew_count = 0
 
     for depot_name, depot_id in depot_ids.items():
@@ -412,7 +412,7 @@ def populate():
     print(f"  [OK] {ausgang_count} Abgangsbewegungen")
 
     # ---- 5. Warnung-Einstellungen ----
-    print(f"\n[5/5] Setze Warneinstellungen...")
+    print("\n[5/5] Setze Warneinstellungen...")
     cur.execute("""
         UPDATE warnung_einstellungen 
         SET kritisch_tage = 30, warnung_tage = 90, achtung_tage = 180

@@ -7,13 +7,11 @@ a temporary SQLite database, so no external services are required.
 
 from __future__ import annotations
 
-import os
 from datetime import date
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.app import create_app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

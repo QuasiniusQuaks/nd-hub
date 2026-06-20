@@ -1,6 +1,7 @@
 """Globale Dialoge für Passwörter, Depots und Kontakte."""
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
+
 from apple_theme import AppleTheme
 
 

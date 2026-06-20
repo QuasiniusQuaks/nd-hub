@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 """
 ND-Hub – Die ND-Hub-Verwaltung – Modern UI Edition 2025
@@ -16,26 +15,16 @@ Features:
 Abhängigkeiten:
 pip install PySide6 reportlab matplotlib pywin32 pandas openpyxl
 """
-import sys
-from ui.resources import LOGO_BASE64
 import os
+import sys
 import time
+from enum import IntEnum
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
-from icon_manager import IconManager
-from ui.dialogs.embedded_dialog_host import exec_embedded_dialog, install_embedded_dialog_patches
-
-# import win32com.client  # Windows-only Outlook integration
-
-from security_manager import SecurityManager
-from verfallmanager import VerfallManager
 
 # ===== NEUE IMPORTS FÜR APPLE-STYLE =====
 from apple_theme import AppleTheme
-
-from typing import Optional
-from enum import IntEnum
 
 # Core Modules
 from core.config_manager import ConfigManager
@@ -48,6 +37,13 @@ from core.data_access_layer import (
 from core.error_handler import setup_global_error_handler
 from core.sync_service import DesktopSyncService
 from core.sync_worker import SyncWorkerRunner
+from icon_manager import IconManager
+
+# import win32com.client  # Windows-only Outlook integration
+from security_manager import SecurityManager
+from ui.dialogs.embedded_dialog_host import exec_embedded_dialog, install_embedded_dialog_patches
+from ui.resources import LOGO_BASE64
+from verfallmanager import VerfallManager
 
 # Versionsnummer
 VERSION = "0.42"
@@ -59,7 +55,6 @@ VERSION = "0.42"
 # =============================================================================
 
 import logging
-from typing import Optional
 
 # Initialisiere Konfiguration (vor dem Logging)
 config = ConfigManager()
@@ -70,6 +65,7 @@ os.environ.setdefault("NUMEXPR_MAX_THREADS", "8")
 os.environ.setdefault("NUMEXPR_NUM_THREADS", "8")
 
 from logging.handlers import RotatingFileHandler
+
 
 def _build_logging_handlers():
     """Erzeugt Logging-Handler mit robuster Fallback-Strategie."""
@@ -152,7 +148,7 @@ from db_manager import Database
 class MainWindow(QtWidgets.QMainWindow):
     """Hauptfenster der ND-Hub-Verwaltung"""
     
-    def __init__(self, config: ConfigManager, parent: Optional[QtWidgets.QWidget] = None):
+    def __init__(self, config: ConfigManager, parent: QtWidgets.QWidget | None = None):
                
         super().__init__(parent)
         self.config = config
@@ -168,7 +164,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Ordner sicherstellen
         os.makedirs(attachment_folder, exist_ok=True)
 
-        logger.info(f"ND-Hub initialisiert mit:")
+        logger.info("ND-Hub initialisiert mit:")
         logger.info(f"  - Datenverzeichnis: {self.config.data_dir}")
         logger.info(f"  - Datenbank: {db_path}")
         logger.info(f"  - Anhänge: {attachment_folder}")
@@ -718,8 +714,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         try:
             import base64
-            from PySide6.QtGui import QPainter, QPainterPath
+
             from PySide6.QtCore import QRectF
+            from PySide6.QtGui import QPainter, QPainterPath
             
             logo_data = base64.b64decode(LOGO_BASE64)
             pixmap = QtGui.QPixmap()

@@ -1,11 +1,11 @@
 
-# -*- coding: utf-8 -*-
 """
 Login und Passwort-Dialoge für ND-Hub - Die ND-Hub-Verwaltung
 Version: 1.1 (Layout-Refactor)
 """
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
+
 from apple_theme import AppleTheme
 
 

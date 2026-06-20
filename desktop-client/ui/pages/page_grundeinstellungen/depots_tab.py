@@ -1,11 +1,10 @@
 """Depots-Verwaltung - CRUD für Depots."""
 from PySide6 import QtWidgets
+
 from db_manager import Database, fill_table
 from icon_manager import IconManager
-from ui.utils import create_card_widget
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
-
-
+from ui.utils import create_card_widget
 
 
 class DepotsPage(QtWidgets.QWidget):

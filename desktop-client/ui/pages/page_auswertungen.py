@@ -2,20 +2,19 @@
 import textwrap
 from datetime import datetime
 
-from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtCore import Qt, QDate
-
+import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-import numpy as np
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import QDate, Qt
 
+from apple_theme import AppleTheme
 from db_manager import Database
 from icon_manager import IconManager
-from apple_theme import AppleTheme
-from responsive_widgets import FlowLayout, AnalyticsKpiCard, ModernChartContainer
-from ui.utils import create_card_widget, configure_responsive_table
+from responsive_widgets import AnalyticsKpiCard, FlowLayout, ModernChartContainer
 from ui.dialogs.dialog_ppt_export import PPTExportDialog
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
+from ui.utils import configure_responsive_table, create_card_widget
 
 # Qt-Dateidialog: unter Linux/Portal wirkt der native Dialog oft „losgelöst“ und das Hauptfenster verschwindet hinter dem Busy-Overlay.
 _QT_SAVE_OPTIONS = QtWidgets.QFileDialog.Option.DontUseNativeDialog
@@ -561,9 +560,10 @@ class AuswertungenPage(QtWidgets.QWidget):
         self.update_action_bar("bewegungen", table=table, start_date=start_date, end_date=end_date)
 
         # === DIAGRAMME NEBENEINANDER ===
-        from collections import defaultdict
-        import numpy as np
         import textwrap
+        from collections import defaultdict
+
+        import numpy as np
         
         self.bewegungen_canvases = []
 
@@ -734,13 +734,16 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         op_id = self._begin_busy(self._export_report_message or "Erstelle PDF …", delay_ms=0)
         try:
-            from reportlab.lib.pagesizes import letter  # noqa: F401  # vorbereitet für zukünftige PDF-Sizes-Switch
-            from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
-            from reportlab.lib import colors
             from datetime import datetime
+
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import (
+                A4,
+                letter,  # noqa: F401  # vorbereitet für zukünftige PDF-Sizes-Switch
+            )
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
             # PDF erstellen
             doc = SimpleDocTemplate(file_path, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
@@ -844,8 +847,9 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         op_id = self._begin_busy(self._export_charts_message or "Exportiere Diagramme …", delay_ms=0)
         try:
-            from matplotlib.backends.backend_pdf import PdfPages
             from datetime import datetime
+
+            from matplotlib.backends.backend_pdf import PdfPages
 
             if not hasattr(self, 'bewegungen_canvases') or not self.bewegungen_canvases:
                 QtWidgets.QMessageBox.warning(self, "Warnung", "Keine Diagramme zum Exportieren vorhanden.")
@@ -1117,8 +1121,8 @@ class AuswertungenPage(QtWidgets.QWidget):
 
 
         # Heatmap erstellen
-        import matplotlib.pyplot as plt
         import matplotlib.colors as mcolors
+        import matplotlib.pyplot as plt
         AppleTheme.setup_matplotlib(plt)
 
         fig = Figure(figsize=(10, 8))
@@ -1206,9 +1210,10 @@ class AuswertungenPage(QtWidgets.QWidget):
             return
 
         import datetime
-        from dateutil.relativedelta import relativedelta
+
         import matplotlib.pyplot as plt
         import numpy as np
+        from dateutil.relativedelta import relativedelta
 
         # Filtere auf die nächsten 24 Monate inkl. historisch (bereits verfallen)
         today = datetime.date.today()
@@ -1306,11 +1311,11 @@ class AuswertungenPage(QtWidgets.QWidget):
 
         op_id = self._begin_busy(self._export_report_message or "Erstelle Bericht …", delay_ms=0)
         try:
-            from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
             from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 
             doc = SimpleDocTemplate(file_path, pagesize=A4, topMargin=0.5*inch)
             elements = []

@@ -1,29 +1,27 @@
 """Grundeinstellungen - Depots, Präparate, Zuordnungen, Ansprechpartner, Backup."""
-import os
 import logging
-import sqlite3
+import os
 import shutil
+import sqlite3
 import sys
 import time
+from datetime import datetime
 from urllib import error, request
 from urllib.parse import urlparse
-from datetime import datetime
 
-from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
 
-from db_manager import Database, DB
-from icon_manager import IconManager
 from apple_theme import AppleTheme
-from ui.utils import create_card_widget
 from core.data_access_layer import BackendApiClient, BackendSyncConfig, OperatingMode
-from core.backup_worker import BackupRestoreRunner
-
+from db_manager import DB, Database
+from icon_manager import IconManager
+from ui.utils import create_card_widget
 
 # Sub-Module (extrahierte Klassen)
 from .depots_tab import DepotsPage
-from .praeparate_tab import PraeparatePage
 from .kontakte_tab import KontaktePage
+from .praeparate_tab import PraeparatePage
 
 
 def _require_http_scheme(url: str) -> str:
@@ -35,9 +33,10 @@ def _require_http_scheme(url: str) -> str:
 
 
 logger = logging.getLogger("ND-Hub")
-from .zuordnungen_tab import AssignmentPage
-from .user_management_tab import UserManagementPage
 from .audit_logs_tab import AuditLogsPage
+from .user_management_tab import UserManagementPage
+from .zuordnungen_tab import AssignmentPage
+
 
 class GrundeinstellungenPage(QtWidgets.QWidget):
     def __init__(self, db: Database, security=None, parent=None):
@@ -1281,9 +1280,9 @@ class GrundeinstellungenPage(QtWidgets.QWidget):
             reply = QtWidgets.QMessageBox.warning(
                 self,
                 "Warnung",
-                f"Die Backup-Datei konnte nicht verifiziert werden.\n"
-                f"Möglicherweise ist sie beschädigt.\n\n"
-                f"Trotzdem fortfahren?",
+                "Die Backup-Datei konnte nicht verifiziert werden.\n"
+                "Möglicherweise ist sie beschädigt.\n\n"
+                "Trotzdem fortfahren?",
                 QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
                 QtWidgets.QMessageBox.No
             )
