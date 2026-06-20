@@ -8,7 +8,7 @@ Oberflaeche zu.
 """
 from __future__ import annotations
 
-from core.auth_worker import _verify_password, AuthVerifyRunner
+from core.auth_worker import AuthVerifyRunner, _verify_password
 from security_manager import SecurityManager
 
 

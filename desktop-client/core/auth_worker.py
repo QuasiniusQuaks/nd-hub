@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Async Auth-Worker fuer ND-Hub Desktop-Client.
 
 Hintergrund (Issue #33, Audit 2026-06):

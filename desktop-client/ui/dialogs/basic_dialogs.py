@@ -3,7 +3,6 @@ from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 
 from apple_theme import AppleTheme
-
 from core.auth_worker import AuthVerifyRunner
 
 
@@ -56,22 +55,22 @@ class PasswordDialog(QtWidgets.QDialog):
         if not parent_page or not hasattr(parent_page, 'load_password_hash'):
             self._show_error("Interner Fehler: Passwort-Hash kann nicht geladen werden.")
             return
-        
+
         stored_hash = parent_page.load_password_hash()
         if not stored_hash:
             # Kein Passwort gesetzt -> direkt akzeptieren
             self.accept()
             return
-        
+
         self.ok_button.setEnabled(False)
         self.ok_button.setText("Pruefe...")
         self.password_input.setEnabled(False)
-        
+
         self._auth_runner = AuthVerifyRunner()
         self._auth_runner.signals.finished.connect(self._on_auth_finished)
         self._auth_runner.signals.failed.connect(self._on_auth_failed)
         self._auth_runner.start(entered, stored_hash)
-    
+
     def _on_auth_finished(self, is_valid: bool):
         """Wird vom Worker-Signal aufgerufen, wenn die Verifikation fertig ist."""
         self._reset_ui()
@@ -79,18 +78,18 @@ class PasswordDialog(QtWidgets.QDialog):
             self.accept()
         else:
             self._show_error("Das eingegebene Passwort ist nicht korrekt.\n\nBitte versuchen Sie es erneut.")
-    
+
     def _on_auth_failed(self, error_message: str):
         """Wird vom Worker-Signal aufgerufen, wenn die Verifikation fehlschlaegt."""
         self._reset_ui()
         self._show_error(f"Passwort-Pruefung fehlgeschlagen:\n{error_message}")
-    
+
     def _reset_ui(self):
         self.ok_button.setEnabled(True)
         self.ok_button.setText("OK")
         self.password_input.setEnabled(True)
         self.password_input.setFocus()
-    
+
     def _show_error(self, message: str):
         QtWidgets.QMessageBox.warning(self, "Falsches Passwort", message)
         self.password_input.clear()

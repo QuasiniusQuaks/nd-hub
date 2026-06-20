@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from backend.app import create_app
 from fastapi.testclient import TestClient
+
+from backend.app import create_app
 
 
 def _login(client: TestClient, username: str, password: str) -> dict:
