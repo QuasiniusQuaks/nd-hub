@@ -276,6 +276,14 @@ Befunde, Fixes und Diskussionen sind direkt auf GitHub dokumentiert.
 - **Quick-Wins-Bundle** ([#23](https://github.com/QuasiniusQuaks/nd-hub/pull/23)) — 93 ungenutzte Imports, tote Cache-Felder, Logging-Fallback
 - **Architektur-Refactor** ([#25](https://github.com/QuasiniusQuaks/nd-hub/pull/25)) — lru_cache-Doku, Exception-Decorator-Modul, TTL-Cache-Helper
 
+### Audit-Follow-up 2026-07
+
+Nach dem Abschluss des 2026-06-Audits wurden weitere P0/P1-Befunde systematisch behoben:
+
+- **Login Rate-Limit / Lockout** ([#48](https://github.com/QuasiniusQuaks/nd-hub/pull/48)) — `slowapi`-basiertes per-IP-Rate-Limit und per-Username-Lockout nach konfigurierbaren Fehlversuchen inkl. `Retry-After`-Header und Audit-Log
+- **Auth-Worker fuer Desktop-Login** ([#47](https://github.com/QuasiniusQuaks/nd-hub/pull/47)) — PBKDF2-Passwortpruefung aus dem UI-Thread in einen `QThreadPool`-Worker ausgelagert
+- **P1-Sammel-Cleanup** ([#46](https://github.com/QuasiniusQuaks/nd-hub/pull/46)) — `DB`-Konstanten auf `StrEnum`, `@lru_cache` auf `cachetools.TTLCache`, typisierte `except`-Klauseln, explizite `pydantic`-Abhaengigkeit
+
 ### Lokale Entwicklung
 
 ```bash
