@@ -71,7 +71,7 @@ class BackendApiClient:
         url = f"{self.config.normalized_base_url}{self.config.health_endpoint}"
         req = request.Request(_require_http_scheme(url), method="GET", headers=self._headers())
         try:
-            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:  # nosec B310: URL scheme validated by _require_http_scheme  # nosec B310: URL scheme validated by _require_http_scheme  # nosec B310: URL scheme validated by _require_http_scheme
+            with request.urlopen(req, timeout=self.config.connect_timeout_seconds) as response:  # nosec B310: URL scheme validated by _require_http_scheme
                 return 200 <= response.status < 300
         except (error.URLError, TimeoutError, OSError) as exc:
             logger.info("Backend-Healthcheck nicht erreichbar: %s", exc)
