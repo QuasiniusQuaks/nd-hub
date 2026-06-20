@@ -1134,8 +1134,8 @@ class MainWindow(QtWidgets.QMainWindow):
             from ui.pages.page_historie import BewegungshistoriePage
             return BewegungshistoriePage(self.db)
         if idx == PageIndex.AUSWERTUNGEN:
-            from ui.pages.page_auswertungen import AuswertungenPage
-            return AuswertungenPage(self.db)
+            from ui.pages.analytics.analytics_page import AnalyticsPage
+            return AnalyticsPage(self.db)
         if idx == PageIndex.IMPORT:
             from ui.pages.page_import import ImportPage
             return ImportPage(self.db)
