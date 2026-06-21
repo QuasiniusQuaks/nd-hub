@@ -42,7 +42,7 @@ class CrossFilterState:
     Stattdessen werden Listener-Callbacks verwendet.
     """
 
-    _instance: "CrossFilterState | None" = None
+    _instance: CrossFilterState | None = None
 
     def __init__(self) -> None:
         super().__init__()

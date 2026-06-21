@@ -112,6 +112,20 @@ class GlobalFilterBar(QtWidgets.QWidget):
         self.btn_delete_view.clicked.connect(self._on_delete_view)
         layout.addWidget(self.btn_delete_view)
 
+        # Export-Buttons (Phase 3)
+        layout.addWidget(self._make_separator())
+        self.btn_export_html = QtWidgets.QPushButton("🌐 HTML")
+        self.btn_export_html.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.btn_export_html.setToolTip("Als interaktives HTML exportieren")
+        self.btn_export_html.clicked.connect(self._on_export_html)
+        layout.addWidget(self.btn_export_html)
+
+        self.btn_export_pdf = QtWidgets.QPushButton("📄 PDF")
+        self.btn_export_pdf.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self.btn_export_pdf.setToolTip("Als PDF-Report exportieren")
+        self.btn_export_pdf.clicked.connect(self._on_export_pdf)
+        layout.addWidget(self.btn_export_pdf)
+
         # Refresh-Button
         self.btn_refresh = QtWidgets.QPushButton("↻ Aktualisieren")
         self.btn_refresh.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
@@ -279,4 +293,52 @@ class GlobalFilterBar(QtWidgets.QWidget):
 
         self.db.delete_analytics_view(name)
         self._populate_saved_views()
+
+    # ── Export (Phase 3) ────────────────────────────────────────────
+
+    def _on_export_html(self) -> None:
+        """HTML-Export via File-Dialog."""
+        from PySide6 import QtWidgets as QW
+
+        from .._insights.html_export import HTMLExporter
+
+        path, _ = QW.QFileDialog.getSaveFileName(
+            self, "HTML exportieren", "analytics_report.html",
+            "HTML-Dateien (*.html);;Alle Dateien (*)",
+            options=QW.QFileDialog.Option.DontUseNativeDialog,
+        )
+        if not path:
+            return
+
+        exporter = HTMLExporter(self.db)
+        days = self.get_date_range_days()
+        if exporter.export(path, days=days):
+            QW.QMessageBox.information(self, "Export erfolgreich",
+                                       f"HTML-Report gespeichert:\n{path}")
+        else:
+            QW.QMessageBox.warning(self, "Export fehlgeschlagen",
+                                   "HTML-Report konnte nicht erstellt werden.")
+
+    def _on_export_pdf(self) -> None:
+        """PDF-Export via File-Dialog."""
+        from PySide6 import QtWidgets as QW
+
+        from .._insights.pdf_report import PDFReporter
+
+        path, _ = QW.QFileDialog.getSaveFileName(
+            self, "PDF exportieren", "analytics_report.pdf",
+            "PDF-Dateien (*.pdf);;Alle Dateien (*)",
+            options=QW.QFileDialog.Option.DontUseNativeDialog,
+        )
+        if not path:
+            return
+
+        reporter = PDFReporter(self.db)
+        days = self.get_date_range_days()
+        if reporter.export(path, days=days):
+            QW.QMessageBox.information(self, "Export erfolgreich",
+                                       f"PDF-Report gespeichert:\n{path}")
+        else:
+            QW.QMessageBox.warning(self, "Export fehlgeschlagen",
+                                   "PDF-Report konnte nicht erstellt werden.")
 
