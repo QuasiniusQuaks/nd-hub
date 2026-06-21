@@ -9,6 +9,7 @@ import logging
 
 from PySide6 import QtWidgets
 
+from apple_theme import AppleTheme
 from ui.utils import configure_responsive_table
 
 from .._charts.ranking_bar import RankingBarChart
@@ -54,6 +55,11 @@ class TabBewegungen(BaseTab):
         card_praep = self._make_card("Präparat-Ranking nach Abgaben")
         table_praep = self._build_praeparat_ranking_table()
         card_praep.layout().addWidget(table_praep)
+
+        # 5. Anomalie-Detection (Phase 3)
+        card_anomaly = self._make_card("🔮 Statistische Anomalien (Z-Score ≥ 2.0)")
+        table_anomaly = self._build_anomaly_table()
+        card_anomaly.layout().addWidget(table_anomaly)
 
         self.content_layout.addStretch()
 
@@ -134,3 +140,36 @@ class TabBewegungen(BaseTab):
     def _add_empty_hint(self, table: QtWidgets.QTableWidget, text: str) -> None:
         table.setRowCount(1)
         table.setItem(0, 0, QtWidgets.QTableWidgetItem(text))
+
+    def _build_anomaly_table(self) -> QtWidgets.QTableWidget:
+        """Anomalie-Tabelle aus get_anomalies() (Phase 3)."""
+        rows = self.queries.get_anomalies(threshold_std=2.0)
+        headers = ["Präparat", "Typ", "Datum", "Menge", "Ø Normal", "Z-Score", "Bewertung"]
+        table = self._create_table(headers, len(rows))
+
+        c = AppleTheme.current_colors()
+        for i, row in enumerate(rows):
+            table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["praeparat_name"])))
+            table.setItem(i, 1, QtWidgets.QTableWidgetItem(str(row["typ"])))
+            table.setItem(i, 2, QtWidgets.QTableWidgetItem(str(row["tag"])))
+            table.setItem(i, 3, QtWidgets.QTableWidgetItem(str(row["total"])))
+            table.setItem(i, 4, QtWidgets.QTableWidgetItem(f"{row['mean']:.1f}"))
+
+            z_score = row["z_score"] or 0
+            z_item = QtWidgets.QTableWidgetItem(f"{z_score:.2f}")
+            from PySide6 import QtGui
+            if abs(z_score) >= 3.0:
+                z_item.setForeground(QtGui.QColor(c["red"]))
+            elif abs(z_score) >= 2.5:
+                z_item.setForeground(QtGui.QColor(c["orange"]))
+            else:
+                z_item.setForeground(QtGui.QColor(c["blue"]))
+            table.setItem(i, 5, z_item)
+
+            bewertung = "🔴 Kritisch" if abs(z_score) >= 3.0 else ("🟡 Auffällig" if abs(z_score) >= 2.5 else "🟢 Leicht")
+            table.setItem(i, 6, QtWidgets.QTableWidgetItem(bewertung))
+
+        if not rows:
+            self._add_empty_hint(table, "Keine statistischen Anomalien erkannt ✅")
+
+        return table

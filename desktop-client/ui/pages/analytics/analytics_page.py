@@ -22,6 +22,7 @@ from ._db.analytics_queries import AnalyticsQueries
 from ._filters.global_filter_bar import GlobalFilterBar
 from ._filters.layout_persistence import LayoutPersistence
 from ._widgets.insight_banner import InsightBanner
+from ._widgets.insights_panel import InsightsPanel
 from .tabs.tab_bestand import TabBestand
 from .tabs.tab_bewegungen import TabBewegungen
 from .tabs.tab_compliance import TabCompliance
@@ -66,6 +67,10 @@ class AnalyticsPage(QtWidgets.QWidget):
         self.insight_banner = InsightBanner(db)
         content_layout.addWidget(self.insight_banner)
 
+        # 1b. Auto-Insights Panel (Phase 3 — "Was ist passiert?")
+        self.insights_panel = InsightsPanel(db)
+        content_layout.addWidget(self.insights_panel)
+
         # Layout-Persistenz (Phase 2)
         self.layout_persistence = LayoutPersistence(data_dir=".")
 
@@ -95,8 +100,9 @@ class AnalyticsPage(QtWidgets.QWidget):
         self.refresh()
 
     def refresh(self) -> None:
-        """Lädt alle Daten neu (Insight-Banner + aktiver Tab)."""
+        """Lädt alle Daten neu (Insight-Banner + Insights-Panel + aktiver Tab)."""
         self.insight_banner.refresh()
+        self.insights_panel.refresh()
         self._refresh_active_tab()
 
     def _refresh_active_tab(self) -> None:
