@@ -635,8 +635,9 @@ class SecurityManager:
             )
 
             return True, "Passwort zurückgesetzt"
-        except Exception as e:
-            return False, str(e)
+        except Exception:
+            logger.exception("Security check fehlgeschlagen")
+            return False, "Security check fehlgeschlagen"
 
     def unlock_user(self, user_id: int) -> tuple[bool, str]:
         """Entsperrt einen Benutzeraccount (setzt Lock/Fehlversuche zurueck)."""

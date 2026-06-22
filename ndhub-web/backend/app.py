@@ -1567,7 +1567,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             if hasattr(exc, "limit") and exc.limit and hasattr(exc.limit, "seconds"):
                 retry_after = exc.limit.seconds
         except Exception:
-            pass
+            logger.exception("Unexpected error in endpoint")
         return _JSONResponse(
             status_code=429,
             content={"detail": f"Zu viele Login-Versuche. Bitte {retry_after}s warten."},

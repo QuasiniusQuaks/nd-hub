@@ -5,15 +5,11 @@ Issue #42 Phase 3 — Wow-Features.
 
 from __future__ import annotations
 
-import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parent))
-import _pyside6_stub  # noqa: F401
 
 from db_manager import Database
 

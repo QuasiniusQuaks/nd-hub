@@ -10,15 +10,12 @@ Szenario:
 """
 import os
 import sqlite3
-import sys
 import tempfile
 from collections.abc import Iterator
 
 import pytest
 
 # PySide6-Stub für reine DB-Tests (Desktop-Client-Module importieren Qt top-level)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-import _pyside6_stub  # noqa: F401  (side-effect: stub installiert)
 
 
 @pytest.fixture

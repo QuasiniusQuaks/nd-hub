@@ -80,7 +80,7 @@ class SyncWorkerRunnable(QtCore.QRunnable):
             try:
                 self.signals.cycle_ended.emit()
             except Exception:
-                pass
+                logger.exception("Sync-Worker Cleanup fehlgeschlagen")
             return
 
         try:

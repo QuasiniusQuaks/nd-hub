@@ -18,6 +18,11 @@ Präparate orientieren sich an typischen Notfalldepot-Sortimenten:
 - Sonstige Notfallpräparate
 """
 
+import logging
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
+
 import os
 import random  # nosec B311: non-cryptographic demo/test data generation only
 import sqlite3
@@ -261,7 +266,7 @@ def populate():
     # Prüfen ob bereits Daten vorhanden
     count = cur.execute("SELECT COUNT(*) FROM depots").fetchone()[0]
     if count > 0:
-        print(f"Datenbank enthält bereits {count} Depots. Bereinige Tabellen für Neubefüllung...")
+        logger.info(f"Datenbank enthält bereits {count} Depots. Bereinige Tabellen für Neubefüllung...")
         cur.execute("DELETE FROM bewegungen")
         cur.execute("DELETE FROM depot_praeparate")
         cur.execute("DELETE FROM kontakte")
@@ -270,13 +275,13 @@ def populate():
         cur.execute("DELETE FROM warnung_einstellungen")
         conn.commit()
 
-    print("=" * 60)
-    print("ND-Hub Testdaten-Generator")
-    print("Basierend auf Gelber Tafel / Notfalltafel")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("ND-Hub Testdaten-Generator")
+    logger.info("Basierend auf Gelber Tafel / Notfalltafel")
+    logger.info("=" * 60)
 
     # ---- 1. Depots anlegen ----
-    print(f"\n[1/5] Lege {len(DEPOTS)} Notfalldepots an...")
+    logger.info(f"\n[1/5] Lege {len(DEPOTS)} Notfalldepots an...")
     depot_ids = {}
     for depot in DEPOTS:
         cur.execute(
@@ -292,18 +297,18 @@ def populate():
                 "INSERT INTO kontakte (depot_id, name, rolle, telefon, email) VALUES (?, ?, ?, ?, ?)",
                 (depot_id, kontakt[0], kontakt[1], kontakt[2], kontakt[3])
             )
-        print(f"  [OK] {depot['name']} (ID: {depot_id})")
+        logger.info(f"  [OK] {depot['name']} (ID: {depot_id})")
 
     # ---- 2. Präparate anlegen ----
-    print(f"\n[2/5] Lege {len(PRAEPARATE)} Präparate an...")
+    logger.info(f"\n[2/5] Lege {len(PRAEPARATE)} Präparate an...")
     praep_ids = {}
     for name in PRAEPARATE:
         cur.execute("INSERT INTO praeparate (name) VALUES (?)", (name,))
         praep_ids[name] = cur.lastrowid
-    print(f"  [OK] {len(PRAEPARATE)} Präparate angelegt")
+    logger.info(f"  [OK] {len(PRAEPARATE)} Präparate angelegt")
 
     # ---- 3. Sollbestände je Depot ----
-    print("\n[3/5] Definiere Sollbestände...")
+    logger.info("\n[3/5] Definiere Sollbestände...")
     soll_count = 0
     for _depot_name, depot_id in depot_ids.items():
         # Jedes Depot hat 50-80% der Präparate
@@ -329,10 +334,10 @@ def populate():
                 (depot_id, praep_id, soll)
             )
             soll_count += 1
-    print(f"  [OK] {soll_count} Sollbestand-Einträge")
+    logger.info(f"  [OK] {soll_count} Sollbestand-Einträge")
 
     # ---- 4. Bewegungen (Eingang) – Aktueller Bestand ----
-    print("\n[4/5] Erzeuge Bestandsbewegungen...")
+    logger.info("\n[4/5] Erzeuge Bestandsbewegungen...")
     bew_count = 0
 
     for _depot_name, depot_id in depot_ids.items():
@@ -370,7 +375,7 @@ def populate():
                 bew_count += 1
 
     # ---- 4b. Einige Ausgänge erzeugen ----
-    print(f"  [OK] {bew_count} Zugangsbewegungen")
+    logger.info(f"  [OK] {bew_count} Zugangsbewegungen")
 
     ausgang_count = 0
     empfaenger_namen = [
@@ -409,10 +414,10 @@ def populate():
                   ausgang_datum, empfaenger, ausgang_menge))
             ausgang_count += 1
 
-    print(f"  [OK] {ausgang_count} Abgangsbewegungen")
+    logger.info(f"  [OK] {ausgang_count} Abgangsbewegungen")
 
     # ---- 5. Warnung-Einstellungen ----
-    print("\n[5/5] Setze Warneinstellungen...")
+    logger.info("\n[5/5] Setze Warneinstellungen...")
     cur.execute("""
         UPDATE warnung_einstellungen
         SET kritisch_tage = 30, warnung_tage = 90, achtung_tage = 180
@@ -424,7 +429,7 @@ def populate():
             (kritisch_tage, warnung_tage, achtung_tage, email_benachrichtigung)
             VALUES (30, 90, 180, 0)
         """)
-    print("  [OK] Kritisch: 30 Tage, Warnung: 90 Tage, Achtung: 180 Tage")
+    logger.info("  [OK] Kritisch: 30 Tage, Warnung: 90 Tage, Achtung: 180 Tage")
 
     conn.commit()
 
@@ -435,18 +440,18 @@ def populate():
     total_soll = cur.execute("SELECT COUNT(*) FROM depot_praeparate").fetchone()[0]
     total_kontakte = cur.execute("SELECT COUNT(*) FROM kontakte").fetchone()[0]
 
-    print("\n" + "=" * 60)
-    print("ZUSAMMENFASSUNG")
-    print("=" * 60)
-    print(f"  Depots:              {total_depots}")
-    print(f"  Kontakte:            {total_kontakte}")
-    print(f"  Präparate:           {total_praep}")
-    print(f"  Soll-Einträge:       {total_soll}")
-    print(f"  Bewegungen gesamt:   {total_bew}")
-    print(f"  davon Zugänge:       {bew_count}")
-    print(f"  davon Abgänge:       {ausgang_count}")
-    print(f"\n  Datenbank: {DB_PATH}")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("ZUSAMMENFASSUNG")
+    logger.info("=" * 60)
+    logger.info(f"  Depots:              {total_depots}")
+    logger.info(f"  Kontakte:            {total_kontakte}")
+    logger.info(f"  Präparate:           {total_praep}")
+    logger.info(f"  Soll-Einträge:       {total_soll}")
+    logger.info(f"  Bewegungen gesamt:   {total_bew}")
+    logger.info(f"  davon Zugänge:       {bew_count}")
+    logger.info(f"  davon Abgänge:       {ausgang_count}")
+    logger.info(f"\n  Datenbank: {DB_PATH}")
+    logger.info("=" * 60)
 
     conn.close()
 

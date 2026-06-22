@@ -6,7 +6,6 @@ geschrieben wurden. Verwendet eine In-Memory-DB mit Testdaten.
 
 from __future__ import annotations
 
-import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,9 +13,6 @@ from pathlib import Path
 import pytest
 
 # PySide6-Stub für headless Tests (muss vor db_manager-Import erfolgen)
-sys.path.insert(0, str(Path(__file__).parent))
-import _pyside6_stub  # noqa: F401
-
 from db_manager import Database
 
 
