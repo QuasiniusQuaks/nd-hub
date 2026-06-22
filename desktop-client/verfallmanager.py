@@ -390,13 +390,13 @@ class VerfallManager:
             where_clause = "WHERE " + " AND ".join(where_parts)
 
             # Komplette Query
-            query = f"""  # nosec B608: column names validated against ALLOWED_COLUMNS
+            query = f"""
                 SELECT
                     {', '.join(select_parts)}
                 {from_part}
                 {where_clause}
                 ORDER BY b.{self.datum_column} ASC
-            """
+            """  # nosec B608: column names validated against ALLOWED_COLUMNS
 
             logger.info("Ausgeführte Query (gekürzt):")
             logger.info(query[:500] + "..." if len(query) > 500 else query)
