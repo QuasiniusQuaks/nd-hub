@@ -10,7 +10,7 @@ Beide teilen denselben fachlichen Kern.
 
 ### Welche Version ist aktuell?
 
-Die aktuelle Version ist **v0.42**. Updates werden in den
+Die aktuelle Version ist **v0.5**. Updates werden in den
 [Release Notes](../project/03-release-notes.md) dokumentiert.
 
 ### Wo finde ich die Stammdaten?

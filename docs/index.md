@@ -4,7 +4,7 @@
   <img src="assets/new_logo.png" alt="ND-Hub Logo" width="220" />
 </p>
 
-Willkommen in der zentralen Enterprise-Dokumentation von **ND-Hub** (Stand: **v0.42**).
+Willkommen in der zentralen Enterprise-Dokumentation von **ND-Hub** (Stand: **v0.5**).
 Diese Doku beschreibt den **Desktop Client** und die **Webanwendung** vollstaendig:
 Architektur, Funktionen, Betrieb, Sicherheit, API, Migration und Roadmap.
 
@@ -63,7 +63,7 @@ flowchart LR
 
 ## Versions- und Quellen-Hinweise
 
-- Aktuelle Version: **v0.42**
+- Aktuelle Version: **v0.5**
 - Quellrepository: `desktop-client/` und `ndhub-web/`
 - Single Source of Truth fuer Themenbereiche ist diese Site;
   Originaldokumente verbleiben unter [Archiv](legacy/index.md) als historische Referenz.

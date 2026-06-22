@@ -5,9 +5,9 @@ und als Windows-Installer (PyInstaller + Inno Setup) ausgeliefert.
 
 ## Aktuelle Version
 
-- App-Version: **`0.42`**
+- App-Version: **`0.5`**
 - Build-Skript: `desktop-client/build_windows_exe.py`
-- Inno-Setup-Skript: `desktop-client/setup_nd-hub-V042.iss`
+- Inno-Setup-Skript: `desktop-client/setup_nd-hub-V05.iss`
 - PyInstaller-Spec: `desktop-client/ND-Hub.spec`
 
 ## Build (Windows-Installer)
@@ -38,7 +38,7 @@ Das Skript:
 4. legt das Resultat unter `dist/ND-Hub/` ab.
 
 Anschliessend kann mit Inno Setup das Installer-Skript
-`setup_nd-hub-V042.iss` kompiliert werden.
+`setup_nd-hub-V05.iss` kompiliert werden.
 
 ## Build (Linux/macOS-Quellcodebetrieb)
 
@@ -57,7 +57,7 @@ und reicht den Aufruf an `nd_hub.py` weiter.
 
 | Kanal | Beschreibung |
 |---|---|
-| Windows-Installer | `setup_nd-hub-V042.exe` (aus Inno Setup), Empfehlung fuer Endkunden. |
+| Windows-Installer | `setup_nd-hub-V05.exe` (aus Inno Setup), Empfehlung fuer Endkunden. |
 | Quellcode (Repo) | Fuer technische Anwender und Pilot-Setups. |
 | Hybrid-Bereitstellung | Desktop pro Arbeitsplatz + Web-Backend zentral. |
 
@@ -73,7 +73,7 @@ und reicht den Aufruf an `nd_hub.py` weiter.
 1. Tests gruen (`pytest`, ggf. Performance-Tests separat).
 2. Lint und Format gruen (`ruff check` / `ruff format --check`).
 3. Security-Scans aktualisiert (`bandit`, `pip-audit`).
-4. Versionsnummer in `build_windows_exe.py`, `setup_nd-hub-V042.iss` und
+4. Versionsnummer in `build_windows_exe.py`, `setup_nd-hub-V05.iss` und
    in der Doku konsistent.
 5. Smoke-Test des Installers in einer sauberen Windows-Umgebung.
 6. Restore-Test eines bestehenden Backups in der neuen Version.

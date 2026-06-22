@@ -2,7 +2,7 @@
 
 ND-Hub trennt Desktop und Web-Backend ueber einen klar definierten
 Sync-Vertrag. Diese Seite beschreibt die Mechanik aus dem
-Sync-Contract v1 fuer den Stand v0.42.
+Sync-Contract v1 fuer den Stand v0.5.
 
 ## Ziele
 

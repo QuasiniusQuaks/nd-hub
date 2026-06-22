@@ -2,12 +2,12 @@
 ; App Information
 AppId={{5F3A5D6A-72A2-4F74-983E-B2A88A3D9D42}
 AppName=ND-Hub
-AppVersion=0.42
+AppVersion=0.5
 AppPublisher=Dein Unternehmen
 DefaultDirName={autopf}\ND-Hub
 DefaultGroupName=ND-Hub
 OutputDir=.\Installer
-OutputBaseFilename=ND-Hub_V042_Setup
+OutputBaseFilename=ND-Hub_V05_Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64

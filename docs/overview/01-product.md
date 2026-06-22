@@ -47,7 +47,7 @@ Beide Loesungen verfolgen dasselbe Ziel:
 
 ## Produktstatus (aktuell)
 
-- **Aktuelle Version:** `v0.42`
+- **Aktuelle Version:** `v0.5`
 - **Bereitstellungsmodelle:** Desktop (lokal) und Web (zentral, containerfaehig)
 - **Datenbankstrategie:** SQLite und MariaDB unterstuetzt; MariaDB-Cutover
   und Smoke-Checks dokumentiert.

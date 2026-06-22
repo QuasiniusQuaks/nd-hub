@@ -2,8 +2,8 @@ import os
 import subprocess
 import sys
 
-APP_VERSION = "0.42"
-SETUP_SCRIPT = "setup_nd-hub-V042.iss"
+APP_VERSION = "0.5"
+SETUP_SCRIPT = "setup_nd-hub-V05.iss"
 
 print("="*50)
 print(f"ND-Hub V{APP_VERSION} - Windows PyInstaller Build Script")
