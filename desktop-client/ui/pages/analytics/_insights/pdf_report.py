@@ -191,7 +191,7 @@ class PDFReporter:
             kpis.append(["Zugänge (Vorperiode)", f"{trend['zugang_vorperiode']} EH"])
             kpis.append(["Veränderung", f"{trend['veraenderung_pct']:+.1f}%"])
         except Exception:
-            pass
+            logger.exception("KPI-Collection fehlgeschlagen")
 
         try:
             verfall = self.db.get_verfall_warnings(days=30)
@@ -235,6 +235,7 @@ class PDFReporter:
                 ])
             return data
         except Exception:
+            logger.exception("Tabelle-Collection fehlgeschlagen")
             return []
 
     def _collect_deviation_table(self) -> list[list[str]]:

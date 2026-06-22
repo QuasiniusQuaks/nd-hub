@@ -5,14 +5,10 @@ Issue #42 Phase 4 — Power-User.
 
 from __future__ import annotations
 
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parent))
-import _pyside6_stub  # noqa: F401
 
 from db_manager import Database
 

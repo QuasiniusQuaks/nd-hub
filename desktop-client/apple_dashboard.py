@@ -2,6 +2,7 @@
 Apple-Style Dashboard für ND-Hub
 """
 
+import logging
 from datetime import datetime
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -13,6 +14,8 @@ from responsive_widgets import FlowLayout, ResponsiveWidget
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 from ui.dialogs.verfall_detail_dialog import VerfallDetailDialog
 from verfall_widget import VerfallWidget
+
+logger = logging.getLogger(__name__)
 
 
 def create_card_widget():
@@ -601,7 +604,7 @@ class AppleDashboard(ResponsiveWidget):
         try:
             bewegungen_month = self.db.cur.execute(bewegungen_query, (current_month,)).fetchone()[0]
         except Exception:
-            # Fallback bei SQL-Fehler
+            logger.debug("Bewegungen-Month-Query fehlgeschlagen, verwende Fallback 0")
             bewegungen_month = 0
 
         # Kritische Bestände

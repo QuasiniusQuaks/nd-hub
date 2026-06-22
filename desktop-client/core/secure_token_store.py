@@ -197,7 +197,7 @@ class SecureTokenStore:
                 self._keyring_backend.delete_password(KEYRING_SERVICE, KEYRING_USER)
                 ok = True
             except Exception:
-                # password not found ist ok
+                logger.debug("Keyring entry not found, using fallback")
                 ok = True
         try:
             if os.path.exists(self.fallback_path):
