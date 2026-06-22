@@ -264,6 +264,34 @@ class Database:
         """)
         self.conn.commit()
 
+        # Analytics Saved Queries (Issue #42 Phase 4 — Custom SQL)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS analytics_saved_queries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                sql_text TEXT NOT NULL,
+                description TEXT,
+                created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                last_run TEXT
+            )
+        """)
+        self.conn.commit()
+
+        # Analytics Email-Schedule (Issue #42 Phase 4 — Email-Schedule)
+        self.cur.execute("""
+            CREATE TABLE IF NOT EXISTS analytics_email_schedule (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                report_type TEXT NOT NULL DEFAULT 'pdf',
+                recipients TEXT NOT NULL,
+                schedule TEXT NOT NULL DEFAULT 'weekly',
+                last_sent TEXT,
+                enabled INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now', 'localtime'))
+            )
+        """)
+        self.conn.commit()
+
         # Indizes für Performance (Phase 2 Optimierung)
         self.cur.execute("CREATE INDEX IF NOT EXISTS idx_bewegungen_depot ON bewegungen(depot_id)")
         self.cur.execute("CREATE INDEX IF NOT EXISTS idx_bewegungen_praeparat ON bewegungen(praeparat_id)")
@@ -2892,6 +2920,163 @@ class Database:
         """
         self.cur.execute(
             "DELETE FROM analytics_saved_views WHERE name = ?", (name,)
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Saved Queries CRUD (Issue #42 Phase 4 — Custom SQL)
+    # ─────────────────────────────────────────────────────────────────────
+
+    def save_query(self, name: str, sql_text: str, description: str = "") -> bool:
+        """Speichert eine Custom-SQL-Query (Upsert).
+
+        Args:
+            name: Eindeutiger Name.
+            sql_text: SQL-Statement (nur SELECT erlaubt).
+            description: Optionale Beschreibung.
+
+        Returns:
+            True bei Erfolg.
+        """
+        # Security: nur SELECT-Statements erlauben
+        stripped = sql_text.strip().upper()
+        if not stripped.startswith("SELECT") and not stripped.startswith("WITH"):
+            logger.warning("save_query: nur SELECT/WITH erlaubt, abgelehnt: %s", name)
+            return False
+
+        try:
+            self.cur.execute(
+                "INSERT INTO analytics_saved_queries (name, sql_text, description) VALUES (?, ?, ?)",
+                (name, sql_text, description),
+            )
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            self.cur.execute(
+                "UPDATE analytics_saved_queries SET sql_text = ?, description = ? WHERE name = ?",
+                (sql_text, description, name),
+            )
+            self.conn.commit()
+            return True
+        except Exception:
+            logger.exception("save_query fehlgeschlagen")
+            return False
+
+    def get_saved_queries(self) -> list[sqlite3.Row]:
+        """Lädt alle gespeicherten Queries."""
+        return self.cur.execute(
+            "SELECT id, name, sql_text, description, created_at, last_run "
+            "FROM analytics_saved_queries ORDER BY created_at DESC"
+        ).fetchall()
+
+    def get_saved_query(self, name: str) -> sqlite3.Row | None:
+        """Lädt eine spezifische Query nach Namen."""
+        return self.cur.execute(
+            "SELECT id, name, sql_text, description, created_at, last_run "
+            "FROM analytics_saved_queries WHERE name = ?",
+            (name,),
+        ).fetchone()
+
+    def delete_saved_query(self, name: str) -> bool:
+        """Löscht eine gespeicherte Query."""
+        self.cur.execute(
+            "DELETE FROM analytics_saved_queries WHERE name = ?", (name,)
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
+
+    def run_saved_query(self, name: str) -> tuple[list, list[str]]:
+        """Führt eine gespeicherte Query aus.
+
+        Returns:
+            Tuple (rows, column_names). Bei Fehler: ([], []).
+        """
+        row = self.get_saved_query(name)
+        if row is None:
+            return [], []
+
+        sql_text = row["sql_text"]
+        # Security-Check: nur SELECT
+        if not sql_text.strip().upper().startswith(("SELECT", "WITH")):
+            return [], []
+
+        try:
+            cursor = self.cur.execute(sql_text)
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            rows = cursor.fetchall()
+            # last_run aktualisieren
+            self.cur.execute(
+                "UPDATE analytics_saved_queries SET last_run = datetime('now', 'localtime') WHERE name = ?",
+                (name,),
+            )
+            self.conn.commit()
+            return rows, columns
+        except Exception:
+            logger.exception("run_saved_query fehlgeschlagen: %s", name)
+            return [], []
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Email-Schedule CRUD (Issue #42 Phase 4 — Email-Schedule)
+    # ─────────────────────────────────────────────────────────────────────
+
+    def save_email_schedule(
+        self, name: str, recipients: str, schedule: str = "weekly",
+        report_type: str = "pdf", enabled: bool = True,
+    ) -> bool:
+        """Speichert einen Email-Schedule für Analytics-Reports.
+
+        Args:
+            name: Name des Schedules.
+            recipients: Komma-getrennte Email-Adressen.
+            schedule: 'weekly' | 'monthly' | 'daily'.
+            report_type: 'pdf' | 'html'.
+            enabled: True wenn aktiv.
+
+        Returns:
+            True bei Erfolg.
+        """
+        try:
+            self.cur.execute(
+                "INSERT INTO analytics_email_schedule (name, recipients, schedule, report_type, enabled) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (name, recipients, schedule, report_type, 1 if enabled else 0),
+            )
+            self.conn.commit()
+            return True
+        except Exception:
+            logger.exception("save_email_schedule fehlgeschlagen")
+            return False
+
+    def get_email_schedules(self) -> list[sqlite3.Row]:
+        """Lädt alle Email-Schedules."""
+        return self.cur.execute(
+            "SELECT id, name, report_type, recipients, schedule, last_sent, enabled, created_at "
+            "FROM analytics_email_schedule ORDER BY created_at DESC"
+        ).fetchall()
+
+    def update_email_schedule_sent(self, schedule_id: int) -> bool:
+        """Aktualisiert last_sent nach erfolgreichem Versand."""
+        self.cur.execute(
+            "UPDATE analytics_email_schedule SET last_sent = datetime('now', 'localtime') WHERE id = ?",
+            (schedule_id,),
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
+
+    def delete_email_schedule(self, schedule_id: int) -> bool:
+        """Löscht einen Email-Schedule."""
+        self.cur.execute(
+            "DELETE FROM analytics_email_schedule WHERE id = ?", (schedule_id,)
+        )
+        self.conn.commit()
+        return self.cur.rowcount > 0
+
+    def toggle_email_schedule(self, schedule_id: int, enabled: bool) -> bool:
+        """Aktiviert/Deaktiviert einen Email-Schedule."""
+        self.cur.execute(
+            "UPDATE analytics_email_schedule SET enabled = ? WHERE id = ?",
+            (1 if enabled else 0, schedule_id),
         )
         self.conn.commit()
         return self.cur.rowcount > 0
