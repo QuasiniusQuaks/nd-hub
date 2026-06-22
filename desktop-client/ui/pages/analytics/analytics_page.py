@@ -26,6 +26,8 @@ from ._widgets.insights_panel import InsightsPanel
 from .tabs.tab_bestand import TabBestand
 from .tabs.tab_bewegungen import TabBewegungen
 from .tabs.tab_compliance import TabCompliance
+from .tabs.tab_email import TabEmailSchedule
+from .tabs.tab_sql import TabSqlEditor
 from .tabs.tab_verfall import TabVerfall
 
 logger = logging.getLogger(__name__)
@@ -84,11 +86,15 @@ class AnalyticsPage(QtWidgets.QWidget):
         self.tab_bewegungen = TabBewegungen(db, self.queries)
         self.tab_verfall = TabVerfall(db, self.queries)
         self.tab_compliance = TabCompliance(db, self.queries)
+        self.tab_sql = TabSqlEditor(db, self.queries)
+        self.tab_email = TabEmailSchedule(db, self.queries)
 
         self.tabs.addTab(self.tab_bestand, "📦 Bestand")
         self.tabs.addTab(self.tab_bewegungen, "🔄 Bewegungen")
         self.tabs.addTab(self.tab_verfall, "⏳ Verfall")
         self.tabs.addTab(self.tab_compliance, "🛡️ Compliance")
+        self.tabs.addTab(self.tab_sql, "🔍 SQL")
+        self.tabs.addTab(self.tab_email, "📧 Email")
         content_layout.addWidget(self.tabs)
 
         # Signal-Verkabelung
