@@ -39,7 +39,6 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -2065,38 +2064,19 @@ def create_app(db_path: str | None = None) -> FastAPI:
         )
         return {"status": "avatar_cleared"}
 
-    @app.post("/auth/logout")
-    def auth_logout(
-        session: SessionInfo = Depends(get_current_session),
-        credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    ) -> dict[str, str]:
-        _ = session
-        if credentials and credentials.credentials:
-            token_store.revoke(credentials.credentials)
-        return {"status": "logged_out"}
+    # ---- Auth-Router (Issue #60 — Modularisierung Proof-of-Concept) ----
+    from backend.routers.auth import create_auth_router
 
-    @app.post("/auth/change-password")
-    def auth_change_password(
-        payload: PasswordChangeRequest,
-        session: SessionInfo = Depends(get_current_session),
-    ) -> dict[str, str]:
-        user_row = security.cur.execute(
-            "SELECT id FROM users WHERE username = ?",
-            (session.username,),
-        ).fetchone()
-        if not user_row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden.")
-        ok, message = security.change_password(int(user_row[0]), payload.old_password, payload.new_password)
-        if not ok:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="user",
-            resource_id=int(user_row[0]),
-            details={"change": "password_self_service"},
-        )
-        return {"status": "password_changed"}
+    _auth_router = create_auth_router(
+        security=security,
+        token_store=token_store,
+        repository=repository,
+        get_current_session=get_current_session,
+        bearer_scheme=bearer_scheme,
+        session_info_class=SessionInfo,
+    )
+    app.include_router(_auth_router)
+    # ---- /Auth-Router ----
 
     @app.get("/users")
     def list_users(
