@@ -2073,7 +2073,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
         repository=repository,
         get_current_session=get_current_session,
         bearer_scheme=bearer_scheme,
-        session_info_class=SessionInfo,
     )
     app.include_router(_auth_router)
     # ---- /Auth-Router ----
