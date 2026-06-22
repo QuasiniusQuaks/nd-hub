@@ -17,11 +17,13 @@ def install_pyside6_stub() -> None:
     pyside6.QtWidgets = unittest.mock.MagicMock()
     pyside6.QtGui = unittest.mock.MagicMock()
     pyside6.QtNetwork = unittest.mock.MagicMock()
+    pyside6.QtSvg = unittest.mock.MagicMock()
     sys.modules["PySide6"] = pyside6
     sys.modules["PySide6.QtCore"] = pyside6.QtCore
     sys.modules["PySide6.QtWidgets"] = pyside6.QtWidgets
     sys.modules["PySide6.QtGui"] = pyside6.QtGui
     sys.modules["PySide6.QtNetwork"] = pyside6.QtNetwork
+    sys.modules["PySide6.QtSvg"] = pyside6.QtSvg
 
 
 # Auto-install beim Import

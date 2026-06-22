@@ -22,7 +22,7 @@ ignore = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["backend"]
+pythonpath = ["backend", ".."]
 testpaths = ["backend/tests"]
 addopts = "-q -m 'not performance' --cov=backend --cov-report=term-missing --cov-fail-under=30"
 markers = [
