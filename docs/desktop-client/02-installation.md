@@ -57,7 +57,7 @@ Fuer den klassischen Endkundenkanal wird der Desktop Client als
 Windows-Installer ausgeliefert:
 
 1. PyInstaller-Build (`build_windows_exe.py`) erzeugt `dist/ND-Hub/`.
-2. Inno Setup kompiliert anschliessend `setup_nd-hub-V042.iss` zum Installer.
+2. Inno Setup kompiliert anschliessend `setup_nd-hub-V05.iss` zum Installer.
 
 Mehr Details siehe [Build & Distribution](06-build-and-distribution.md).
 

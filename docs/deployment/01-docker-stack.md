@@ -1,7 +1,7 @@
 # Docker-Stack
 
 Diese Seite beschreibt den **tatsaechlichen aktuellen Deployment-Stand**
-der Webanwendung mit Docker. **Produktdokumentation:** v0.42; **ndhub-web**
+der Webanwendung mit Docker. **Produktdokumentation:** v0.5; **ndhub-web**
 (FastAPI- und npm-Packageversion): **0.1.1**.
 
 ## Topologie

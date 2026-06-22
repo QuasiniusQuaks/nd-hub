@@ -8,4 +8,4 @@ Dokumente:
 - [Parity-Matrix](02-parity-matrix.md) - konsolidierte Funktions-
   Paritaet zwischen Desktop und Web.
 - [Release Notes](03-release-notes.md) - Releaseuebersicht inkl.
-  v0.42.
+  v0.5.

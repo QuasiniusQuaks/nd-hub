@@ -1,10 +1,42 @@
 # Release Notes
 
 Diese Seite buendelt die Releaseuebersicht von ND-Hub auf den
-aktuellen Stand v0.42 (ndhub-web **0.1.1**) und gibt eine Kurzfassung der wesentlichen
+aktuellen Stand v0.5 (ndhub-web **0.1.1**) und gibt eine Kurzfassung der wesentlichen
 Aenderungen.
 
-## v0.42 (aktuell)
+## v0.5 (aktuell)
+
+### Highlights
+
+- **Analytics Control Center** — kompletter Umbau des Analyse-Bereichs
+  von 1374-Zeilen-Monolith zu modularem Kontrollzentrum (34 Module).
+- Insight-Banner mit 4 Smart-Cards + Auto-Insights (3 NL-Bullet-Points).
+- 6-Tab-Cluster: Bestand, Bewegungen, Verfall, Compliance, Custom-SQL, Email-Schedule.
+- Interaktive Charts (Heatmap, RankingBar, ForecastBand) mit Hover-Tooltips
+  und Click-to-Drill.
+- Cross-Filter: Klick auf Chart-Element filtert alle Tabs.
+- Vergleichs-Modus (vs. Vorjahr) + Saved Views + Layout-Persistenz.
+- Anomalie-Detection (Z-Score mit Farb-Highlight).
+- HTML-Export (self-contained, Chart.js) + PDF-Report (ReportLab, Apple-Health-Style).
+- Custom-SQL-Editor mit Saved-Queries-Bibliothek (Security: nur SELECT/WITH).
+- Email-Schedule (daily/weekly/monthly, PDF/HTML).
+
+### Architektur
+
+- 16 neue DB-Methoden in `db_manager.py` für Analytics-Queries.
+- 3 neue SQLite-Tabellen: `analytics_saved_views`, `analytics_saved_queries`, `analytics_email_schedule`.
+- 84 neue Tests (alle grün), ruff clean, 0 SyntaxErrors.
+- Alte `page_auswertungen.py` → 15-Zeilen-Shim (rückwärtskompatibel).
+
+### Security (aus Audit-Welle 2, nachgetragen)
+
+- Timing-Attacke auf Web-Passwort-Vergleich behoben (`hmac.compare_digest`).
+- CORS + TrustedHost + Security-Header Middleware im FastAPI-Backend.
+- Login Rate-Limit / Lockout via slowapi.
+- Auth-Worker für Passwort-Verifikation (UI-Thread-Entkopplung).
+- 518 ruff-Lint-Errors auf 0 reduziert.
+
+## v0.42
 
 ### Highlights
 
@@ -79,3 +111,4 @@ Aenderungen.
 - v0.40 - MariaDB-Repository (Beta).
 - v0.41 - Dual-Write-Modus, gehaertete Admin-Pfade.
 - v0.42 - Enterprise-Doku, Hybrid-Sync v1, Acceptance-Suite-Konsolidierung.
+- v0.5 - Analytics Control Center (4 Phasen), Audit-Welle 2 Security-Fixes, 84 neue Tests.

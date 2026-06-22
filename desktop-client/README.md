@@ -1,4 +1,4 @@
-# ND-Hub – Enterprise Edition v0.42
+# ND-Hub – Enterprise Edition v0.5
 
 ND-Hub ist eine professionelle Apotheken-Verwaltungssoftware, die für höchste Stabilität, Sicherheit und Benutzerfreundlichkeit entwickelt wurde. Diese Dokumentation beschreibt die Enterprise-Hardening-Maßnahmen und die Software-Architektur.
 

@@ -1,4 +1,4 @@
-# ND-Hub Backend (MVP / Doku v0.42, Web-Release 0.1.1)
+# ND-Hub Backend (MVP / Doku v0.5, Web-Release 0.1.1)
 
 FastAPI backend fuer ND-Hub Web mit SQLite- und MariaDB-Betriebsmodus.
 

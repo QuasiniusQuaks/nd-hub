@@ -78,7 +78,7 @@ die wichtigsten Inhalte aus dem Projektplan
 flowchart LR
     sprintMig["Sprint MariaDB-Cutover"] --> sprintSync["Sprint Hybrid-Sync v1"]
     sprintSync --> sprintQuality["Sprint Stability/Acceptance"]
-    sprintQuality --> sprintDoc["Sprint Enterprise-Doku (v0.42)"]
+    sprintQuality --> sprintDoc["Sprint Enterprise-Doku (v0.5)"]
     sprintDoc --> sprintNext["Naechste Sprints (Roadmap)"]
 ```
 

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/Version-v0.42%20%7C%20ndhub--web%200.1.1-1f6feb" />
+  <img alt="Version" src="https://img.shields.io/badge/Version-v0.5%20%7C%20ndhub--web%200.1.1-1f6feb" />
   <img alt="Produkte" src="https://img.shields.io/badge/Produkte-Desktop%20%2B%20Web-0a7f5a" />
   <img alt="Technologie" src="https://img.shields.io/badge/Stack-PySide6%20%7C%20FastAPI%20%7C%20React-6f42c1" />
   <a href="https://github.com/QuasiniusQuaks/nd-hub/pkgs/container/nd-hub"><img alt="Container" src="https://img.shields.io/badge/ghcr.io-nd--hub-2496ed?logo=github" /></a>
@@ -69,7 +69,7 @@ Beide Loesungen verfolgen dasselbe Ziel: **betriebliche Sicherheit erhoehen, man
 
 ### Produktstatus (aktuell)
 
-- **Aktuelle Version (Dokumentation / Desktop-Linie):** `v0.42`
+- **Aktuelle Version (Dokumentation / Desktop-Linie):** `v0.5`
 - **ndhub-web (FastAPI + npm-Package):** `0.1.1`
 - **Bereitstellungsmodelle:** Desktop (lokal) und Web (zentral/containerfaehig)
 - **Schwerpunkt:** Stabiler operativer Betrieb, Sicherheit und fachliche Nachvollziehbarkeit
@@ -103,6 +103,10 @@ Die Desktopanwendung (PySide6) richtet sich an Teams, die ein robustes, lokales 
 - Verfallmanagement mit Fristenfokus und Fruehwarnlogik.
 - E-Mail-Funktionen mit Empfaenger-Vorschau und Verlauf.
 - Berichte und Exporte (CSV/PDF/PPTX) fuer Fachbereich und Management.
+- **Analytics Control Center** (v0.5): interaktives Kontrollzentrum mit
+  Insight-Banner, Auto-Insights, 6-Tab-Cluster (Bestand, Bewegungen, Verfall,
+  Compliance, Custom-SQL, Email-Schedule), Hover-Tooltips, Cross-Filter,
+  Saved Views, HTML/PDF-Export und Anomalie-Detection.
 - Audit-Logs fuer Nachvollziehbarkeit relevanter Aktionen.
 - Backup/Restore-Funktionen fuer Datensicherung und Wiederherstellung.
 - Setup-Wizard fuer strukturierte Erstkonfiguration.

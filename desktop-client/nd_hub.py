@@ -46,7 +46,7 @@ from ui.resources import LOGO_BASE64
 from verfallmanager import VerfallManager
 
 # Versionsnummer
-VERSION = "0.42"
+VERSION = "0.5"
 
 # =============================================================================
 # NEUE KOMPONENTEN in v1.0
