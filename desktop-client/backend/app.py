@@ -16,7 +16,9 @@ from datetime import date, datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -780,6 +782,50 @@ def create_app(db_path: str | None = None) -> FastAPI:
     app.state.backups_dir = backups_dir
     app.state.auto_backup_hours = auto_backup_hours
 
+    # ---- Security-Middleware (Issue #68 — Port aus Web-Backend) ----
+    # 1) TrustedHost: blockiert Host-Header-Injection
+    _allowed_hosts_raw = os.environ.get("ND_HUB_ALLOWED_HOSTS", "*").strip()
+    if _allowed_hosts_raw == "*":
+        _allowed_hosts = ["*"]
+    else:
+        _allowed_hosts = [h.strip() for h in _allowed_hosts_raw.split(",") if h.strip()]
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
+
+    # 2) CORS: restriktiver Default (leere allow_origins)
+    _cors_raw = os.environ.get("ND_HUB_CORS_ORIGINS", "").strip()
+    _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()] if _cors_raw else []
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
+    )
+
+    # 3) Security-Header auf jede Response
+    @app.middleware("http")
+    async def _security_headers_middleware(request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.url.scheme == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=63072000; includeSubDomains",
+            )
+        return response
+    # ---- /Security-Middleware ----
+
+    # ---- Login-Rate-Limit (Issue #68 — Port aus Web-Backend) ----
+    import threading as _threading
+
+    app.state.login_lockout_state: dict[str, tuple[int, float]] = {}
+    app.state.login_lockout_lock = _threading.Lock()
+    app.state.login_max_fails = int(os.environ.get("ND_HUB_LOGIN_MAX_FAILS", "10"))
+    app.state.login_lockout_seconds = int(os.environ.get("ND_HUB_LOGIN_LOCKOUT_SECONDS", "900"))
+    # ---- /Login-Rate-Limit ----
+
     app.mount(
         "/web",
         StaticFiles(directory=app.state.web_dir, html=False),
@@ -795,14 +841,45 @@ def create_app(db_path: str | None = None) -> FastAPI:
         return {"status": "ok"}
 
     @app.post("/auth/login", response_model=LoginResponse)
-    def login(payload: LoginRequest) -> LoginResponse:
-        ok, _message = security.authenticate(payload.username.strip(), payload.password)
+    def login(payload: LoginRequest, request: Request) -> LoginResponse:
+        # ---- Login-Lockout (Issue #68) ----
+        username = payload.username.strip()
+        with app.state.login_lockout_lock:
+            _state = app.state.login_lockout_state
+            import time as _time
+            now = _time.time()
+            if username in _state:
+                fails, lockout_until = _state[username]
+                if lockout_until > now:
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail="Account temporär gesperrt. Bitte später erneut versuchen.",
+                    )
+
+        ok, _message = security.authenticate(username, payload.password)
         if not ok:
+            # Fehlversuch registrieren
+            with app.state.login_lockout_lock:
+                import time as _time
+                now = _time.time()
+                if username in _state:
+                    fails, _lockout = _state[username]
+                else:
+                    fails = 0
+                fails += 1
+                if fails >= app.state.login_max_fails:
+                    _state[username] = (fails, now + app.state.login_lockout_seconds)
+                else:
+                    _state[username] = (fails, 0.0)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Benutzername oder Passwort ungueltig.",
             )
-        username = security.get_current_user() or payload.username
+
+        # Erfolg → Lockout-Counter zurücksetzen
+        with app.state.login_lockout_lock:
+            _state.pop(username, None)
+
         user_flags = _get_user_flags(security, username)
         token = token_store.issue(
             username=username,
