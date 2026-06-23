@@ -259,7 +259,7 @@ class TestDatabaseKpiQueries:
         )
         bewegungen_query = (
             "SELECT COUNT(*) FROM bewegungen "
-            "WHERE strftime('%Y-%m', COALESCE(eingang_datum, ausgangsdatum)) = ?"
+            "WHERE strftime('%Y-%m', COALESCE(eingang_datum, ausgang_datum)) = ?"
         )
         count = db.cur.execute(bewegungen_query, (current_month,)).fetchone()[0]
         assert count == 1
