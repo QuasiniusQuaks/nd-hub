@@ -892,19 +892,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
             permissions=user_flags["permissions"],
         )
 
-    @app.get("/auth/me")
-    def auth_me(session: SessionInfo = Depends(get_current_session)) -> dict[str, object]:
-        user_flags = _get_user_flags(security, session.username)
-        avatar_path = _get_avatar_path_for_user(security, session.username)
-        return {
-            "username": session.username,
-            "role": session.role,
-            "expires_at": session.expires_at.isoformat(),
-            "requires_password_change": user_flags["requires_password_change"],
-            "permissions": user_flags["permissions"],
-            "avatar_available": avatar_path is not None,
-        }
-
     @app.get("/permissions/catalog")
     def permissions_catalog(
         session: SessionInfo = Depends(get_current_session),
@@ -916,368 +903,51 @@ def create_app(db_path: str | None = None) -> FastAPI:
             "templates": PERMISSION_TEMPLATES,
         }
 
-    @app.get("/auth/activity")
-    def auth_activity(
-        limit: int = 50,
-        session: SessionInfo = Depends(get_current_session),
-    ) -> list[dict]:
-        safe_limit = max(1, min(int(limit), 200))
-        user_row = security.cur.execute(
-            "SELECT id FROM users WHERE username = ?",
-            (session.username,),
-        ).fetchone()
-        if not user_row:
-            return []
-        rows = security.get_activity_log(user_id=int(user_row[0]), limit=safe_limit)
-        result: list[dict] = []
-        for row in rows:
-            result.append(
-                {
-                    "id": int(row[0]),
-                    "username": str(row[1]),
-                    "action": str(row[2]),
-                    "details": str(row[3] or ""),
-                    "timestamp": str(row[4]),
-                }
-            )
-        return result
+    # ---- Shared routers (Issues #60/#61/#65) ----
+    from backend.routers.auth import create_auth_router
+    from backend.routers.users import create_users_router
+    from backend.routers.depots import create_depots_router
 
-    @app.get("/auth/avatar")
-    def auth_avatar(
-        session: SessionInfo = Depends(get_current_session),
-    ) -> FileResponse:
-        avatar_path = _get_avatar_path_for_user(security, session.username)
-        if avatar_path is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kein Profilbild vorhanden.")
-        return FileResponse(path=avatar_path)
-
-    @app.post("/auth/avatar")
-    def upload_auth_avatar(
-        file: UploadFile = File(...),
-        session: SessionInfo = Depends(get_current_session),
-    ) -> dict[str, str]:
-        filename = (file.filename or "").strip()
-        if not filename:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dateiname fehlt.")
-        suffix = Path(filename).suffix.lower()
-        if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".bmp"}:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nur PNG/JPG/JPEG/WEBP/BMP sind erlaubt.",
-            )
-        user_row = security.cur.execute(
-            "SELECT id FROM users WHERE username = ?",
-            (session.username,),
-        ).fetchone()
-        if not user_row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden.")
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-            file.file.seek(0)
-            shutil.copyfileobj(file.file, tmp)
-        try:
-            security.current_user = session.username
-            security.current_role = session.role
-            ok, message = security.set_user_avatar(int(user_row[0]), str(tmp_path))
-        finally:
-            tmp_path.unlink(missing_ok=True)
-        if not ok:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="user",
-            resource_id=int(user_row[0]),
-            details={"change": "avatar_upload"},
-        )
-        return {"status": "avatar_saved"}
-
-    @app.delete("/auth/avatar")
-    def clear_auth_avatar(
-        session: SessionInfo = Depends(get_current_session),
-    ) -> dict[str, str]:
-        user_row = security.cur.execute(
-            "SELECT id FROM users WHERE username = ?",
-            (session.username,),
-        ).fetchone()
-        if not user_row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden.")
-        security.current_user = session.username
-        security.current_role = session.role
-        ok, message = security.clear_user_avatar(int(user_row[0]))
-        if not ok:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="user",
-            resource_id=int(user_row[0]),
-            details={"change": "avatar_clear"},
-        )
-        return {"status": "avatar_cleared"}
-
-    # ---- Auth-Router (Issue #61 — Modularisierung Proof-of-Concept) ----
-    from backend.routers.auth import create_auth_router as _create_desktop_auth_router
-
-    _auth_router = _create_desktop_auth_router(
+    _auth_router = create_auth_router(
         security=security,
         token_store=token_store,
         repository=repository,
         get_current_session=get_current_session,
         bearer_scheme=bearer_scheme,
+        password_change_model=PasswordChangeRequest,
+        get_user_flags=_get_user_flags,
+        get_avatar_path_for_user=_get_avatar_path_for_user,
+        enrich_me=None,
     )
     app.include_router(_auth_router)
-    # ---- /Auth-Router ----
 
-    @app.get("/users")
-    def list_users(
-        session: SessionInfo = Depends(require_permission("users_manage")),
-    ) -> list[dict]:
-        _ = session
-        return [_normalize_user_row(row) for row in security.list_users()]
+    _users_router = create_users_router(
+        security=security,
+        repository=repository,
+        require_permission=require_permission,
+        normalize_user_row=_normalize_user_row,
+        permissions_json_for_storage=_permissions_json_for_storage,
+        allowed_user_roles=ALLOWED_USER_ROLES,
+        hash_password=SecurityManager.hash_password,
+        user_create_model=UserCreateRequest,
+        user_update_model=UserUpdateRequest,
+        user_password_reset_model=UserPasswordResetRequest,
+        include_depot_permissions=False,
+    )
+    app.include_router(_users_router)
 
-    @app.get("/users/{user_id}/activity")
-    def list_user_activity(
-        user_id: int,
-        limit: int = 100,
-        session: SessionInfo = Depends(require_permission("users_manage")),
-    ) -> list[dict]:
-        _ = session
-        safe_limit = max(1, min(int(limit), 500))
-        rows = security.get_activity_log(user_id=int(user_id), limit=safe_limit)
-        result: list[dict] = []
-        for row in rows:
-            result.append(
-                {
-                    "id": int(row[0]),
-                    "username": str(row[1]),
-                    "action": str(row[2]),
-                    "details": str(row[3] or ""),
-                    "timestamp": str(row[4]),
-                }
-            )
-        return result
-
-    @app.post("/users", status_code=status.HTTP_201_CREATED)
-    def create_user(
-        payload: UserCreateRequest,
-        session: SessionInfo = Depends(require_permission("users_manage")),
-    ) -> dict:
-        _ = session
-        safe_username = payload.username.strip()
-        if not safe_username:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Benutzername darf nicht leer sein.")
-        safe_role = payload.role.strip()
-        if safe_role not in ALLOWED_USER_ROLES:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ungueltige Rolle.")
-        exists = security.cur.execute(
-            "SELECT id FROM users WHERE username = ?",
-            (safe_username,),
-        ).fetchone()
-        if exists:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Benutzername existiert bereits.")
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        password_hash = SecurityManager.hash_password(payload.password)
-        permissions_json = _permissions_json_for_storage(safe_role, payload.permissions)
-        security.cur.execute(
-            """
-            INSERT INTO users (username, password_hash, role, email, created_at, is_active, is_default_password, permissions)
-            VALUES (?, ?, ?, ?, ?, ?, 0, ?)
-            """,
-            (
-                safe_username,
-                password_hash,
-                safe_role,
-                (payload.email or "").strip() or None,
-                now,
-                1 if payload.is_active else 0,
-                permissions_json,
-            ),
-        )
-        security.conn.commit()
-        user_id = int(security.cur.lastrowid)
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="user",
-            resource_id=user_id,
-            details={"username": safe_username, "role": safe_role},
-        )
-        row = security.cur.execute(
-            """
-            SELECT id, username, role, email, created_at, last_login, is_active, failed_attempts, locked_until, is_default_password, permissions
-            FROM users
-            WHERE id = ?
-            """,
-            (user_id,),
-        ).fetchone()
-        return _normalize_user_row(row)
-
-    @app.put("/users/{user_id}")
-    def update_user(
-        user_id: int,
-        payload: UserUpdateRequest,
-        session: SessionInfo = Depends(require_permission("users_manage")),
-    ) -> dict:
-        _ = session
-        row = security.cur.execute(
-            "SELECT id, username, role, is_active FROM users WHERE id = ?",
-            (int(user_id),),
-        ).fetchone()
-        if not row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden.")
-        updates: list[str] = []
-        params: list[object] = []
-        if payload.username is not None:
-            safe_username = payload.username.strip()
-            if not safe_username:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Benutzername darf nicht leer sein.")
-            duplicate = security.cur.execute(
-                "SELECT id FROM users WHERE username = ? AND id != ?",
-                (safe_username, int(user_id)),
-            ).fetchone()
-            if duplicate:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Benutzername existiert bereits.")
-            updates.append("username = ?")
-            params.append(safe_username)
-        if payload.role is not None:
-            safe_role = payload.role.strip()
-            if safe_role not in ALLOWED_USER_ROLES:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ungueltige Rolle.")
-            updates.append("role = ?")
-            params.append(safe_role)
-        if payload.email is not None:
-            updates.append("email = ?")
-            params.append((payload.email or "").strip() or None)
-        if payload.permissions is not None:
-            effective_role = payload.role.strip() if payload.role else str(row[2])
-            updates.append("permissions = ?")
-            params.append(_permissions_json_for_storage(effective_role, payload.permissions))
-        if payload.is_active is not None:
-            current_role = str(row[2])
-            if current_role == "Admin" and payload.is_active is False:
-                admin_count = security.cur.execute(
-                    "SELECT COUNT(*) FROM users WHERE role = 'Admin' AND is_active = 1",
-                ).fetchone()[0]
-                if int(admin_count) <= 1:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Letzter aktiver Admin darf nicht deaktiviert werden.")
-            updates.append("is_active = ?")
-            params.append(1 if payload.is_active else 0)
-        if not updates:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Keine Änderungen angegeben.")
-        params.append(int(user_id))
-        # SET clauses are hardcoded "<column> = ?" strings from an explicit
-        # allow-list; only the values are parameterized and user-controlled.
-        security.cur.execute(
-            f"UPDATE users SET {', '.join(updates)} WHERE id = ?",  # nosec B608
-            tuple(params),
-        )
-        security.conn.commit()
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="user",
-            resource_id=int(user_id),
-            details={"updated_fields": updates},
-        )
-        refreshed = security.cur.execute(
-            """
-            SELECT id, username, role, email, created_at, last_login, is_active, failed_attempts, locked_until, is_default_password, permissions
-            FROM users
-            WHERE id = ?
-            """,
-            (int(user_id),),
-        ).fetchone()
-        return _normalize_user_row(refreshed)
-
-    @app.delete("/users/{user_id}")
-    def delete_user(
-        user_id: int,
-        session: SessionInfo = Depends(require_permission("users_manage")),
-    ) -> dict[str, int | str]:
-        _ = session
-        row = security.cur.execute(
-            "SELECT id, username, role, is_active FROM users WHERE id = ?",
-            (int(user_id),),
-        ).fetchone()
-        if not row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden.")
-        if str(row[1]) == session.username:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sie können sich nicht selbst löschen.")
-        if str(row[2]) == "Admin" and int(row[3]) == 1:
-            admin_count = security.cur.execute(
-                "SELECT COUNT(*) FROM users WHERE role = 'Admin' AND is_active = 1",
-            ).fetchone()[0]
-            if int(admin_count) <= 1:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Letzter aktiver Admin darf nicht gelöscht werden.")
-        security.cur.execute("DELETE FROM users WHERE id = ?", (int(user_id),))
-        security.conn.commit()
-        repository.log_audit(
-            username=session.username,
-            action="delete",
-            resource_type="user",
-            resource_id=int(user_id),
-            details={"username": row[1]},
-        )
-        return {"id": int(user_id), "status": "deleted"}
-
-    @app.post("/users/{user_id}/reset-password")
-    def reset_user_password(
-        user_id: int,
-        payload: UserPasswordResetRequest,
-        session: SessionInfo = Depends(require_permission("users_manage")),
-    ) -> dict[str, int | str]:
-        _ = session
-        row = security.cur.execute(
-            "SELECT id, username FROM users WHERE id = ?",
-            (int(user_id),),
-        ).fetchone()
-        if not row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden.")
-        new_hash = SecurityManager.hash_password(payload.new_password)
-        security.cur.execute(
-            """
-            UPDATE users
-            SET password_hash = ?, failed_attempts = 0, locked_until = NULL, is_default_password = 1
-            WHERE id = ?
-            """,
-            (new_hash, int(user_id)),
-        )
-        security.conn.commit()
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="user",
-            resource_id=int(user_id),
-            details={"change": "password_reset"},
-        )
-        return {"id": int(user_id), "status": "password_reset"}
-
-    @app.post("/users/{user_id}/unlock")
-    def unlock_user(
-        user_id: int,
-        session: SessionInfo = Depends(require_permission("users_manage")),
-    ) -> dict[str, int | str]:
-        _ = session
-        row = security.cur.execute(
-            "SELECT id FROM users WHERE id = ?",
-            (int(user_id),),
-        ).fetchone()
-        if not row:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benutzer nicht gefunden.")
-        security.cur.execute(
-            "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?",
-            (int(user_id),),
-        )
-        security.conn.commit()
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="user",
-            resource_id=int(user_id),
-            details={"change": "unlock"},
-        )
-        return {"id": int(user_id), "status": "unlocked"}
+    _depots_router = create_depots_router(
+        repository=repository,
+        require_permission=require_permission,
+        depot_upsert_model=DepotUpsertRequest,
+        depot_assignments_update_model=DepotAssignmentsUpdateRequest,
+        kontakt_upsert_model=KontaktUpsertRequest,
+        ensure_depot_access=None,
+        resolve_list_allowed_ids=None,
+        include_geo_fields=False,
+    )
+    app.include_router(_depots_router)
+    # ---- /Shared routers ----
 
     @app.get("/admin/backup/list")
     def list_backups(
@@ -1410,88 +1080,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
             "message": "Backup erfolgreich wiederhergestellt. Bitte neu anmelden.",
         }
 
-    @app.get("/depots")
-    def list_depots(
-        q: str = "",
-        limit: int = 100,
-        offset: int = 0,
-        session: SessionInfo = Depends(require_permission("masterdata_read")),
-    ) -> list[dict]:
-        _ = session
-        return repository.list_depots(q=q, limit=limit, offset=offset)
-
-    @app.post("/depots", status_code=status.HTTP_201_CREATED)
-    def create_depot(
-        payload: DepotUpsertRequest,
-        session: SessionInfo = Depends(require_permission("masterdata_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            new_id = repository.create_depot(
-                name=payload.name,
-                adresse=payload.adresse,
-                telefon=payload.telefon,
-                email=payload.email,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="depot",
-            resource_id=new_id,
-            details={"name": payload.name},
-        )
-        return {"id": new_id, "status": "created"}
-
-    @app.put("/depots/{depot_id}")
-    def update_depot(
-        depot_id: int,
-        payload: DepotUpsertRequest,
-        session: SessionInfo = Depends(require_permission("masterdata_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            changed = repository.update_depot(
-                depot_id=depot_id,
-                name=payload.name,
-                adresse=payload.adresse,
-                telefon=payload.telefon,
-                email=payload.email,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        if not changed:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Depot nicht gefunden.")
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="depot",
-            resource_id=depot_id,
-            details={"name": payload.name},
-        )
-        return {"id": depot_id, "status": "updated"}
-
-    @app.delete("/depots/{depot_id}")
-    def delete_depot(
-        depot_id: int,
-        session: SessionInfo = Depends(require_permission("masterdata_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            changed = repository.delete_depot(depot_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        if not changed:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Depot nicht gefunden.")
-        repository.log_audit(
-            username=session.username,
-            action="delete",
-            resource_type="depot",
-            resource_id=depot_id,
-        )
-        return {"id": depot_id, "status": "deleted"}
-
     @app.get("/praeparate")
     def list_praeparate(
         q: str = "",
@@ -1501,45 +1089,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
     ) -> list[dict]:
         _ = session
         return repository.list_praeparate(q=q, limit=limit, offset=offset)
-
-    @app.get("/depots/{depot_id}/praeparate")
-    def list_praeparate_for_depot(
-        depot_id: int,
-        session: SessionInfo = Depends(require_permission("masterdata_read")),
-    ) -> list[dict]:
-        _ = session
-        return repository.list_praeparate_for_depot(depot_id)
-
-    @app.get("/depots/{depot_id}/zuordnungen")
-    def list_depot_assignments(
-        depot_id: int,
-        session: SessionInfo = Depends(require_permission("settings_read")),
-    ) -> list[dict]:
-        _ = session
-        return repository.list_depot_assignments(depot_id)
-
-    @app.put("/depots/{depot_id}/zuordnungen")
-    def update_depot_assignments(
-        depot_id: int,
-        payload: DepotAssignmentsUpdateRequest,
-        session: SessionInfo = Depends(require_permission("settings_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            repository.set_depot_assignments(
-                depot_id=depot_id,
-                assignments=[item.model_dump() for item in payload.assignments],
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="depot",
-            resource_id=depot_id,
-            details={"assignments_count": len(payload.assignments)},
-        )
-        return {"id": depot_id, "status": "assignments_updated"}
 
     @app.post("/praeparate", status_code=status.HTTP_201_CREATED)
     def create_praeparat(
@@ -1601,40 +1150,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
             resource_id=praeparat_id,
         )
         return {"id": praeparat_id, "status": "deleted"}
-
-    @app.get("/depots/{depot_id}/kontakte")
-    def list_kontakte_for_depot(
-        depot_id: int,
-        session: SessionInfo = Depends(require_permission("settings_read")),
-    ) -> list[dict]:
-        _ = session
-        return repository.list_kontakte(depot_id)
-
-    @app.post("/depots/{depot_id}/kontakte", status_code=status.HTTP_201_CREATED)
-    def create_kontakt_for_depot(
-        depot_id: int,
-        payload: KontaktUpsertRequest,
-        session: SessionInfo = Depends(require_permission("settings_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            kontakt_id = repository.create_kontakt(
-                depot_id=depot_id,
-                name=payload.name,
-                rolle=payload.rolle,
-                telefon=payload.telefon,
-                email=payload.email,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="kontakt",
-            resource_id=kontakt_id,
-            details={"depot_id": depot_id, "name": payload.name},
-        )
-        return {"id": kontakt_id, "status": "created"}
 
     @app.put("/kontakte/{kontakt_id}")
     def update_kontakt(
