@@ -4,7 +4,7 @@ import sqlite3
 
 from fastapi.testclient import TestClient
 
-import backend.app as app_module
+import backend.helpers as helpers_module
 from backend.app import create_app
 
 
@@ -61,7 +61,7 @@ def test_email_send_now_uses_smtp_when_configured(monkeypatch, tmp_path):
     def _fake_send(*_args, **_kwargs):
         return {"sent_count": 1, "rejected_recipients": []}
 
-    monkeypatch.setattr(app_module, "_send_email_via_smtp", _fake_send)
+    monkeypatch.setattr(helpers_module, "_send_email_via_smtp", _fake_send)
 
     create_response = client.post(
         "/emails/drafts",
@@ -97,7 +97,7 @@ def test_email_send_now_failure_keeps_draft(monkeypatch, tmp_path):
     def _fake_send_fail(*_args, **_kwargs):
         raise RuntimeError("SMTP down")
 
-    monkeypatch.setattr(app_module, "_send_email_via_smtp", _fake_send_fail)
+    monkeypatch.setattr(helpers_module, "_send_email_via_smtp", _fake_send_fail)
 
     create_response = client.post(
         "/emails/drafts",
