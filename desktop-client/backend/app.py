@@ -1035,202 +1035,47 @@ def create_app(db_path: str | None = None) -> FastAPI:
         )
     )
 
-    # ---- /Shared routers ----
 
-    @app.get("/admin/backup/list")
-    def list_backups(
-        limit: int = 200,
-        session: SessionInfo = Depends(require_permission("backup_manage")),
-    ) -> dict:
-        _ = session
-        rows = _list_backup_files(backups_dir, limit=limit)
-        return {"rows": rows, "auto_backup_hours": auto_backup_hours}
+    from backend.routers.emails import create_emails_router
+    from backend.routers.admin_backup import create_admin_backup_router
 
-    @app.post("/admin/backup/create")
-    def create_backup(
-        session: SessionInfo = Depends(require_permission("backup_manage")),
-    ) -> dict:
-        _ = session
-        backup_path = _create_backup_snapshot(source_db_path, backups_dir, "manual")
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="backup",
-            details={"operation": "manual", "filename": backup_path.name},
-        )
-        stat = backup_path.stat()
-        return {
-            "filename": backup_path.name,
-            "size_bytes": int(stat.st_size),
-            "created_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-        }
-
-    @app.get("/admin/backup/download")
-    def download_backup(
-        session: SessionInfo = Depends(require_permission("backup_manage")),
-    ) -> FileResponse:
-        _ = session
-        backup_path = _create_backup_snapshot(source_db_path, backups_dir, "manual")
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="backup",
-            details={"operation": "manual_download", "filename": backup_path.name},
-        )
-        return FileResponse(
-            path=backup_path,
-            filename=backup_path.name,
-            media_type="application/octet-stream",
-        )
-
-    @app.get("/admin/backup/download/{filename}")
-    def download_backup_file(
-        filename: str,
-        session: SessionInfo = Depends(require_permission("backup_manage")),
-    ) -> FileResponse:
-        _ = session
-        safe_name = Path(filename).name
-        backup_path = backups_dir / safe_name
-        if not backup_path.exists() or not backup_path.is_file():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Backup-Datei nicht gefunden.")
-        return FileResponse(
-            path=backup_path,
-            filename=safe_name,
-            media_type="application/octet-stream",
-        )
-
-    @app.post("/admin/backup/restore")
-    def restore_backup(
-        file: UploadFile = File(...),
-        session: SessionInfo = Depends(require_permission("backup_manage")),
-    ) -> dict[str, str]:
+    def _close_security():
         nonlocal security
-        nonlocal token_store
-        _ = session
-        filename = (file.filename or "").strip().lower()
-        if not filename.endswith((".db", ".sqlite", ".sqlite3")):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nur Backup-Dateien mit Endung .db/.sqlite/.sqlite3 sind erlaubt.",
-            )
-        db_target_path = Path(database_path).resolve()
-        temp_restore_path = db_target_path.with_name(f"{db_target_path.stem}.restore_tmp{db_target_path.suffix}")
-        file.file.seek(0)
-        with temp_restore_path.open("wb") as temp_out:
-            shutil.copyfileobj(file.file, temp_out)
-        try:
-            with sqlite3.connect(str(temp_restore_path)) as conn:
-                required = {"users", "depots", "praeparate", "bewegungen"}
-                rows = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'",
-                ).fetchall()
-                present = {str(row[0]) for row in rows}
-                if not required.issubset(present):
-                    missing = ", ".join(sorted(required - present))
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Backup ungueltig, fehlende Tabellen: {missing}",
-                    )
-        except HTTPException:
-            temp_restore_path.unlink(missing_ok=True)
-            raise
-        except Exception as exc:
-            temp_restore_path.unlink(missing_ok=True)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Backup-Datei konnte nicht validiert werden: {exc}",
-            ) from exc
+        security.close()
 
-        pre_restore_path = _create_backup_snapshot(source_db_path, backups_dir, "pre_restore")
-        try:
-            security.close()
-            shutil.move(str(temp_restore_path), str(db_target_path))
-            security = SecurityManager(database_path)
-            app.state.security = security
-            token_store = TokenStore()
-            app.state.token_store = token_store
-        except Exception as exc:
-            temp_restore_path.unlink(missing_ok=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Restore fehlgeschlagen: {exc}",
-            ) from exc
+    def _reopen_security():
+        nonlocal security, token_store
+        security = SecurityManager(database_path)
+        app.state.security = security
+        token_store = TokenStore()
+        app.state.token_store = token_store
 
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="backup",
-            details={"operation": "restore", "source_file": filename, "pre_restore_file": pre_restore_path.name},
+    app.include_router(
+        create_emails_router(
+            repository=repository,
+            require_permission=require_permission,
+            email_recipient_preview_model=EmailRecipientPreviewRequest,
+            email_draft_create_model=EmailDraftCreateRequest,
+            enable_web_features=False,
         )
-        return {
-            "status": "restored",
-            "pre_restore_backup": pre_restore_path.name,
-            "message": "Backup erfolgreich wiederhergestellt. Bitte neu anmelden.",
-        }
-
-    @app.post("/emails/recipients-preview")
-    def preview_email_recipients(
-        payload: EmailRecipientPreviewRequest,
-        session: SessionInfo = Depends(require_permission("email_use")),
-    ) -> dict:
-        _ = session
-        if not payload.depot_ids:
-            return {"count": 0, "recipients": [], "depot_names": []}
-        recipients = repository.get_kontakte_by_depot_ids(payload.depot_ids)
-        depot_names = sorted({str(row["depot_name"]) for row in recipients})
-        return {"count": len(recipients), "recipients": recipients, "depot_names": depot_names}
-
-    @app.post("/emails/drafts", status_code=status.HTTP_201_CREATED)
-    def create_email_draft(
-        payload: EmailDraftCreateRequest,
-        session: SessionInfo = Depends(require_permission("email_use")),
-    ) -> dict[str, int | str]:
-        _ = session
-        if not payload.depot_ids:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bitte mindestens ein Depot auswaehlen.")
-        recipients = repository.get_kontakte_by_depot_ids(payload.depot_ids)
-        if not recipients:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Fuer die ausgewaehlten Depots sind keine Ansprechpartner mit E-Mail hinterlegt.",
-            )
-        emails = [str(row["email"]).strip() for row in recipients if str(row.get("email", "")).strip()]
-        unique_emails = sorted(set(emails))
-        depot_names = sorted({str(row["depot_name"]) for row in recipients})
-        log_id = repository.add_email_verlauf(
-            betreff=payload.betreff,
-            nachricht=payload.nachricht or "",
-            depot_names=", ".join(depot_names),
-            emails="; ".join(unique_emails),
-            anzahl=len(unique_emails),
+    )
+    app.include_router(
+        create_admin_backup_router(
+            repository=repository,
+            require_permission=require_permission,
+            backups_dir=backups_dir,
+            source_db_path=source_db_path,
+            database_path=database_path,
+            list_backup_files=_list_backup_files,
+            create_backup_snapshot=_create_backup_snapshot,
+            auto_backup_hours=auto_backup_hours,
+            close_security=_close_security,
+            reopen_security=_reopen_security,
+            enable_web_features=False,
         )
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="email",
-            resource_id=log_id,
-            details={"depot_ids": payload.depot_ids, "recipient_count": len(unique_emails)},
-        )
-        return {"id": log_id, "status": "draft_created", "recipient_count": len(unique_emails)}
+    )
 
-    @app.get("/emails/history")
-    def list_email_history(
-        limit: int = 50,
-        session: SessionInfo = Depends(require_permission("email_use")),
-    ) -> list[dict]:
-        _ = session
-        return repository.get_email_verlauf(limit=limit)
-
-    @app.get("/emails/history/{email_id}")
-    def get_email_history_detail(
-        email_id: int,
-        session: SessionInfo = Depends(require_permission("email_use")),
-    ) -> dict:
-        _ = session
-        details = repository.get_email_details(email_id)
-        if details is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="E-Mail-Eintrag nicht gefunden.")
-        return details
+    # ---- /Shared routers ----
 
     @app.get("/reports/bewegungen")
     def report_bewegungen(
