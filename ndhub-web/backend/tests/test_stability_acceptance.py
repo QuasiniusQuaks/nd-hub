@@ -51,22 +51,36 @@ def test_logout_revokes_token(monkeypatch, tmp_path):
     assert me_after.json().get("detail") == "Invalid or expired token."
 
 
-def test_session_token_invalid_after_app_restart(monkeypatch, tmp_path):
+def test_session_token_survives_app_restart_file_based_store(monkeypatch, tmp_path):
+    """TokenStore is file-based (SQLite path) — tokens intentionally survive process restart.
+
+    Issue #54: the old test assumed an in-memory store and expected 401 after create_app().
+    Production uses TokenStore(storage_path=database_path), so a restart with the same DB
+    keeps the session valid until logout/revoke/TTL.
+    """
     db_path = str(tmp_path / "stability_restart.db")
     monkeypatch.setenv("ND_HUB_INITIAL_ADMIN_PASSWORD", "InitPass!12345")
 
     app_first = create_app(db_path=db_path)
     client_first = TestClient(app_first)
     first_login = _login(client_first, "admin", "InitPass!12345")
-    stale_headers = {"Authorization": f"Bearer {first_login['token']}"}
-    assert client_first.get("/auth/me", headers=stale_headers).status_code == 200
+    headers = {"Authorization": f"Bearer {first_login['token']}"}
+    assert client_first.get("/auth/me", headers=headers).status_code == 200
 
-    # New app instance simulates process restart with fresh in-memory token store.
+    # New app instance + same DB path: file-based token store reloads the session.
     app_second = create_app(db_path=db_path)
     client_second = TestClient(app_second)
-    stale_check = client_second.get("/auth/me", headers=stale_headers)
-    assert stale_check.status_code == 401
-    assert stale_check.json().get("detail") == "Invalid or expired token."
+    still_valid = client_second.get("/auth/me", headers=headers)
+    assert still_valid.status_code == 200
+    assert still_valid.json().get("username") == "admin"
+
+    # Explicit revoke remains the invalidation path (not process restart).
+    logout = client_second.post("/auth/logout", headers=headers)
+    assert logout.status_code == 200
+    assert logout.json().get("status") == "logged_out"
+    after_revoke = client_second.get("/auth/me", headers=headers)
+    assert after_revoke.status_code == 401
+    assert after_revoke.json().get("detail") == "Invalid or expired token."
 
     relogin = _login(client_second, "admin", "InitPass!12345")
     fresh_headers = {"Authorization": f"Bearer {relogin['token']}"}
