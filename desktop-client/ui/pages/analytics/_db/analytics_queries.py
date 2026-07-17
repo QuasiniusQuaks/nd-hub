@@ -1,10 +1,11 @@
 """Analytics-Query-Delegationsschicht.
 
 Kapselt alle Analytics-DB-Aufrufe hinter einer sauberen Schnittstelle.
-Die eigentlichen SQL-Queries liegen in db_manager.py (Database-Klasse),
-hier wird nur delegiert — aber mit optionaler Cross-Filter-Anwendung.
+Die eigentlichen SQL-Queries liegen in ``core.db.analytics*`` (Mixins auf
+``db_manager.Database``); hier wird nur delegiert — mit optionaler
+Cross-Filter-Anwendung.
 
-Issue #42 Phase 1 — Schicht-Trennung.
+Issue #42 Phase 1 — Schicht-Trennung; SQL-Ort Issue #66.
 """
 
 from __future__ import annotations
