@@ -1709,17 +1709,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
             )
         return {"status": "revoked"}
 
-    @app.get("/permissions/catalog")
-    def permissions_catalog(
-        session: SessionInfo = Depends(get_current_session),
-    ) -> dict:
-        _ = session
-        return {
-            "rows": PERMISSION_DEFINITIONS,
-            "default_user_permissions": sorted(DEFAULT_USER_PERMISSIONS),
-            "templates": PERMISSION_TEMPLATES,
-        }
-
     @app.get("/onboarding/status")
     def onboarding_status(session: SessionInfo = Depends(require_permission("masterdata_read"))) -> dict:
         _ = session
@@ -1972,6 +1961,59 @@ def create_app(db_path: str | None = None) -> FastAPI:
         include_geo_fields=True,
     )
     app.include_router(_depots_router)
+
+    from backend.routers.praeparate import create_praeparate_router
+    from backend.routers.kontakte import create_kontakte_router
+    from backend.routers.audit import create_audit_router
+    from backend.routers.permissions import create_permissions_router
+    from backend.routers.bewegungen import create_bewegungen_router
+
+    app.include_router(
+        create_permissions_router(
+            get_current_session,
+            permission_definitions=PERMISSION_DEFINITIONS,
+            default_user_permissions=DEFAULT_USER_PERMISSIONS,
+            permission_templates=PERMISSION_TEMPLATES,
+        )
+    )
+    app.include_router(
+        create_praeparate_router(
+            repository=repository,
+            require_permission=require_permission,
+            praeparat_upsert_model=PraeparatUpsertRequest,
+            include_extended_fields=True,
+        )
+    )
+    app.include_router(
+        create_kontakte_router(
+            repository=repository,
+            require_permission=require_permission,
+            kontakt_upsert_model=KontaktUpsertRequest,
+        )
+    )
+    app.include_router(
+        create_audit_router(
+            repository=repository,
+            require_permission=require_permission,
+        )
+    )
+    app.include_router(
+        create_bewegungen_router(
+            repository=repository,
+            require_permission=require_permission,
+            bewegung_create_model=BewegungCreateRequest,
+            ensure_depot_access=_ensure_depot_access,
+            scoped_requested_ids=_scoped_requested_ids,
+            include_advanced_filters=True,
+            include_export=True,
+            csv_response=_csv_response,
+            attachments_dir=app.state.attachments_dir,
+            build_attachment_target_path=_build_attachment_target_path,
+            persist_pdf_upload=_persist_pdf_upload,
+            pdf_mime_types=PDF_MIME_TYPES,
+        )
+    )
+
     # ---- /Shared routers ----
 
     @app.get("/admin/backup/list")
@@ -2159,155 +2201,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
             "message": "Backup erfolgreich wiederhergestellt. Bitte neu anmelden.",
         }
 
-    @app.get("/praeparate")
-    def list_praeparate(
-        q: str = "",
-        limit: int = 100,
-        offset: int = 0,
-        session: SessionInfo = Depends(require_permission("masterdata_read")),
-    ) -> list[dict]:
-        _ = session
-        return repository.list_praeparate(q=q, limit=limit, offset=offset)
-
-    @app.post("/praeparate", status_code=status.HTTP_201_CREATED)
-    def create_praeparat(
-        payload: PraeparatUpsertRequest,
-        session: SessionInfo = Depends(require_permission("masterdata_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            new_id = repository.create_praeparat(
-                name=payload.name,
-                wirkstoff=payload.wirkstoff,
-                darreichungsform=payload.darreichungsform,
-                staerke=payload.staerke,
-                einheit=payload.einheit,
-                pzn=payload.pzn,
-                hersteller=payload.hersteller,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="praeparat",
-            resource_id=new_id,
-            details={
-                "name": payload.name,
-                "wirkstoff": payload.wirkstoff,
-                "darreichungsform": payload.darreichungsform,
-                "staerke": payload.staerke,
-                "einheit": payload.einheit,
-                "pzn": payload.pzn,
-                "hersteller": payload.hersteller,
-            },
-        )
-        return {"id": new_id, "status": "created"}
-
-    @app.put("/praeparate/{praeparat_id}")
-    def update_praeparat(
-        praeparat_id: int,
-        payload: PraeparatUpsertRequest,
-        session: SessionInfo = Depends(require_permission("masterdata_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            changed = repository.update_praeparat(
-                praeparat_id=praeparat_id,
-                name=payload.name,
-                wirkstoff=payload.wirkstoff,
-                darreichungsform=payload.darreichungsform,
-                staerke=payload.staerke,
-                einheit=payload.einheit,
-                pzn=payload.pzn,
-                hersteller=payload.hersteller,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        if not changed:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Praeparat nicht gefunden.")
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="praeparat",
-            resource_id=praeparat_id,
-            details={
-                "name": payload.name,
-                "wirkstoff": payload.wirkstoff,
-                "darreichungsform": payload.darreichungsform,
-                "staerke": payload.staerke,
-                "einheit": payload.einheit,
-                "pzn": payload.pzn,
-                "hersteller": payload.hersteller,
-            },
-        )
-        return {"id": praeparat_id, "status": "updated"}
-
-    @app.delete("/praeparate/{praeparat_id}")
-    def delete_praeparat(
-        praeparat_id: int,
-        session: SessionInfo = Depends(require_permission("masterdata_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            changed = repository.delete_praeparat(praeparat_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        if not changed:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Praeparat nicht gefunden.")
-        repository.log_audit(
-            username=session.username,
-            action="delete",
-            resource_type="praeparat",
-            resource_id=praeparat_id,
-        )
-        return {"id": praeparat_id, "status": "deleted"}
-
-    @app.put("/kontakte/{kontakt_id}")
-    def update_kontakt(
-        kontakt_id: int,
-        payload: KontaktUpsertRequest,
-        session: SessionInfo = Depends(require_permission("settings_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        try:
-            changed = repository.update_kontakt(
-                kontakt_id=kontakt_id,
-                name=payload.name,
-                rolle=payload.rolle,
-                telefon=payload.telefon,
-                email=payload.email,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        if not changed:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kontakt nicht gefunden.")
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="kontakt",
-            resource_id=kontakt_id,
-            details={"name": payload.name},
-        )
-        return {"id": kontakt_id, "status": "updated"}
-
-    @app.delete("/kontakte/{kontakt_id}")
-    def delete_kontakt(
-        kontakt_id: int,
-        session: SessionInfo = Depends(require_permission("settings_write")),
-    ) -> dict[str, int | str]:
-        _ = session
-        changed = repository.delete_kontakt(kontakt_id)
-        if not changed:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kontakt nicht gefunden.")
-        repository.log_audit(
-            username=session.username,
-            action="delete",
-            resource_type="kontakt",
-            resource_id=kontakt_id,
-        )
-        return {"id": kontakt_id, "status": "deleted"}
-
     @app.post("/emails/recipients-preview")
     def preview_email_recipients(
         payload: EmailRecipientPreviewRequest,
@@ -2468,106 +2361,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
             },
         )
         return {"id": email_id, "status": "updated", "delivery": updated}
-
-    @app.get("/bewegungen")
-    def list_bewegungen(
-        limit: int = 100,
-        offset: int = 0,
-        q: str = "",
-        typ: str = "",
-        depot_id: int = 0,
-        praeparat_id: int = 0,
-        has_attachment: int = 0,
-        start_date: str = "",
-        end_date: str = "",
-        session: SessionInfo = Depends(require_permission("movements_read")),
-    ) -> list[dict]:
-        scoped_ids = _scoped_requested_ids(
-            session,
-            [int(depot_id)] if int(depot_id or 0) > 0 else [],
-            require_write=False,
-        )
-        if session.role != "Admin" and not scoped_ids:
-            return []
-        requested_depot_id = int(depot_id) if int(depot_id or 0) > 0 else None
-        depot_scope_ids = scoped_ids if session.role != "Admin" else []
-        rows = repository.list_bewegungen(
-            limit=limit,
-            offset=offset,
-            q=q,
-            typ=typ or None,
-            depot_id=requested_depot_id,
-            depot_ids=depot_scope_ids or None,
-            praeparat_id=praeparat_id if int(praeparat_id or 0) > 0 else None,
-            has_attachment=bool(int(has_attachment or 0)),
-            start_date=start_date or None,
-            end_date=end_date or None,
-        )
-        return rows
-
-    @app.get("/bewegungen/export.csv")
-    def export_bewegungen_csv(
-        q: str = "",
-        typ: str = "",
-        depot_id: int = 0,
-        praeparat_id: int = 0,
-        has_attachment: int = 0,
-        start_date: str = "",
-        end_date: str = "",
-        session: SessionInfo = Depends(require_permission("movements_read")),
-    ) -> StreamingResponse:
-        requested_depot_id = depot_id if int(depot_id or 0) > 0 else None
-        if requested_depot_id is not None and session.role != "Admin":
-            _ensure_depot_access(session, depot_id=requested_depot_id, require_write=False)
-        rows = repository.list_bewegungen(
-            limit=5000,
-            offset=0,
-            q=q,
-            typ=typ or None,
-            depot_id=requested_depot_id,
-            depot_ids=_scoped_requested_ids(
-                session,
-                [int(depot_id)] if int(depot_id or 0) > 0 else [],
-                require_write=False,
-            ) if session.role != "Admin" else None,
-            praeparat_id=praeparat_id if int(praeparat_id or 0) > 0 else None,
-            has_attachment=bool(int(has_attachment or 0)),
-            start_date=start_date or None,
-            end_date=end_date or None,
-        )
-        headers = [
-            "ID",
-            "Typ",
-            "Charge",
-            "Verfall",
-            "Datum",
-            "Anzahl",
-            "Depot_ID",
-            "Praeparat_ID",
-            "Empfaenger",
-            "Hat_PDF",
-            "Datei",
-        ]
-        data_rows = []
-        for row in rows:
-            datum = row.get("eingang_datum") or row.get("ausgang_datum") or ""
-            has_pdf = int(row.get("has_attachment") or 0)
-            data_rows.append(
-                [
-                    row.get("id", ""),
-                    row.get("typ", ""),
-                    row.get("charge", ""),
-                    row.get("verfall", ""),
-                    datum,
-                    row.get("anzahl", ""),
-                    row.get("depot_id", ""),
-                    row.get("praeparat_id", ""),
-                    row.get("empfaenger", "") or "",
-                    has_pdf,
-                    row.get("datei_name", "") or "",
-                ]
-            )
-        return _csv_response("bewegungen_verlauf.csv", headers, data_rows)
 
     @app.get("/dashboard/overview")
     def dashboard_overview(
@@ -2779,107 +2572,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
                 "gesamt": len(enriched_rows),
             },
         }
-
-    @app.post("/bewegungen", status_code=status.HTTP_201_CREATED)
-    def create_bewegung(
-        payload: BewegungCreateRequest,
-        session: SessionInfo = Depends(require_permission("movements_write")),
-    ) -> dict[str, int | str]:
-        _ensure_depot_access(session, depot_id=payload.depot_id, require_write=True)
-        try:
-            new_id = repository.insert_bewegung(
-                depot_id=payload.depot_id,
-                praeparat_id=payload.praeparat_id,
-                typ=payload.typ,
-                charge=payload.charge,
-                verfall=payload.verfall.isoformat(),
-                datum=payload.datum.isoformat(),
-                anzahl=payload.anzahl,
-                empfaenger=payload.empfaenger,
-            )
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-            ) from exc
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="bewegung",
-            resource_id=new_id,
-            details={"typ": payload.typ, "depot_id": payload.depot_id, "praeparat_id": payload.praeparat_id},
-        )
-        return {"id": new_id, "status": "created"}
-
-    @app.post("/bewegungen/{bewegung_id}/attachment", status_code=status.HTTP_201_CREATED)
-    def upload_bewegung_attachment(
-        bewegung_id: int,
-        file: UploadFile = File(...),
-        session: SessionInfo = Depends(require_permission("movements_write")),
-    ) -> dict[str, int | str]:
-        bewegung = repository.get_bewegung(bewegung_id)
-        if bewegung is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bewegung nicht gefunden.")
-        _ensure_depot_access(session, depot_id=int(bewegung.get("depot_id") or 0), require_write=True)
-        filename = (file.filename or "").strip()
-        if not filename:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dateiname fehlt.")
-        content_type = (file.content_type or "").lower()
-        if not filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nur PDF-Dateien sind erlaubt.")
-        if content_type and content_type not in PDF_MIME_TYPES:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nur PDF-Dateien sind erlaubt.")
-        depot_name = repository.get_depot_name(int(bewegung["depot_id"]))
-        target_path = _build_attachment_target_path(
-            app.state.attachments_dir,
-            bewegung_id=bewegung_id,
-            depot_name=depot_name,
-            original_name=filename,
-        )
-        try:
-            size = _persist_pdf_upload(file, target_path)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        except OSError as exc:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Datei konnte nicht gespeichert werden.") from exc
-        stored_name = Path(filename).name
-        uploaded_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
-        repository.set_bewegung_attachment(
-            bewegung_id=bewegung_id,
-            datei_pfad=str(target_path),
-            datei_name=stored_name,
-            datei_groesse=size,
-            uploaded_at=uploaded_at,
-        )
-        repository.log_audit(
-            username=session.username,
-            action="update",
-            resource_type="bewegung",
-            resource_id=bewegung_id,
-            details={"attachment": stored_name, "size": size},
-        )
-        return {"id": bewegung_id, "status": "attachment_saved"}
-
-    @app.get("/bewegungen/{bewegung_id}/attachment")
-    def get_bewegung_attachment(
-        bewegung_id: int,
-        download: bool = False,
-        session: SessionInfo = Depends(require_permission("movements_read")),
-    ) -> FileResponse:
-        bewegung = repository.get_bewegung(bewegung_id)
-        if bewegung is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bewegung nicht gefunden.")
-        _ensure_depot_access(session, depot_id=int(bewegung.get("depot_id") or 0), require_write=False)
-        datei_pfad = (bewegung.get("datei_pfad") or "").strip()
-        if not datei_pfad:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Kein PDF-Anhang vorhanden.")
-        path = Path(datei_pfad)
-        if not path.exists() or not path.is_file():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PDF-Datei nicht gefunden.")
-        filename = (bewegung.get("datei_name") or path.name).strip() or path.name
-        if download:
-            return FileResponse(path=path, media_type="application/pdf", filename=filename)
-        return FileResponse(path=path, media_type="application/pdf")
 
     @app.get("/imports/bewegungen/template")
     def download_bewegungen_template(
@@ -4174,24 +3866,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
         stats["server_time"] = datetime.now(UTC).isoformat()
         stats["requested_by"] = session.username
         return stats
-
-    @app.get("/audit-logs")
-    def list_audit_logs(
-        limit: int = 100,
-        offset: int = 0,
-        q: str = "",
-        action: str = "",
-        resource_type: str = "",
-        session: SessionInfo = Depends(require_permission("audit_view")),
-    ) -> list[dict]:
-        _ = session
-        return repository.list_audit_logs(
-            limit=limit,
-            offset=offset,
-            q=q,
-            action=action,
-            resource_type=resource_type,
-        )
 
     return app
 
