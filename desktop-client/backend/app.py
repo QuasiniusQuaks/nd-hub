@@ -988,6 +988,53 @@ def create_app(db_path: str | None = None) -> FastAPI:
         )
     )
 
+
+    from backend.routers.imports import create_imports_router
+    from backend.routers.verfall import create_verfall_router
+    from backend.routers.dashboard import create_dashboard_router
+    from backend.routers.notifications import create_notifications_router
+
+    app.include_router(
+        create_imports_router(
+            repository=repository,
+            require_permission=require_permission,
+            build_import_template=_build_import_template,
+            load_import_dataframe=_load_import_dataframe,
+            map_import_columns=_map_import_columns,
+            analyze_import_dataframe=_analyze_import_dataframe,
+            enable_web_features=False,
+        )
+    )
+    app.include_router(
+        create_verfall_router(
+            repository=repository,
+            require_permission=require_permission,
+            parse_id_list_csv=_parse_id_list_csv,
+            normalize_verfall_thresholds=_normalize_verfall_thresholds,
+            enrich_verfall_rows=_enrich_verfall_rows,
+            csv_response=_csv_response,
+            enable_depot_scope=False,
+        )
+    )
+    app.include_router(
+        create_dashboard_router(
+            repository=repository,
+            require_permission=require_permission,
+            normalize_verfall_thresholds=_normalize_verfall_thresholds,
+            enrich_verfall_rows=_enrich_verfall_rows,
+            enable_depot_scope=False,
+        )
+    )
+    app.include_router(
+        create_notifications_router(
+            repository=repository,
+            require_permission=require_permission,
+            normalize_verfall_thresholds=_normalize_verfall_thresholds,
+            enrich_verfall_rows=_enrich_verfall_rows,
+            enable_depot_scope=False,
+        )
+    )
+
     # ---- /Shared routers ----
 
     @app.get("/admin/backup/list")
@@ -1184,276 +1231,6 @@ def create_app(db_path: str | None = None) -> FastAPI:
         if details is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="E-Mail-Eintrag nicht gefunden.")
         return details
-
-    @app.get("/dashboard/overview")
-    def dashboard_overview(
-        critical_days: int = 30,
-        warning_days: int = 90,
-        attention_days: int = 180,
-        session: SessionInfo = Depends(require_permission("movements_read")),
-    ) -> dict:
-        _ = session
-        safe_critical, safe_warning, safe_attention = _normalize_verfall_thresholds(
-            critical_days=critical_days,
-            warning_days=warning_days,
-            attention_days=attention_days,
-        )
-        payload = repository.get_dashboard_overview(limit_activity=8, limit_expiry=8, critical_days=safe_critical)
-        payload["expiry_preview"] = _enrich_verfall_rows(
-            payload.get("expiry_preview", []),
-            critical_days=safe_critical,
-            warning_days=safe_warning,
-            attention_days=safe_attention,
-        )
-        payload["thresholds"] = {
-            "kritisch_tage": safe_critical,
-            "warnung_tage": safe_warning,
-            "achtung_tage": safe_attention,
-        }
-        return payload
-
-    @app.get("/verfall/overview")
-    def verfall_overview(
-        perspective: str = "depot",
-        ids: str = "",
-        q: str = "",
-        category: str = "alle",
-        limit: int = 100,
-        offset: int = 0,
-        critical_days: int = 30,
-        warning_days: int = 90,
-        attention_days: int = 180,
-        session: SessionInfo = Depends(require_permission("movements_read")),
-    ) -> dict:
-        _ = session
-        safe_perspective = (perspective or "").strip().lower()
-        if safe_perspective not in {"depot", "praeparat"}:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ungueltige Perspektive.")
-        try:
-            selected_ids = _parse_id_list_csv(ids)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Ungueltige IDs: {exc}") from exc
-        safe_critical, safe_warning, safe_attention = _normalize_verfall_thresholds(
-            critical_days=critical_days,
-            warning_days=warning_days,
-            attention_days=attention_days,
-        )
-        depot_ids = selected_ids if safe_perspective == "depot" and selected_ids else None
-        praeparat_ids = selected_ids if safe_perspective == "praeparat" and selected_ids else None
-        rows = repository.list_verfall_items(
-            depot_ids=depot_ids,
-            praeparat_ids=praeparat_ids,
-            search_text=q,
-            category=category,
-            limit=limit,
-            offset=offset,
-            critical_days=safe_critical,
-            warning_days=safe_warning,
-            attention_days=safe_attention,
-        )
-        total = repository.count_verfall_items(
-            depot_ids=depot_ids,
-            praeparat_ids=praeparat_ids,
-            search_text=q,
-            category=category,
-            critical_days=safe_critical,
-            warning_days=safe_warning,
-            attention_days=safe_attention,
-        )
-        enriched_rows = _enrich_verfall_rows(rows, safe_critical, safe_warning, safe_attention)
-        stats = {
-            "kritisch": int(sum(1 for row in enriched_rows if row["kategorie"] == "kritisch")),
-            "warnung": int(sum(1 for row in enriched_rows if row["kategorie"] == "warnung")),
-            "achtung": int(sum(1 for row in enriched_rows if row["kategorie"] == "achtung")),
-            "gesamt_menge": int(sum(int(row.get("anzahl") or 0) for row in enriched_rows)),
-        }
-        return {
-            "rows": enriched_rows,
-            "total": total,
-            "stats_page": stats,
-            "thresholds": {
-                "kritisch_tage": safe_critical,
-                "warnung_tage": safe_warning,
-                "achtung_tage": safe_attention,
-            },
-        }
-
-    @app.get("/verfall/overview/export.csv")
-    def export_verfall_overview_csv(
-        perspective: str = "depot",
-        ids: str = "",
-        q: str = "",
-        category: str = "alle",
-        critical_days: int = 30,
-        warning_days: int = 90,
-        attention_days: int = 180,
-        session: SessionInfo = Depends(require_permission("movements_read")),
-    ) -> StreamingResponse:
-        _ = session
-        safe_perspective = (perspective or "").strip().lower()
-        if safe_perspective not in {"depot", "praeparat"}:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ungueltige Perspektive.")
-        try:
-            selected_ids = _parse_id_list_csv(ids)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Ungueltige IDs: {exc}") from exc
-        safe_critical, safe_warning, safe_attention = _normalize_verfall_thresholds(
-            critical_days=critical_days,
-            warning_days=warning_days,
-            attention_days=attention_days,
-        )
-        depot_ids = selected_ids if safe_perspective == "depot" and selected_ids else None
-        praeparat_ids = selected_ids if safe_perspective == "praeparat" and selected_ids else None
-        rows = repository.list_verfall_items(
-            depot_ids=depot_ids,
-            praeparat_ids=praeparat_ids,
-            search_text=q,
-            category=category,
-            limit=5000,
-            offset=0,
-            critical_days=safe_critical,
-            warning_days=safe_warning,
-            attention_days=safe_attention,
-        )
-        enriched_rows = _enrich_verfall_rows(rows, safe_critical, safe_warning, safe_attention)
-        csv_rows = [
-            [
-                row.get("id"),
-                row.get("depot"),
-                row.get("praeparat"),
-                row.get("charge"),
-                row.get("verfall"),
-                row.get("tage_bis_verfall"),
-                row.get("kategorie"),
-                row.get("anzahl"),
-            ]
-            for row in enriched_rows
-        ]
-        return _csv_response(
-            filename="verfall_manager.csv",
-            headers=["ID", "Depot", "Praeparat", "Charge", "Verfall", "TageBisVerfall", "Kategorie", "Anzahl"],
-            rows=csv_rows,
-        )
-
-    @app.get("/notifications/verfall")
-    def notifications_verfall(
-        since: str = "",
-        limit: int = 25,
-        critical_days: int = 30,
-        warning_days: int = 90,
-        attention_days: int = 180,
-        session: SessionInfo = Depends(require_permission("movements_read")),
-    ) -> dict:
-        _ = session
-        safe_critical, safe_warning, safe_attention = _normalize_verfall_thresholds(
-            critical_days=critical_days,
-            warning_days=warning_days,
-            attention_days=attention_days,
-        )
-        now_iso = datetime.now(timezone.utc).isoformat()
-        rows = repository.list_new_critical_expiry_events(
-            since_iso=(since or "").strip() or None,
-            limit=limit,
-            critical_days=safe_critical,
-        )
-        enriched_rows = _enrich_verfall_rows(rows, safe_critical, safe_warning, safe_attention)
-        return {
-            "since": (since or "").strip() or None,
-            "next_since": now_iso,
-            "rows": enriched_rows,
-            "counts": {
-                "kritisch": int(sum(1 for row in enriched_rows if row["kategorie"] == "kritisch")),
-                "warnung": int(sum(1 for row in enriched_rows if row["kategorie"] == "warnung")),
-                "achtung": int(sum(1 for row in enriched_rows if row["kategorie"] == "achtung")),
-                "gesamt": len(enriched_rows),
-            },
-        }
-
-    @app.get("/imports/bewegungen/template")
-    def download_bewegungen_template(
-        session: SessionInfo = Depends(require_permission("import_use")),
-    ) -> StreamingResponse:
-        _ = session
-        content = _build_import_template(repository)
-        return StreamingResponse(
-            BytesIO(content),
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": 'attachment; filename="bewegungen_vorlage.xlsx"'},
-        )
-
-    @app.post("/imports/bewegungen/preview")
-    def preview_import_bewegungen(
-        file: UploadFile = File(...),
-        session: SessionInfo = Depends(require_permission("import_use")),
-    ) -> dict:
-        _ = session
-        filename = (file.filename or "").strip()
-        if not filename:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dateiname fehlt.")
-        try:
-            raw_df, row_offset = _load_import_dataframe(file)
-            mapped_df = _map_import_columns(raw_df)
-            parsed_rows, preview_rows, errors = _analyze_import_dataframe(repository, mapped_df, row_offset)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Datei konnte nicht gelesen werden: {exc}") from exc
-        return {
-            "filename": filename,
-            "total_rows": int(len(mapped_df.dropna(how="all"))),
-            "valid_rows": len(parsed_rows),
-            "error_count": len(errors),
-            "preview_rows": preview_rows,
-            "errors": errors[:100],
-        }
-
-    @app.post("/imports/bewegungen/execute")
-    def execute_import_bewegungen(
-        file: UploadFile = File(...),
-        session: SessionInfo = Depends(require_permission("import_use")),
-    ) -> dict:
-        _ = session
-        filename = (file.filename or "").strip()
-        if not filename:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dateiname fehlt.")
-        try:
-            raw_df, row_offset = _load_import_dataframe(file)
-            mapped_df = _map_import_columns(raw_df)
-            parsed_rows, _preview_rows, errors = _analyze_import_dataframe(repository, mapped_df, row_offset)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Datei konnte nicht gelesen werden: {exc}") from exc
-
-        imported = 0
-        for row in parsed_rows:
-            try:
-                repository.insert_bewegung(
-                    depot_id=row["depot_id"],
-                    praeparat_id=row["praeparat_id"],
-                    typ=row["typ"],
-                    charge=row["charge"],
-                    verfall=row["verfall"],
-                    datum=row["datum"],
-                    anzahl=row["anzahl"],
-                    empfaenger=row["empfaenger"],
-                )
-                imported += 1
-            except ValueError as exc:
-                errors.append(f"Zeile {row['display_row']}: {exc}")
-
-        repository.log_audit(
-            username=session.username,
-            action="create",
-            resource_type="bewegung_import",
-            details={"filename": filename, "imported": imported, "errors": len(errors)},
-        )
-        return {
-            "filename": filename,
-            "imported": imported,
-            "errors": errors[:200],
-            "error_count": len(errors),
-        }
 
     @app.get("/reports/bewegungen")
     def report_bewegungen(
