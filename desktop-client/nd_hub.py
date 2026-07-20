@@ -173,12 +173,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.db_path = db_path
         self.attachment_folder = attachment_folder
 
-        # Security zuerst (blockierend)
+        # Database zuerst — Security/Verfall teilen die Connection (Issue #18)
+        self._init_database(db_path)
         self._init_security(db_path)
-        self._profile_startup("Security abgeschlossen")
+        self._profile_startup("Database + Security abgeschlossen")
 
         # Core-Komponenten
-        self._init_database(db_path)
         self._init_data_access_layer()
         self._init_sync_service()
         self._init_managers(db_path)
