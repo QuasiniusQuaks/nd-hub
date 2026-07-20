@@ -10,7 +10,6 @@ import logging
 from PySide6 import QtWidgets
 
 from apple_theme import AppleTheme
-from ui.utils import configure_responsive_table
 
 from .._charts.ranking_bar import RankingBarChart
 from .._filters.cross_filter_state import CrossFilterState
@@ -93,7 +92,7 @@ class TabBewegungen(BaseTab):
                     {str(d) for d in self._filter_state.state.depot_ids}]
 
         headers = ["Depot", "Präparat", "Abgaben gesamt"]
-        table = self._create_table(headers, len(rows))
+        table = self._create_responsive_table(headers, len(rows))
 
         for i, row in enumerate(rows):
             table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["depot_name"])))
@@ -113,7 +112,7 @@ class TabBewegungen(BaseTab):
                     {str(p) for p in self._filter_state.state.praeparat_ids}]
 
         headers = ["Präparat", "Depot", "Abgaben gesamt"]
-        table = self._create_table(headers, len(rows))
+        table = self._create_responsive_table(headers, len(rows))
 
         for i, row in enumerate(rows):
             table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["praeparat_name"])))
@@ -125,17 +124,6 @@ class TabBewegungen(BaseTab):
 
         return table
 
-    def _create_table(self, headers: list[str], row_count: int) -> QtWidgets.QTableWidget:
-        table = QtWidgets.QTableWidget(row_count, len(headers))
-        table.setHorizontalHeaderLabels(headers)
-        table.verticalHeader().setVisible(False)
-        table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        table.horizontalHeader().setStretchLastSection(True)
-        try:
-            configure_responsive_table(table)
-        except Exception:
-            table.resizeColumnsToContents()
-        return table
 
     def _add_empty_hint(self, table: QtWidgets.QTableWidget, text: str) -> None:
         table.setRowCount(1)
@@ -145,7 +133,7 @@ class TabBewegungen(BaseTab):
         """Anomalie-Tabelle aus get_anomalies() (Phase 3)."""
         rows = self.queries.get_anomalies(threshold_std=2.0)
         headers = ["Präparat", "Typ", "Datum", "Menge", "Ø Normal", "Z-Score", "Bewertung"]
-        table = self._create_table(headers, len(rows))
+        table = self._create_responsive_table(headers, len(rows))
 
         c = AppleTheme.current_colors()
         for i, row in enumerate(rows):

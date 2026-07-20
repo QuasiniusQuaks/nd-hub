@@ -11,8 +11,8 @@ Entwickler.
 | Bewegungen | `page_bewegungen.py` | Erfassung von Zugang/Abgang/Vernichtung mit Anhaengen. |
 | Historie | `page_historie.py` | Verlauf, Filter, persistente Filterauswahl, CSV-Export, Anhang-Voransicht. |
 | Import | `page_import.py` | CSV/XLS-Import mit Preview, Fehlerklassifizierung, Dry-Run. |
-| E-Mail | `page_email.py` | Empfaengervorschau, Draft-/SMTP-Versand, Verlauf. |
-| Auswertungen | `page_auswertungen.py` | Reports (Bestand, Bewegungen, Ranking, Matrix, Verfall) inkl. Export. |
+| E-Mail | `page_email.py` | Neue E-Mail, Verlauf, **Report-Schedule** (taeglich/woechentlich/monatlich). |
+| Auswertungen | `ui/pages/analytics/` | Analytics Control Center: Bestand, Bewegungen, Verfall, Compliance, **Szenarien** (Dropdown-Auswertungen). |
 | Grundeinstellungen | `page_grundeinstellungen/_hauptseite.py` | Container fuer alle Admin-Tabs. |
 
 ### Tabs unter Grundeinstellungen (`page_grundeinstellungen/`)
@@ -33,7 +33,7 @@ Entwickler.
 | Dialog | Datei | Inhalt |
 |---|---|---|
 | Login | `login_dialog.py` | Login, Passwortwechsel, Sperrhinweise. |
-| Setup-Wizard | `setup_wizard_dialog.py` | Mehrstufige Erstkonfiguration. |
+| Setup-Wizard | `setup_wizard/` (+ Shim `setup_wizard_dialog.py`) | Mehrstufige Erstkonfiguration; „Spaeter“ ohne haengendes Overlay. |
 | Embedded Dialog Host | `embedded_dialog_host.py` | Patches fuer modale Subdialoge. |
 | Verfall-Detail | `verfall_detail_dialog.py` | Detailansicht zu einem Verfallseintrag. |
 | PPT-Export | `dialog_ppt_export.py` | Konfiguration fuer PPTX-Exporte. |

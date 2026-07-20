@@ -40,8 +40,11 @@ finden sich unter [UI-Seiten](05-ui-pages.md).
 
 ## Reporting und Auswertungen
 
-- Reports: Bestand, Bewegungen, Ranking, Matrix, Verfall.
-- Export in CSV, PDF, PPTX (kontextreiche Dateinamen).
+- Analytics Control Center mit Tabs: Bestand, Bewegungen, Verfall, Compliance, Szenarien.
+- Interaktive Heatmap (Soll/Ist) mit lesbarer Top-N-Darstellung und Hover-Tooltips.
+- **Szenarien:** gefuehrte Auswertungen per Dropdown (Depot/Praeparat/Typ/Zeitraum), ohne SQL.
+- Auto-Refresh beim Tab-Wechsel; responsive Breite am Viewport.
+- Export in CSV, PDF, PPTX (kontextreiche Dateinamen) wo vorgesehen.
 - Datumsvalidierung zur Vermeidung inkonsistenter Zeitraeume.
 
 ## E-Mail-Workflows
@@ -50,6 +53,7 @@ finden sich unter [UI-Seiten](05-ui-pages.md).
 - Erstellen von Drafts mit Vorlagen.
 - Optional: Live-Versand ueber konfigurierten SMTP.
 - Versandstatus pro Mail (Draft, gesendet, Fehler) mit Verlauf.
+- **Report-Schedule:** geplante Analytics-Reports (daily/weekly/monthly, PDF/HTML) unter E-Mail.
 
 ## Import
 

@@ -31,6 +31,8 @@ class NavigationMixin:
 
     def _on_later(self) -> None:
         self._persist_progress()
+        if hasattr(self, "_hide_backdrop"):
+            self._hide_backdrop()
         self.reject()
 
     def _on_next(self) -> None:

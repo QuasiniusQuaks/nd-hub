@@ -14,7 +14,7 @@ from PySide6 import QtCore, QtWidgets
 from apple_theme import AppleTheme
 from db_manager import Database
 
-from ._insights.auto_insights import AutoInsightsGenerator, Insight
+from .._insights.auto_insights import AutoInsightsGenerator, Insight
 
 logger = logging.getLogger(__name__)
 

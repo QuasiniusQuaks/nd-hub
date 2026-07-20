@@ -159,7 +159,7 @@ class BaseChartCanvas:
     def _apply_cross_filter(self, element: ChartElement) -> None:
         """Wendet Cross-Filter an wenn Element depot_id oder praeparat_id hat."""
         try:
-            from ._filters.cross_filter_state import CrossFilterState
+            from .._filters.cross_filter_state import CrossFilterState
 
             filter_state = CrossFilterState.instance()
             if element.depot_id is not None:
@@ -195,3 +195,50 @@ class BaseChartCanvas:
         """Wendet AppleTheme auf die Figure an. Override in Subclass für Details."""
         AppleTheme.setup_matplotlib(None)  # Setup global rcParams
         self.draw_idle()
+
+    def enable_responsive_size(self, min_height_px: int = 320) -> None:
+        """Charts füllen die verfügbare Breite des Parents (Bildschirmbreite)."""
+        from PySide6 import QtCore, QtWidgets
+
+        self._responsive_min_height = min_height_px
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
+        self.setMinimumHeight(min_height_px)
+        # Wichtig: Matplotlib-Default-sizeHint (figsize*dpi) nicht die Seite aufblasen lassen
+        self.setMinimumWidth(120)
+
+    def sizeHint(self):  # noqa: N802
+        from PySide6 import QtCore
+
+        # Schmaler Default — echte Breite kommt vom Layout/Viewport
+        h = int(getattr(self, "_responsive_min_height", 320))
+        return QtCore.QSize(400, h)
+
+    def minimumSizeHint(self):  # noqa: N802
+        from PySide6 import QtCore
+
+        h = int(getattr(self, "_responsive_min_height", 240))
+        return QtCore.QSize(120, max(160, h // 2))
+
+    def _fit_figure_to_widget(self) -> None:
+        """Figure an aktuelle Widget-Größe anpassen (von Chart.resizeEvent aufrufen)."""
+        try:
+            # width/height können 0 sein bevor layouted — dann nichts tun
+            w = int(self.width())
+            h = int(self.height())
+            if w < 50 or h < 50:
+                return
+            dpi = float(self.figure.get_dpi() or 100.0)
+            self.figure.set_size_inches(max(w, 50) / dpi, max(h, 50) / dpi, forward=False)
+            try:
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    self.figure.tight_layout(pad=0.5)
+            except Exception:
+                pass
+            self.draw_idle()
+        except Exception:
+            logger.debug("Chart-Resize fehlgeschlagen", exc_info=True)

@@ -16,7 +16,7 @@ from matplotlib.figure import Figure
 
 from apple_theme import AppleTheme
 
-from ._charts.base_chart import BaseChartCanvas, ChartElement
+from .base_chart import BaseChartCanvas, ChartElement
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,23 @@ class ForecastBandChart(FigureCanvasQTAgg, BaseChartCanvas):
         self.setParent(parent)
         self._setup_interactivity()
         AppleTheme.setup_matplotlib(None)
+        self.enable_responsive_size(min_height_px=300)
+
+
+    def sizeHint(self):  # noqa: N802
+        from PySide6 import QtCore
+        h = int(getattr(self, "_responsive_min_height", 320))
+        return QtCore.QSize(400, h)
+
+    def minimumSizeHint(self):  # noqa: N802
+        from PySide6 import QtCore
+        h = int(getattr(self, "_responsive_min_height", 240))
+        return QtCore.QSize(120, max(160, h // 2))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+        FigureCanvasQTAgg.resizeEvent(self, event)
+        self._fit_figure_to_widget()
 
     def _find_element_at(self, x: float | None, y: float | None) -> ChartElement | None:
         """Hit-Test: findet den nächsten Datenpunkt zum Cursor."""
