@@ -167,8 +167,15 @@ class AppleTheme:
         return cls.CHART_PALETTE_DARK if cls.is_dark_mode else cls.CHART_PALETTE
 
     @classmethod
-    def setup_matplotlib(cls, plt):
-        """Konfiguriert Matplotlib für das Apple-Theme"""
+    def setup_matplotlib(cls, plt=None):
+        """Konfiguriert Matplotlib für das Apple-Theme.
+
+        ``plt`` darf weggelassen oder ``None`` sein — dann wird
+        ``matplotlib.pyplot`` lazy importiert (Analytics-Charts rufen
+        historisch ``setup_matplotlib(None)`` auf).
+        """
+        if plt is None:
+            import matplotlib.pyplot as plt  # noqa: PLC0415
         c = cls.current_colors()
         _is_dark = cls.is_dark_mode
 

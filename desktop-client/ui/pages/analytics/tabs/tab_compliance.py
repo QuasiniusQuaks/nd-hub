@@ -10,7 +10,6 @@ import logging
 from PySide6 import QtWidgets
 
 from apple_theme import AppleTheme
-from ui.utils import configure_responsive_table
 
 from ._base_tab import BaseTab
 
@@ -39,7 +38,7 @@ class TabCompliance(BaseTab):
 
     def _build_email_table(self, rows: list) -> QtWidgets.QTableWidget:
         headers = ["Datum", "Betreff", "Empfänger-Depots", "Status", "Kanal"]
-        table = self._create_table(headers, len(rows))
+        table = self._create_responsive_table(headers, len(rows))
 
         c = AppleTheme.current_colors()
         for i, row in enumerate(rows):
@@ -68,7 +67,7 @@ class TabCompliance(BaseTab):
 
     def _build_permissions_table(self, rows: list) -> QtWidgets.QTableWidget:
         headers = ["User", "Depot", "Lesen", "Schreiben"]
-        table = self._create_table(headers, len(rows))
+        table = self._create_responsive_table(headers, len(rows))
 
         for i, row in enumerate(rows):
             table.setItem(i, 0, QtWidgets.QTableWidgetItem(str(row["username"])))
@@ -83,17 +82,6 @@ class TabCompliance(BaseTab):
 
         return table
 
-    def _create_table(self, headers: list[str], row_count: int) -> QtWidgets.QTableWidget:
-        table = QtWidgets.QTableWidget(row_count, len(headers))
-        table.setHorizontalHeaderLabels(headers)
-        table.verticalHeader().setVisible(False)
-        table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        table.horizontalHeader().setStretchLastSection(True)
-        try:
-            configure_responsive_table(table)
-        except Exception:
-            table.resizeColumnsToContents()
-        return table
 
     def _add_empty_hint(self, table: QtWidgets.QTableWidget, text: str) -> None:
         table.setRowCount(1)

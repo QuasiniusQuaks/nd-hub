@@ -15,7 +15,7 @@ from PySide6 import QtCore, QtWidgets
 from apple_theme import AppleTheme
 from db_manager import Database
 
-from ._filters.cross_filter_state import CrossFilterState
+from .cross_filter_state import CrossFilterState
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,15 @@ class GlobalFilterBar(QtWidgets.QWidget):
         self.filter_state = CrossFilterState.instance()
 
         self.setObjectName("filter_bar")
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
         self._apply_style()
 
         layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(24, 12, 24, 12)
-        layout.setSpacing(16)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
         # Zeitraum-Picker
         lbl_zeit = QtWidgets.QLabel("Zeitraum:")
@@ -156,7 +160,7 @@ class GlobalFilterBar(QtWidgets.QWidget):
         combo = QtWidgets.QComboBox()
         combo.addItem(placeholder)
         combo.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        combo.setMinimumWidth(180)
+        combo.setMinimumWidth(120)
         return combo
 
     def _populate_depot_combo(self) -> None:

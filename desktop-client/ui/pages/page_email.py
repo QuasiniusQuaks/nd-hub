@@ -8,6 +8,7 @@ from db_manager import Database
 from icon_manager import IconManager
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 from ui.utils import configure_responsive_table, create_card_widget
+from ui.pages.analytics.tabs.tab_email import TabEmailSchedule
 
 
 class EmailPage(QtWidgets.QWidget):
@@ -149,6 +150,12 @@ class EmailPage(QtWidgets.QWidget):
         tabs.addTab(tab_verlauf, "Verlauf")
         tabs.setTabIcon(1, IconManager.get_icon("clock"))
 
+        # Report-Schedule (aus Analytics hierher verschoben)
+        self.tab_schedule = TabEmailSchedule(db, queries=None)
+        tabs.addTab(self.tab_schedule, "Report-Schedule")
+        tabs.setTabIcon(2, IconManager.get_icon("clock"))
+        self._email_tabs = tabs
+
         layout.addWidget(tabs)
 
         self.btn_select_all.clicked.connect(self.select_all_depots)
@@ -177,6 +184,11 @@ class EmailPage(QtWidgets.QWidget):
     def _load_initial_data(self):
         self.refresh_depot_list()
         self.refresh_verlauf()
+        if hasattr(self, "tab_schedule"):
+            try:
+                self.tab_schedule.refresh()
+            except Exception:
+                pass
 
     def _toast(self, message: str, level: str = "info"):
         host = self.window()

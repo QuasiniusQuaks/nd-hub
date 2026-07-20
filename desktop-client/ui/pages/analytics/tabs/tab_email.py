@@ -36,7 +36,7 @@ _REPORT_TYPES = [
 class TabEmailSchedule(BaseTab):
     """Email-Schedule-Tab für automatisierte Analytics-Reports."""
 
-    def __init__(self, db: Database, queries, parent=None) -> None:
+    def __init__(self, db: Database, queries=None, parent=None) -> None:
         super().__init__(db, queries, parent)
 
     def refresh(self) -> None:
@@ -98,7 +98,7 @@ class TabEmailSchedule(BaseTab):
         """Baut die Liste der bestehenden Schedules."""
         layout = card.layout()
 
-        self.schedule_table = self._create_table([], 0)
+        self.schedule_table = self._create_responsive_table([], 0)
         self._populate_schedules()
         layout.addWidget(self.schedule_table)
 

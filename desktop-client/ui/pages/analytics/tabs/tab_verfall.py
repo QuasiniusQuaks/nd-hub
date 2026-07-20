@@ -10,7 +10,6 @@ import logging
 from PySide6 import QtWidgets
 
 from apple_theme import AppleTheme
-from ui.utils import configure_responsive_table
 
 from .._charts.forecast_band import ForecastBandChart
 from .._filters.cross_filter_state import CrossFilterState
@@ -75,7 +74,7 @@ class TabVerfall(BaseTab):
             rows = [r for r in rows if r["praeparat_id"] in self._filter_state.state.praeparat_ids]
 
         headers = ["Präparat", "Depot", "Charge", "Verfall", "Menge"]
-        table = self._create_table(headers, len(rows))
+        table = self._create_responsive_table(headers, len(rows))
 
         c = AppleTheme.current_colors()
         for i, row in enumerate(rows):
@@ -93,17 +92,6 @@ class TabVerfall(BaseTab):
 
         return table
 
-    def _create_table(self, headers: list[str], row_count: int) -> QtWidgets.QTableWidget:
-        table = QtWidgets.QTableWidget(row_count, len(headers))
-        table.setHorizontalHeaderLabels(headers)
-        table.verticalHeader().setVisible(False)
-        table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        table.horizontalHeader().setStretchLastSection(True)
-        try:
-            configure_responsive_table(table)
-        except Exception:
-            table.resizeColumnsToContents()
-        return table
 
     def _add_empty_hint(self, table: QtWidgets.QTableWidget, text: str) -> None:
         table.setRowCount(1)

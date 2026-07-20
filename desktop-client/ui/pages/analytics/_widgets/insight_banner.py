@@ -11,7 +11,6 @@ Drill-Down-Navigation.
 
 Issue #42 Phase 1 — Hero-Layer.
 """
-
 from __future__ import annotations
 
 import logging
@@ -28,33 +27,53 @@ logger = logging.getLogger(__name__)
 class InsightBanner(QtWidgets.QWidget):
     """4 Smart-Cards als Hero-Layer über den Tabs."""
 
-    insightClicked = QtCore.Signal(str)  # insight_type: "verfall" | "deviation" | "inactive" | "trend"
+    insightClicked = QtCore.Signal(str)  # insight_type
 
     def __init__(self, db: Database, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.db = db
-
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
-
-        self.card_verfall = self._create_clickable_card(
-            "🚨", "Verfälle <30 Tage", 0, "red",
-        )
-        self.card_deviation = self._create_clickable_card(
-            "✅", "Top-Abweichung", 0, "green",
-        )
-        self.card_inactive = self._create_clickable_card(
-            "⚠️", "Inaktive Depots", 0, "orange",
-        )
-        self.card_trend = self._create_clickable_card(
-            "📈", "Zugang-Trend", 0, "blue",
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Preferred,
         )
 
-        layout.addWidget(self.card_verfall)
-        layout.addWidget(self.card_deviation)
-        layout.addWidget(self.card_inactive)
-        layout.addWidget(self.card_trend)
+        self._grid = QtWidgets.QGridLayout(self)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setSpacing(12)
+
+        self.card_verfall = self._create_clickable_card("🚨", "Verfälle <30 Tage", 0, "red")
+        self.card_deviation = self._create_clickable_card("✅", "Top-Abweichung", 0, "green")
+        self.card_inactive = self._create_clickable_card("⚠️", "Inaktive Depots", 0, "orange")
+        self.card_trend = self._create_clickable_card("📈", "Zugang-Trend", 0, "blue")
+        self._cards = [
+            self.card_verfall,
+            self.card_deviation,
+            self.card_inactive,
+            self.card_trend,
+        ]
+        self._relayout(self.width() or 1200)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._relayout(event.size().width())
+
+    def _relayout(self, width: int) -> None:
+        """1–4 Spalten je nach verfügbarer Breite."""
+        if width < 520:
+            cols = 1
+        elif width < 820:
+            cols = 2
+        else:
+            cols = 4
+        # clear grid positions
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            # widgets remain owned
+            _ = item.widget()
+        for i, card in enumerate(self._cards):
+            r, c = divmod(i, cols)
+            self._grid.addWidget(card, r, c)
+            self._grid.setColumnStretch(c, 1)
 
     def _create_clickable_card(
         self,
@@ -63,20 +82,21 @@ class InsightBanner(QtWidgets.QWidget):
         value: int | float,
         accent: str,
     ) -> SparklineKpiCard:
-        """Erstellt eine klickbare SparklineKpiCard."""
         card = SparklineKpiCard(
             title=title,
             value=value,
             icon=icon,
             accent_color=accent,
         )
-        # Click-Event via mousePressEvent
+        card.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Preferred,
+        )
         card.mousePressEvent = lambda _event, t=title.lower(): self._on_card_clicked(t)
         return card
 
     def _on_card_clicked(self, title: str) -> None:
-        """Karte geklickt → Signal mit Insight-Typ."""
-        if "verfäl" in title:
+        if "verfäl" in title or "verfall" in title:
             self.insightClicked.emit("verfall")
         elif "abweich" in title:
             self.insightClicked.emit("deviation")
@@ -86,7 +106,6 @@ class InsightBanner(QtWidgets.QWidget):
             self.insightClicked.emit("trend")
 
     def refresh(self) -> None:
-        """Lädt Daten aus der DB und aktualisiert alle 4 Karten."""
         try:
             verfall_rows = self.db.get_verfall_warnings(days=30)
             self.card_verfall.counter.set_target(len(verfall_rows))

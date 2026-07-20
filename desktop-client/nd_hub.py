@@ -55,6 +55,8 @@ VERSION = "0.5"
 # =============================================================================
 
 import logging
+import faulthandler
+faulthandler.enable()
 
 # Initialisiere Konfiguration (vor dem Logging)
 config = ConfigManager()
@@ -173,12 +175,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.db_path = db_path
         self.attachment_folder = attachment_folder
 
-        # Security zuerst (blockierend)
+        # Database zuerst — Security/Verfall teilen die Connection (Issue #18)
+        self._init_database(db_path)
         self._init_security(db_path)
-        self._profile_startup("Security abgeschlossen")
+        self._profile_startup("Database + Security abgeschlossen")
 
         # Core-Komponenten
-        self._init_database(db_path)
         self._init_data_access_layer()
         self._init_sync_service()
         self._init_managers(db_path)
@@ -260,7 +262,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.force_logout()
                 return
 
-        QtCore.QTimer.singleShot(500, self._maybe_open_setup_wizard)
+        # Länger verzögern + eigener Tick: Login-Overlay/Toast dürfen erst fertig sein.
+        QtCore.QTimer.singleShot(800, self._maybe_open_setup_wizard)
 
     def _maybe_open_setup_wizard(self) -> None:
         """Öffnet den Einrichtungswizard einmal pro Sitzung, wenn Stammdaten noch fehlen."""
@@ -277,11 +280,24 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.db.needs_setup_wizard():
             return
         self._setup_wizard_prompted_session = True
+        logger.info("Starte Einrichtungswizard (Post-Login, native Dialog)")
         try:
             from ui.dialogs.setup_wizard_dialog import SetupWizardDialog
 
-            dlg = SetupWizardDialog(self, self.db)
-            exec_embedded_dialog(self, dlg)
+            # Native modal window statt embedded overlay:
+            # nested QEventLoop + Fullscreen/Maximized + großer Wizard
+            # hat unter Windows Exit-139 (Segfault) ausgelöst.
+            # parent=None: kein Backdrop auf dem MainWindow (Fix "Später"-Overlay)
+            dlg = SetupWizardDialog(None, self.db)
+            dlg.setWindowFlag(QtCore.Qt.Window, True)
+            dlg.setWindowModality(QtCore.Qt.ApplicationModal)
+            dlg.exec()
+            # Falls ältere Backdrops vom Parent hängen: aufräumen
+            for child in self.findChildren(QtWidgets.QWidget, "setup_wizard_backdrop"):
+                child.hide()
+                child.setParent(None)
+                child.deleteLater()
+            logger.info("Einrichtungswizard beendet (result=%s)", dlg.result())
         except Exception:
             logger.exception("Einrichtungswizard konnte nicht geöffnet werden")
 
@@ -313,8 +329,16 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             from ui.dialogs.setup_wizard_dialog import SetupWizardDialog
 
-            dlg = SetupWizardDialog(self, self.db)
-            exec_embedded_dialog(self, dlg)
+            # parent=None: kein Backdrop auf dem MainWindow (Fix "Später"-Overlay)
+            dlg = SetupWizardDialog(None, self.db)
+            dlg.setWindowFlag(QtCore.Qt.Window, True)
+            dlg.setWindowModality(QtCore.Qt.ApplicationModal)
+            dlg.exec()
+            # Falls ältere Backdrops vom Parent hängen: aufräumen
+            for child in self.findChildren(QtWidgets.QWidget, "setup_wizard_backdrop"):
+                child.hide()
+                child.setParent(None)
+                child.deleteLater()
         except Exception:
             logger.exception("Einrichtungswizard konnte nicht geöffnet werden")
 
@@ -1721,15 +1745,30 @@ class MainWindow(QtWidgets.QMainWindow):
         username = self.security.get_current_user()
 
         dialog = ChangePasswordDialog(username, self)
-        if exec_embedded_dialog(self, dialog) == QtWidgets.QDialog.Accepted:
-            old_pw, new_pw = dialog.get_passwords()
-            success, message = self.security.change_password(user_id, old_pw, new_pw)
+        accepted = exec_embedded_dialog(self, dialog) == QtWidgets.QDialog.Accepted
+        if not accepted:
+            dialog.deleteLater()
+            return
 
-            if success:
-                QtWidgets.QMessageBox.information(self, "Erfolg", f"{message}\n\nIhr neues Passwort wurde gespeichert.")
+        # Passwörter SOFORT lesen (Dialog ist vom Overlay entkoppelt).
+        # Keine nested Dialoge im selben Call-Stack wie der gerade
+        # geschlossene Embedded-Dialog (beobachteter Exit-139-Crash).
+        try:
+            old_pw, new_pw = dialog.get_passwords()
+        finally:
+            dialog.deleteLater()
+
+        success, message = self.security.change_password(user_id, old_pw, new_pw)
+
+        def _feedback(ok=success, msg=message):
+            if ok:
+                detail = msg + "\n\nIhr neues Passwort wurde gespeichert."
+                QtWidgets.QMessageBox.information(self, "Erfolg", detail)
                 self.show_toast("Passwort erfolgreich geändert.", "success")
             else:
-                QtWidgets.QMessageBox.warning(self, "Fehler", message)
+                QtWidgets.QMessageBox.warning(self, "Fehler", msg)
+
+        QtCore.QTimer.singleShot(0, _feedback)
 
     def change_user_avatar(self) -> None:
         """Erlaubt dem Benutzer, ein Profilbild zu setzen."""
@@ -1944,6 +1983,6 @@ if __name__ == "__main__":
 
     # MainWindow mit zentralem ConfigManager starten
     win = MainWindow(config)
-    win.showFullScreen()
+    win.showMaximized()
 
     sys.exit(app.exec())

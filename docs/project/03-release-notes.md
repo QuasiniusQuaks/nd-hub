@@ -4,6 +4,30 @@ Diese Seite buendelt die Releaseuebersicht von ND-Hub auf den
 aktuellen Stand v0.5 (ndhub-web **0.1.1**) und gibt eine Kurzfassung der wesentlichen
 Aenderungen.
 
+## v0.5.1 Desktop Hotfix (2026-07-20)
+
+### Desktop-Client Stabilität
+
+- **Startup-Crash behoben:** `MainWindow` initialisiert Database vor SecurityManager (Shared-Connection / Issue #18 Regression) — App startet wieder unter Windows.
+- **Passwort-Dialog Segfault (Exit 139):** Embedded-Dialoge entkoppeln den Dialog vom Overlay vor `deleteLater`; Passwort-Feedback asynchron.
+- **Setup-Wizard „Später“-Overlay:** Backdrop wird zuverlässig entfernt; Wizard als natives Modal-Fenster ohne Parent-Verdunkelung.
+- **Setup-Wizard Mixin-`super()`:** `ChromeMixin.showEvent/closeEvent` rufen `QDialog`-Basismethoden explizit auf (setattr-Mixins ohne MRO).
+- **Matplotlib-Theme:** `AppleTheme.setup_matplotlib(None)` importiert pyplot lazy (Analytics-Charts).
+
+### Analytics Control Center UX
+
+- **Responsive Viewport-Breite:** Scroll-Content an Viewport geklemmt; Charts mit begrenztem `sizeHint`; Tabellen mit Stretch statt horizontaler Explosion.
+- **Heatmap-Lesbarkeit:** adaptive Schriften, Zellgitter, Colorbar-Label, Top-18-Präparate nach |Ist−Soll|, Hover-Tooltips.
+- **Tab-Wechsel Auto-Refresh:** aktiver Tab + Insight-Banner werden beim Wechsel neu geladen.
+- **SQL-Tab entfernt** zugunsten geführter Szenarien.
+- **Email-Schedule** von Analytics nach **E-Mail → Report-Schedule** verschoben.
+- **Neu: Tab „Szenarien“** — individuelle Auswertungen per Dropdown (Depot/Präparat/Typ/Zeitraum), Mehrfachauswahl optional, Ergebnis-Tabelle + Zwischenablage.
+
+### Hinweis Betrieb
+
+- Testdaten-Generator: `desktop-client/populate_nd_hub.py` (schreibt nach `%APPDATA%/ND-Hub/nd_hub.db`).
+- Empfohlener Start Windows: `desktop-client/.venv` + `python nd_hub.py` (maximiert, nicht Fullscreen).
+
 ## v0.5 (aktuell)
 
 ### Highlights
@@ -11,7 +35,8 @@ Aenderungen.
 - **Analytics Control Center** — kompletter Umbau des Analyse-Bereichs
   von 1374-Zeilen-Monolith zu modularem Kontrollzentrum (34 Module).
 - Insight-Banner mit 4 Smart-Cards + Auto-Insights (3 NL-Bullet-Points).
-- 6-Tab-Cluster: Bestand, Bewegungen, Verfall, Compliance, Custom-SQL, Email-Schedule.
+- 5-Tab-Cluster (Stand Hotfix): Bestand, Bewegungen, Verfall, Compliance, Szenarien.
+  Custom-SQL entfernt; Email-Schedule unter E-Mail-Seite.
 - Interaktive Charts (Heatmap, RankingBar, ForecastBand) mit Hover-Tooltips
   und Click-to-Drill.
 - Cross-Filter: Klick auf Chart-Element filtert alle Tabs.

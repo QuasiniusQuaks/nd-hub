@@ -99,6 +99,17 @@ def exec_embedded_dialog(parent: QtWidgets.QWidget, dialog: QtWidgets.QDialog) -
     if host is None:
         return dialog.exec()
 
+    # Sehr große Dialoge (z.B. Setup-Wizard ~92% Fläche) als natives Fenster:
+    # nested QEventLoop + setParent(Widget) + setFixedSize hat unter Windows
+    # native Segfaults (Exit 139) nach Login ausgelöst.
+    fill_ratio_pre = dialog.property("embedded_fill_ratio")
+    if isinstance(fill_ratio_pre, (float, int)) and float(fill_ratio_pre) >= 0.8:
+        dialog.setParent(host)
+        dialog.setWindowFlag(Qt.Window, True)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.setModal(True)
+        return dialog.exec()
+
     overlay = QtWidgets.QWidget(host)
     overlay.setObjectName("embedded_dialog_overlay")
     dim = "rgba(15, 23, 42, 200)" if AppleTheme.is_dark_mode else "rgba(15, 23, 42, 170)"
@@ -156,7 +167,21 @@ def exec_embedded_dialog(parent: QtWidgets.QWidget, dialog: QtWidgets.QDialog) -
     overlay.raise_()
     dialog.show()
     loop.exec()
+    # WICHTIG: Dialog vom Overlay lösen, BEVOR das Overlay gelöscht wird.
+    # Sonst stirbt der Dialog mit (Qt C++ delete) und Aufrufer, die danach
+    # z.B. dialog.get_passwords() lesen, triggern einen nativen Segfault
+    # (Exit 139) — Python-Exception-Handler greift nicht.
+    try:
+        dialog.finished.disconnect(_finish)
+    except (RuntimeError, TypeError):
+        pass
+    dialog.hide()
+    dialog.setParent(None)
+    overlay.hide()
     overlay.deleteLater()
+    # Events verarbeiten, damit deleteLater das Overlay wirklich freigibt,
+    # ohne den (jetzt entkoppelten) Dialog mitzunehmen.
+    QtWidgets.QApplication.processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
     return result
 
 
