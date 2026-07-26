@@ -14,6 +14,22 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
+/**
+ * OSM's public tile endpoint often returns "Access blocked" / 403 for app
+ * traffic. Use CARTO basemaps (OSM data) which allow normal web app usage.
+ */
+const MAP_TILE_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png";
+const MAP_TILE_ATTR =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+function addBaseTileLayer(map: L.Map): L.TileLayer {
+  return L.tileLayer(MAP_TILE_URL, {
+    maxZoom: 18,
+    subdomains: "abcd",
+    attribution: MAP_TILE_ATTR,
+  }).addTo(map);
+}
+
 type DesktopToken = {
   token_fingerprint: string;
   token_masked: string;
@@ -292,6 +308,28 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+function hasAuthToken(): boolean {
+  return Boolean(window.localStorage.getItem("ndhub_token"));
+}
+
+/**
+ * Islands mount at page load (often before login). Re-run `load` on shell
+ * `ndhub-session-ready` so menus/data work after login or password-gate unlock.
+ */
+function useSessionReload(load: () => void | Promise<void>, options?: { requireToken?: boolean }): void {
+  const requireToken = options?.requireToken !== false;
+  useEffect(() => {
+    const run = () => {
+      if (requireToken && !hasAuthToken()) return;
+      void load();
+    };
+    run();
+    window.addEventListener("ndhub-session-ready", run);
+    return () => window.removeEventListener("ndhub-session-ready", run);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount + session bridge
+  }, []);
+}
+
 function formatDateTime(value: string): string {
   if (!value) return "-";
   const parsed = new Date(value);
@@ -430,9 +468,7 @@ function DesktopSyncArchiveIsland() {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useSessionReload(load);
 
   useEffect(() => {
     const onRefresh = () => {
@@ -543,9 +579,7 @@ function UsersTableIsland() {
     }
   };
 
-  useEffect(() => {
-    void loadUsers();
-  }, []);
+  useSessionReload(loadUsers);
 
   useEffect(() => {
     const reloadButton = document.getElementById("users-reload");
@@ -885,9 +919,7 @@ function DashboardOverviewIsland() {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useSessionReload(load);
 
   useEffect(() => {
     const refreshButton = document.getElementById("dashboard-refresh");
@@ -912,6 +944,7 @@ function DashboardOverviewIsland() {
     };
 
     const loadMapData = async () => {
+      if (!hasAuthToken()) return;
       try {
         const payload = await apiFetch<InstitutionMapRow[]>("/map/institutions");
         if (disposed) return;
@@ -928,10 +961,7 @@ function DashboardOverviewIsland() {
             maxBounds: germanyBounds,
             maxBoundsViscosity: 1.0,
           }).setView([51.1657, 10.4515], 6);
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 18,
-            attribution: "&copy; OpenStreetMap contributors",
-          }).addTo(dashboardMapRef.current);
+          addBaseTileLayer(dashboardMapRef.current);
           dashboardMarkerLayerRef.current = L.layerGroup().addTo(dashboardMapRef.current);
         }
         dashboardMapRef.current.setView([51.1657, 10.4515], 6);
@@ -949,10 +979,15 @@ function DashboardOverviewIsland() {
     };
 
     void loadMapData();
+    const onSessionReady = () => {
+      void loadMapData();
+    };
+    window.addEventListener("ndhub-session-ready", onSessionReady);
     window.addEventListener("resize", scheduleInvalidate);
     window.addEventListener("ndhub-page-change", scheduleInvalidate as EventListener);
     return () => {
       disposed = true;
+      window.removeEventListener("ndhub-session-ready", onSessionReady);
       window.removeEventListener("resize", scheduleInvalidate);
       window.removeEventListener("ndhub-page-change", scheduleInvalidate as EventListener);
       resizeObserver?.disconnect();
@@ -1237,10 +1272,7 @@ function InstitutionsMapIsland() {
             maxBounds: germanyBounds,
             maxBoundsViscosity: 1.0,
           }).setView([51.1657, 10.4515], 6);
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 18,
-            attribution: "&copy; OpenStreetMap contributors",
-          }).addTo(mapRef.current);
+          addBaseTileLayer(mapRef.current);
           markerLayerRef.current = L.layerGroup().addTo(mapRef.current);
           mapRef.current.fitBounds(germanyBounds, { maxZoom: 6 });
         }
@@ -1502,9 +1534,7 @@ function InstitutionsAdminIsland() {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useSessionReload(load);
 
   useEffect(() => {
     if (!selectedUsername) return;
@@ -1944,9 +1974,7 @@ function MovementHistoryIsland() {
     }
   };
 
-  useEffect(() => {
-    void load(0);
-  }, []);
+  useSessionReload(() => load(0));
 
   useEffect(() => {
     const onCreated = () => {
@@ -2157,9 +2185,7 @@ function VerfallOverviewIsland() {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useSessionReload(load);
 
   useEffect(() => {
     const loadButton = document.getElementById("verfall-load");
@@ -2285,9 +2311,7 @@ function AuditLogsIsland() {
     }
   };
 
-  useEffect(() => {
-    void load(0);
-  }, []);
+  useSessionReload(() => load(0));
 
   useEffect(() => {
     const reload = document.getElementById("audit-reload");
@@ -2638,9 +2662,7 @@ function BackupManagerIsland() {
     }
   };
 
-  useEffect(() => {
-    void loadList();
-  }, []);
+  useSessionReload(loadList);
 
   const tokenHeaders = (): HeadersInit => {
     const token = window.localStorage.getItem("ndhub_token") || "";
@@ -2884,9 +2906,7 @@ function EmailManagerIsland() {
     }
   };
 
-  useEffect(() => {
-    void loadBaseData();
-  }, []);
+  useSessionReload(loadBaseData);
 
   const refreshRecipientsForSelectedDepots = async (depotIds: number[]) => {
     if (!depotIds.length) {
@@ -4148,29 +4168,31 @@ function MovementCreateFormIsland() {
     setPraeparatId((prev) => (safeRows.some((row) => String(row.id) === prev) ? prev : String(safeRows[0]?.id || "")));
   };
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const depotsResponse = await apiFetch<{ rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
-        const rows = normalizeDepotRows(depotsResponse);
-        setDepots(rows);
-        const savedEnabled = window.localStorage.getItem(BEWEGUNG_AUTOFILL_ENABLED_KEY);
-        const enabled = savedEnabled === null ? true : savedEnabled === "1";
-        setAutofillEnabled(enabled);
+  const initForm = async () => {
+    if (!hasAuthToken()) return;
+    try {
+      const depotsResponse = await apiFetch<{ rows?: DepotRow[] }>("/depots?limit=500&offset=0&q=");
+      const rows = normalizeDepotRows(depotsResponse);
+      setDepots(rows);
+      const savedEnabled = window.localStorage.getItem(BEWEGUNG_AUTOFILL_ENABLED_KEY);
+      const enabled = savedEnabled === null ? true : savedEnabled === "1";
+      setAutofillEnabled(enabled);
 
-        const savedRaw = window.localStorage.getItem(BEWEGUNG_LAST_INPUT_KEY);
-        const saved = savedRaw ? (JSON.parse(savedRaw) as { depot_id?: number; praeparat_id?: number; typ?: string; anzahl?: number }) : null;
-        const initialDepotId = saved?.depot_id ? String(saved.depot_id) : String(rows[0]?.id || "");
-        setDepotId(initialDepotId);
-        if (saved?.typ) setTyp(String(saved.typ));
-        if (Number(saved?.anzahl || 0) > 0) setAnzahl(String(saved?.anzahl));
-        await loadPraeparate(initialDepotId);
-        if (saved?.praeparat_id) setPraeparatId(String(saved.praeparat_id));
-      } catch (err) {
-        setStatus(err instanceof Error ? err.message : "Bewegungsformular konnte nicht initialisiert werden.");
-      }
-    })();
-  }, []);
+      const savedRaw = window.localStorage.getItem(BEWEGUNG_LAST_INPUT_KEY);
+      const saved = savedRaw ? (JSON.parse(savedRaw) as { depot_id?: number; praeparat_id?: number; typ?: string; anzahl?: number }) : null;
+      const initialDepotId = saved?.depot_id ? String(saved.depot_id) : String(rows[0]?.id || "");
+      setDepotId(initialDepotId);
+      if (saved?.typ) setTyp(String(saved.typ));
+      if (Number(saved?.anzahl || 0) > 0) setAnzahl(String(saved?.anzahl));
+      await loadPraeparate(initialDepotId);
+      if (saved?.praeparat_id) setPraeparatId(String(saved.praeparat_id));
+      setStatus("");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Bewegungsformular konnte nicht initialisiert werden.");
+    }
+  };
+
+  useSessionReload(initForm);
 
   const onDepotChange = async (value: string) => {
     setDepotId(value);
@@ -4682,20 +4704,25 @@ function AccountManagerIsland() {
     setAvatarUrl(url);
   };
 
+  const refreshAccount = async () => {
+    if (!hasAuthToken()) return;
+    try {
+      const me = await apiFetch<MeResponse>("/auth/me");
+      setMustChangePassword(Boolean(me.requires_password_change));
+      await Promise.all([loadActivity(), loadAvatar()]);
+      setStatus("");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Konto konnte nicht geladen werden.");
+    }
+  };
+
+  useSessionReload(refreshAccount);
+
   useEffect(() => {
-    void (async () => {
-      try {
-        const me = await apiFetch<MeResponse>("/auth/me");
-        setMustChangePassword(Boolean(me.requires_password_change));
-        await Promise.all([loadActivity(), loadAvatar()]);
-      } catch (err) {
-        setStatus(err instanceof Error ? err.message : "Konto konnte nicht geladen werden.");
-      }
-    })();
     return () => {
       if (avatarUrl) URL.revokeObjectURL(avatarUrl);
     };
-  }, []);
+  }, [avatarUrl]);
 
   return (
     <div className="nd-react-shell">
@@ -4733,16 +4760,22 @@ function AccountManagerIsland() {
       <form className="grid two-col" onSubmit={(event) => {
         event.preventDefault();
         void (async () => {
-          await apiFetch("/auth/change-password", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
-          });
-          setStatus("Passwort erfolgreich geaendert.");
-          setOldPassword("");
-          setNewPassword("");
-          setMustChangePassword(false);
-          await loadActivity();
+          try {
+            await apiFetch("/auth/change-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+            });
+            setStatus("Passwort erfolgreich geaendert.");
+            setOldPassword("");
+            setNewPassword("");
+            setMustChangePassword(false);
+            // Notify shell (app.js) so navigation is no longer forced to account-section.
+            window.dispatchEvent(new CustomEvent("ndhub-password-changed"));
+            await loadActivity();
+          } catch (err) {
+            setStatus(err instanceof Error ? err.message : "Passwort konnte nicht geaendert werden.");
+          }
         })();
       }}>
         <label>

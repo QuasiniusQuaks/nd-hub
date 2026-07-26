@@ -1657,6 +1657,27 @@ async function submitOnboardingSetup() {
   showPage("dashboard-section");
 }
 
+/**
+ * Clear the forced password-change navigation gate.
+ * React AccountManagerIsland only updates its local state after /auth/change-password;
+ * the shell must also clear this flag or menu navigation stays stuck on account-section.
+ */
+function clearMustChangePasswordGate(options = {}) {
+  const navigate = options.navigate !== false;
+  mustChangePassword = false;
+  if (accountPasswordWarning) {
+    accountPasswordWarning.classList.add("hidden");
+  }
+  window.dispatchEvent(
+    new CustomEvent("ndhub-session-ready", {
+      detail: { username: currentUsername || "", role: currentRole || "", reason: "password-changed" },
+    }),
+  );
+  if (!navigate) return;
+  showPage(getDefaultLandingPageId());
+  void checkAndOpenOnboardingIfRequired();
+}
+
 function showPage(pageId, options = {}) {
   closeHeaderAccountMenu();
   const updateHash = options.updateHash !== false;
@@ -3966,6 +3987,11 @@ async function afterLogin() {
     showPage(getDefaultLandingPageId());
     await checkAndOpenOnboardingIfRequired();
   }
+  window.dispatchEvent(
+    new CustomEvent("ndhub-session-ready", {
+      detail: { username: me.username || "", role: me.role || "" },
+    }),
+  );
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -4461,19 +4487,23 @@ if (accountPasswordForm && !isReactIslandMounted("account-manager")) {
       accountStatus.textContent = "Passwort erfolgreich geaendert.";
       accountPasswordForm.reset();
       markFormSaved(accountPasswordForm);
-      mustChangePassword = false;
-      if (accountPasswordWarning) {
-        accountPasswordWarning.classList.add("hidden");
-      }
       showToast("Passwort erfolgreich geaendert.", "success");
       await loadCurrentUserActivity();
-      showPage(getDefaultLandingPageId());
+      clearMustChangePasswordGate({ navigate: true });
     } catch (error) {
       accountStatus.textContent = error.message;
       showToast(error.message, "error");
     }
   });
 }
+
+// React island password change → unlock shell navigation
+window.addEventListener("ndhub-password-changed", () => {
+  clearMustChangePasswordGate({ navigate: true });
+});
+window.NDHubShell = Object.assign(window.NDHubShell || {}, {
+  clearMustChangePasswordGate,
+});
 
 if (accountAvatarForm && !isReactIslandMounted("account-manager")) {
   accountAvatarForm.addEventListener("submit", async (event) => {
