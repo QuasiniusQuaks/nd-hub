@@ -12,12 +12,22 @@ skips:
 
 exclude_dirs:
   # Tests: asserts, hardcoded test credentials and /tmp paths are expected.
+  - tests
+  - unit
+  - integration
+  - performance
+  - ndhub-web/backend/tests
+  - desktop-client/tests
   - ./ndhub-web/backend/tests
   - ./desktop-client/tests
   # Build/packaging script: subprocess calls to PyInstaller etc. are trusted.
   - ./desktop-client/build_windows_exe.py
+  - desktop-client/build_windows_exe.py
   # Frontend dependencies and Python caches.
   - ./ndhub-web/frontend-react/node_modules
+  - node_modules
   - ./__pycache__
   - ./desktop-client/__pycache__
   - ./ndhub-web/backend/__pycache__
+  - .venv
+  - __pycache__

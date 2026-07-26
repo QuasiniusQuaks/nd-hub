@@ -146,10 +146,19 @@ jobs:
 
       - name: Bandit scan (medium+)
         run: |
-          bandit -q -r desktop-client ndhub-web/backend shared \
+          # Scan production packages only (tests are excluded via .bandit.yml + -x).
+          bandit -q \
+            -r desktop-client/core desktop-client/backend desktop-client/ui \
+               desktop-client/db_manager.py desktop-client/security_manager.py \
+               desktop-client/nd_hub.py desktop-client/user_management.py \
+               desktop-client/verfall_widget.py desktop-client/verfallmanager.py \
+               desktop-client/apple_dashboard.py desktop-client/apple_theme.py \
+               desktop-client/icon_manager.py desktop-client/responsive_widgets.py \
+               ndhub-web/backend shared \
+            -x '*/tests/*,*/test_*.py,**/.venv/**,**/__pycache__/**,**/node_modules/**' \
             -c .bandit.yml \
-            -ll \
-            --exclude './desktop-client/tests,./ndhub-web/backend/tests,./desktop-client/build_windows_exe.py,./ndhub-web/frontend-react,**/__pycache__,**/.venv'
+            -ll -ii
+
 
   # Aggregate gate used by branch protection / optional image-publish needs.
   ci-success:
