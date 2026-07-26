@@ -13,11 +13,13 @@ Aenderungen.
 - **`helpers.py` Facade**: Domain-Module `helper_{common,email,import,report,authz,backup}.py` (Monkeypatch-Oberfläche `backend.helpers` bleibt stabil).
 - Tests: OpenAPI-Path-Parity + Unit-Tests für Lockout-Tracker.
 
-### Desktop Grundeinstellungen (#93, Phase 1)
+### Desktop UI-Monolithen (#93)
 
-- **`_hauptseite.py` Orchestrator** (~1830 → ~216 LOC).
-- Extrahiert: `email_smtp_tab.py`, `backup_page.py`, `sync_tab.py`, `security_tab.py` (Qt-Stub-sichere Funktionsbindung, kein Multi-Inheritance).
-- Unit-Smoke für Split + SSRF-Helper.
+- **Phase 1 — Grundeinstellungen:** `_hauptseite.py` ~1830 → ~216 LOC; SMTP/Backup/Sync/Security extrahiert.
+- **Phase 2 — Dashboard:** `apple_dashboard.py` → Shim; Implementation `ui/dashboard/` (widgets, sections, layout).
+- **Phase 2 — Shell:** `nd_hub.py` → dünner Entry (~76 LOC); `ui/shell/` (init, sidebar, feedback, pages, session, sync).
+- Qt-Stub-sichere Funktionsbindung; Public-API (`MainWindow`, `AppleDashboard`, `config`, `VERSION`) stabil.
+- Unit-Smoke für Split-Struktur.
 
 ### Lint (#95)
 
