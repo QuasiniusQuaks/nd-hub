@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 import logging
-import re
 import sqlite3
 import tempfile
 from datetime import date, datetime, timezone
@@ -43,11 +41,46 @@ from backend.models import (
     IMPORT_REQUIRED_COLUMNS,
     MAX_ATTACHMENT_SIZE_BYTES,
 )
+from shared.backend_helpers.common import (
+    add_months as _shared_add_months,
+)
+from shared.backend_helpers.common import (
+    enrich_verfall_rows as _shared_enrich_verfall_rows,
+)
+from shared.backend_helpers.common import (
+    normalize_import_column_name as _shared_normalize_import_column_name,
+)
+from shared.backend_helpers.common import (
+    normalize_user_row as _shared_normalize_user_row,
+)
+from shared.backend_helpers.common import (
+    normalize_verfall_thresholds as _shared_normalize_verfall_thresholds,
+)
+from shared.backend_helpers.common import (
+    parse_id_list_csv as _shared_parse_id_list_csv,
+)
+from shared.backend_helpers.common import (
+    parse_permission_list as _shared_parse_permission_list,
+)
+from shared.backend_helpers.common import (
+    permissions_for_role as _shared_permissions_for_role,
+)
+from shared.backend_helpers.common import (
+    permissions_json_for_storage as _shared_permissions_json_for_storage,
+)
+from shared.backend_helpers.common import (
+    safe_backup_label as _shared_safe_backup_label,
+)
+from shared.backend_helpers.common import (
+    sanitize_filename_part as _shared_sanitize_filename_part,
+)
+from shared.backend_helpers.common import (
+    verfall_category as _shared_verfall_category,
+)
 
 
 def _sanitize_filename_part(value: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", value or "")
-    return safe.strip("._") or "datei"
+    return _shared_sanitize_filename_part(value)
 
 def _build_attachment_target_path(
     base_dir: Path,
@@ -81,37 +114,20 @@ def _persist_pdf_upload(upload_file: UploadFile, target: Path) -> int:
     return total_written
 
 def _normalize_import_column_name(name: str) -> str:
-    lowered = (name or "").strip().lower()
-    lowered = lowered.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-    lowered = re.sub(r"[^a-z0-9]+", "", lowered)
-    return lowered
+    return _shared_normalize_import_column_name(name)
 
 def _parse_id_list_csv(value: str) -> list[int]:
-    if not value.strip():
-        return []
-    result: list[int] = []
-    for part in value.split(","):
-        item = part.strip()
-        if not item:
-            continue
-        result.append(int(item))
-    return result
+    return _shared_parse_id_list_csv(value)
 
 def _add_months(iso_date: date, months: int) -> date:
-    month_index = (iso_date.year * 12 + iso_date.month - 1) + months
-    year = month_index // 12
-    month = (month_index % 12) + 1
-    return date(year, month, 1)
+    return _shared_add_months(iso_date, months)
 
 def _normalize_verfall_thresholds(
     critical_days: int = 30,
     warning_days: int = 90,
     attention_days: int = 180,
 ) -> tuple[int, int, int]:
-    critical = max(1, min(int(critical_days), 3650))
-    warning = max(critical + 1, min(int(warning_days), 3650))
-    attention = max(warning + 1, min(int(attention_days), 3650))
-    return critical, warning, attention
+    return _shared_normalize_verfall_thresholds(critical_days, warning_days, attention_days)
 
 def _verfall_category(
     tage_bis_verfall: int,
@@ -119,13 +135,7 @@ def _verfall_category(
     warning_days: int,
     attention_days: int,
 ) -> str:
-    if tage_bis_verfall <= critical_days:
-        return "kritisch"
-    if tage_bis_verfall <= warning_days:
-        return "warnung"
-    if tage_bis_verfall <= attention_days:
-        return "achtung"
-    return "ok"
+    return _shared_verfall_category(tage_bis_verfall, critical_days, warning_days, attention_days)
 
 def _enrich_verfall_rows(
     rows: list[dict],
@@ -133,17 +143,7 @@ def _enrich_verfall_rows(
     warning_days: int,
     attention_days: int,
 ) -> list[dict]:
-    enriched: list[dict] = []
-    for row in rows:
-        item = dict(row)
-        try:
-            tage = int(item.get("tage_bis_verfall"))
-        except (TypeError, ValueError):
-            tage = 99999
-        item["tage_bis_verfall"] = tage
-        item["kategorie"] = _verfall_category(tage, critical_days, warning_days, attention_days)
-        enriched.append(item)
-    return enriched
+    return _shared_enrich_verfall_rows(rows, critical_days, warning_days, attention_days)
 
 def _ensure_import_dependencies() -> None:
     if pd is None:
@@ -432,49 +432,31 @@ def _pptx_response(filename: str, title: str, headers: list[str], rows: list[lis
     )
 
 def _parse_permission_list(raw_permissions: object) -> set[str]:
-    if raw_permissions in (None, ""):
-        return set()
-    if isinstance(raw_permissions, str):
-        try:
-            parsed = json.loads(raw_permissions)
-        except json.JSONDecodeError:
-            return set()
-    elif isinstance(raw_permissions, (list, tuple, set)):
-        parsed = list(raw_permissions)
-    else:
-        return set()
-    result: set[str] = set()
-    for item in parsed:
-        key = str(item or "").strip()
-        if key in ALL_PERMISSION_KEYS:
-            result.add(key)
-    return result
+    return _shared_parse_permission_list(raw_permissions, ALL_PERMISSION_KEYS)
 
 def _permissions_for_role(role: str | None, raw_permissions: object) -> set[str]:
-    if role == "Admin":
-        return set(ALL_PERMISSION_KEYS)
-    parsed = _parse_permission_list(raw_permissions)
-    return parsed or set(DEFAULT_USER_PERMISSIONS)
+    return _shared_permissions_for_role(
+        role,
+        raw_permissions,
+        allowed_keys=ALL_PERMISSION_KEYS,
+        default_permissions=DEFAULT_USER_PERMISSIONS,
+    )
 
 def _permissions_json_for_storage(role: str, requested: list[str] | None) -> str:
-    allowed = _permissions_for_role(role, requested)
-    return json.dumps(sorted(allowed), ensure_ascii=True)
+    return _shared_permissions_json_for_storage(
+        role,
+        requested,
+        allowed_keys=ALL_PERMISSION_KEYS,
+        default_permissions=DEFAULT_USER_PERMISSIONS,
+    )
 
 def _normalize_user_row(row: tuple) -> dict:
-    effective_permissions = sorted(_permissions_for_role(str(row[2]), row[10] if len(row) > 10 else None))
-    return {
-        "id": int(row[0]),
-        "username": str(row[1]),
-        "role": str(row[2]),
-        "email": row[3],
-        "created_at": row[4],
-        "last_login": row[5],
-        "is_active": bool(row[6]),
-        "failed_attempts": int(row[7] or 0),
-        "locked_until": row[8],
-        "is_default_password": bool(row[9]),
-        "permissions": effective_permissions,
-    }
+    return _shared_normalize_user_row(
+        row,
+        allowed_keys=ALL_PERMISSION_KEYS,
+        default_permissions=DEFAULT_USER_PERMISSIONS,
+    )
+
 
 def _get_user_flags(security: SecurityManager, username: str) -> dict[str, bool]:
     row = security.cur.execute(
@@ -501,7 +483,7 @@ def _get_avatar_path_for_user(security: SecurityManager, username: str) -> Path 
     return avatar_path
 
 def _safe_backup_label(value: str) -> str:
-    return re.sub(r"[^a-z0-9_-]+", "_", (value or "").strip().lower()) or "manual"
+    return _shared_safe_backup_label(value)
 
 def _create_backup_snapshot(source_db_path: Path, backups_dir: Path, label: str) -> Path:
     backups_dir.mkdir(parents=True, exist_ok=True)

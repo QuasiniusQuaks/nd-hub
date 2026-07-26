@@ -6,6 +6,14 @@ Aenderungen.
 
 ## Unreleased — P2 Modularisierung (2026-07-26)
 
+### Dual-Stack Security/Helpers (#94)
+
+- **`shared/security/`**: kanonische `hash_password` / `verify_password` (bcrypt + PBKDF2 constant-time).
+- Desktop- und Web-`SecurityManager` delegieren dorthin (Adapter bleiben DB-spezifisch).
+- **`shared/backend_helpers/`**: pure Utils (Verfall, Permissions, Dateinamen, IDs, Monate).
+- Web-`helper_*` und Desktop-`backend/helpers` re-exportieren shared unter stabilen `_`-Namen.
+- Unit-Tests für shared Policy/Helpers.
+
 ### Web Backend (#96)
 
 - **`app_factory.py` geschrumpft** (~749 → ~329 LOC): Login-Lockout, Security-Middleware und Router-Wiring in eigene Module.

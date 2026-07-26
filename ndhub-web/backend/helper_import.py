@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import re
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -34,13 +33,13 @@ from backend.models import (
     IMPORT_REQUIRED_COLUMNS,
     MAX_ATTACHMENT_SIZE_BYTES,
 )
+from shared.backend_helpers.common import (
+    normalize_import_column_name as _shared_normalize_import_column_name,
+)
 
 
 def _normalize_import_column_name(name: str) -> str:
-    lowered = (name or "").strip().lower()
-    lowered = lowered.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-    lowered = re.sub(r"[^a-z0-9]+", "", lowered)
-    return lowered
+    return _shared_normalize_import_column_name(name)
 
 def _ensure_import_dependencies() -> None:
     if pd is None:

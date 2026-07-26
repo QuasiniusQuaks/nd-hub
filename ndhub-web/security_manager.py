@@ -3,8 +3,6 @@ SecurityManager - Benutzerverwaltung und Authentifizierung
 Version: 2.0 (V32 - Kryptobereinigt)
 """
 
-import hashlib
-import hmac
 import logging
 import os
 import secrets
@@ -23,14 +21,14 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Versuche bcrypt zu laden
-try:
-    import bcrypt
-    HAS_BCRYPT = True
-    logger.info("✓ bcrypt verfügbar")
-except ImportError:
-    HAS_BCRYPT = False
-    logger.warning("bcrypt nicht verfügbar - verwende PBKDF2-SHA256")
+from shared.security.password import HAS_BCRYPT
+from shared.security.password import hash_password as _shared_hash_password
+from shared.security.password import verify_password as _shared_verify_password
+
+if HAS_BCRYPT:
+    logger.info("✓ bcrypt verfügbar (shared.security)")
+else:
+    logger.warning("bcrypt nicht verfügbar - verwende PBKDF2-SHA256 (shared.security)")
 
 
 
@@ -430,38 +428,15 @@ class SecurityManager:
 
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash ein Passwort sicher"""
-        if HAS_BCRYPT:
-            return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        else:
-            salt = os.urandom(32)
-            pwdhash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 600000)
-            return salt.hex() + pwdhash.hex()
+        """Hash ein Passwort sicher (kanonisch: shared.security)."""
+        return _shared_hash_password(password)
+
 
     @staticmethod
     def verify_password(password: str, password_hash: str) -> bool:
-        """Verifiziert ein Passwort gegen seinen Hash"""
-        if not password_hash:
-            return False
-        try:
-            if HAS_BCRYPT and password_hash.startswith('$2'):
-                return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
-            else:
-                salt = bytes.fromhex(password_hash[:64])
-                password_bytes = password.encode('utf-8')
+        """Verifiziert ein Passwort gegen seinen Hash (kanonisch: shared.security)."""
+        return _shared_verify_password(password, password_hash)
 
-                # Beide Varianten berechnen — konstante Zeit unabhängig vom Treffer
-                modern = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 600000).hex()
-                legacy = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 100000).hex()
-
-                # Constant-time compare gegen BEIDE möglichen Hash-Suffixe
-                # (Fix für #29 — verhindert Timing-Attacke auf /auth/login)
-                modern_match = hmac.compare_digest(modern, password_hash[64:])
-                legacy_match = hmac.compare_digest(legacy, password_hash[64:])
-                return modern_match or legacy_match
-        except Exception as e:
-            logger.error(f"Passwort-Verifikation fehlgeschlagen: {e}")
-            return False
 
     # ==================== USER AUTHENTICATION ====================
 

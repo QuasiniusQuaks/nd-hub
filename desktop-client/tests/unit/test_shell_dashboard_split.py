@@ -3,8 +3,7 @@ from pathlib import Path
 
 import apple_dashboard as ad
 import nd_hub
-from ui.shell.constants import VERSION, UI, PageIndex
-
+from ui.shell.constants import UI, VERSION, PageIndex
 
 ROOT = Path(__file__).resolve().parents[2]
 
