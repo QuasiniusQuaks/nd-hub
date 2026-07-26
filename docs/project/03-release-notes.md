@@ -6,6 +6,13 @@ Aenderungen.
 
 ## Unreleased — P2 Modularisierung (2026-07-26)
 
+### Web DB-Layer (#70)
+
+- **`AbstractRepository`**: gemeinsamer Vertrag; `SqliteRepository` + `MariaDbRepository` erben davon.
+- **`sql_dialect.py`**: shared Query-Fragmente (Depot/Praeparat) mit `?`/`%s`-Dialekt.
+- **`repository_factory.create_repository`**: Engine-Auswahl; von `app_factory` genutzt.
+- Unit-Tests: Inheritance, Dialekt, SQLite-Factory-Smoke.
+
 ### Dual-Stack Security/Helpers (#94)
 
 - **`shared/security/`**: kanonische `hash_password` / `verify_password` (bcrypt + PBKDF2 constant-time).

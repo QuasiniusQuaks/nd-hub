@@ -7,11 +7,17 @@ import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+from backend import sql_dialect as sql
+from backend.repository_abc import AbstractRepository
+
 ALLOWED_MOVEMENT_TYPES = {"Zugang", "Abgang", "Vernichtung"}
 
 
-class SqliteRepository:
+class SqliteRepository(AbstractRepository):
     """Small repository for backend API operations."""
+
+    _dialect = sql.SQLITE
+
 
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -333,16 +339,11 @@ class SqliteRepository:
         like = f"%{(q or '').strip()}%"
         with self._connect() as conn:
             rows = conn.execute(
-                """
-                SELECT id, name, wirkstoff, darreichungsform, staerke, einheit, pzn, hersteller
-                FROM praeparate
-                WHERE ? = '%%' OR name LIKE ?
-                ORDER BY name
-                LIMIT ? OFFSET ?
-                """,
+                self._dialect.format(sql.SQL_LIST_PRAEPARATE),
                 (like, like, safe_limit, safe_offset),
             ).fetchall()
             return [dict(row) for row in rows]
+
 
     def list_praeparate_for_depot(self, depot_id: int) -> list[dict[str, Any]]:
         safe_depot_id = int(depot_id)
@@ -539,26 +540,22 @@ class SqliteRepository:
     def get_depot_name(self, depot_id: int) -> str | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT name FROM depots WHERE id = ?",
+                self._dialect.format(sql.SQL_GET_DEPOT_NAME),
                 (int(depot_id),),
             ).fetchone()
             if row is None:
                 return None
             return str(row["name"]) if row["name"] is not None else None
 
+
     def get_depot(self, depot_id: int) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                """
-                SELECT depots.id, depots.name, depots.adresse, depots.strasse, depots.hausnummer, depots.postleitzahl, depots.stadt, depots.telefon, depots.email,
-                       depots.institution_id, depots.latitude, depots.longitude, institutions.name AS institution_name
-                FROM depots
-                LEFT JOIN institutions ON institutions.id = depots.institution_id
-                WHERE depots.id = ?
-                """,
+                self._dialect.format(sql.SQL_GET_DEPOT),
                 (int(depot_id),),
             ).fetchone()
             return dict(row) if row else None
+
 
     def update_depot(
         self,
@@ -1081,10 +1078,11 @@ class SqliteRepository:
     def get_praeparat(self, praeparat_id: int) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT id, name, wirkstoff, darreichungsform, staerke, einheit, pzn, hersteller FROM praeparate WHERE id = ?",
+                self._dialect.format(sql.SQL_GET_PRAEPARAT),
                 (int(praeparat_id),),
             ).fetchone()
             return dict(row) if row else None
+
 
     def list_kontakte(self, depot_id: int) -> list[dict[str, Any]]:
         safe_depot_id = int(depot_id)

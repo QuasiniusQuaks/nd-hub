@@ -16,15 +16,20 @@ from typing import Any
 import pymysql
 from pymysql.cursors import DictCursor
 
+from backend import sql_dialect as sql
 from backend.config import MariaDbSettings
 from backend.database import SqliteRepository
+from backend.repository_abc import AbstractRepository
 
 ALLOWED_MOVEMENT_TYPES = {"Zugang", "Abgang", "Vernichtung"}
 logger = logging.getLogger(__name__)
 
 
-class MariaDbRepository:
+class MariaDbRepository(AbstractRepository):
     """MariaDB-first repository with SQLite compatibility fallback."""
+
+    _dialect = sql.MYSQL
+
 
     def __init__(self, settings: MariaDbSettings, fallback: SqliteRepository, dual_write_sqlite: bool = True):
         self.settings = settings
@@ -376,25 +381,24 @@ class MariaDbRepository:
     def get_depot_name(self, depot_id: int) -> str | None:
         with self._connect() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT name FROM depots WHERE id = %s", (int(depot_id),))
+                cur.execute(
+                    self._dialect.format(sql.SQL_GET_DEPOT_NAME),
+                    (int(depot_id),),
+                )
                 row = cur.fetchone()
         return str(row["name"]) if row and row.get("name") is not None else None
+
 
     def get_depot(self, depot_id: int) -> dict[str, Any] | None:
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
-                    SELECT depots.id, depots.name, depots.adresse, depots.strasse, depots.hausnummer, depots.postleitzahl, depots.stadt, depots.telefon, depots.email,
-                           depots.institution_id, depots.latitude, depots.longitude, institutions.name AS institution_name
-                    FROM depots
-                    LEFT JOIN institutions ON institutions.id = depots.institution_id
-                    WHERE depots.id = %s
-                    """,
+                    self._dialect.format(sql.SQL_GET_DEPOT),
                     (int(depot_id),),
                 )
                 row = cur.fetchone()
         return dict(row) if row else None
+
 
     def list_institutions(self) -> list[dict[str, Any]]:
         with self._connect() as conn:
@@ -811,17 +815,12 @@ class MariaDbRepository:
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
-                    SELECT id, name, wirkstoff, darreichungsform, staerke, einheit, pzn, hersteller
-                    FROM praeparate
-                    WHERE %s = '%%' OR name LIKE %s
-                    ORDER BY name
-                    LIMIT %s OFFSET %s
-                    """,
+                    self._dialect.format(sql.SQL_LIST_PRAEPARATE),
                     (like, like, safe_limit, safe_offset),
                 )
                 rows = cur.fetchall()
         return [dict(row) for row in rows]
+
 
     def create_praeparat(
         self,
@@ -932,11 +931,12 @@ class MariaDbRepository:
         with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT id, name, wirkstoff, darreichungsform, staerke, einheit, pzn, hersteller FROM praeparate WHERE id = %s",
+                    self._dialect.format(sql.SQL_GET_PRAEPARAT),
                     (int(praeparat_id),),
                 )
                 row = cur.fetchone()
         return dict(row) if row else None
+
 
     def list_praeparate_for_depot(self, depot_id: int) -> list[dict[str, Any]]:
         with self._connect() as conn:

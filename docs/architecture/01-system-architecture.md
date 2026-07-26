@@ -108,6 +108,9 @@ flowchart TB
 | `shared/routers/*.py` | Domain-Router, von Desktop- und Web-Factory genutzt. |
 | `shared/security/` | Kanonische Passwort-Policy (`hash_password` / `verify_password`, bcrypt/PBKDF2). |
 | `shared/backend_helpers/` | Reine Helper (Datum, Verfall, Permissions-Sets, Dateinamen) ohne FastAPI. |
+| `ndhub-web/backend/repository_abc.py` | `AbstractRepository` Vertrag (SQLite + MariaDB). |
+| `ndhub-web/backend/sql_dialect.py` | Shared SQL-Fragmente + Placeholder-Dialekt (`?` / `%s`). |
+| `ndhub-web/backend/repository_factory.py` | Factory waehlt Engine via `ND_HUB_DB_ENGINE`. |
 
 Desktop- und Web-`security_manager.py` bleiben Adapter (DB-Cursor, MariaDB-Hooks bzw. Shared-Connection);
 Hash/Verify kommen aus `shared.security`. Backend-`helpers` re-exportieren shared-Funktionen unter den
