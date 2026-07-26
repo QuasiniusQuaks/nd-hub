@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +15,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
+from security_manager import SecurityManager
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.requests import Request as _StarletteRequest
 from starlette.responses import JSONResponse as _JSONResponse
 
+import backend.helpers as _helpers_mod
 from backend.auth import SessionInfo, TokenStore, bearer_scheme, get_current_session
 from backend.config import (
     resolve_auto_backup_hours,
@@ -35,13 +34,46 @@ from backend.config import (
     resolve_runtime_paths,
 )
 from backend.database import SqliteRepository
+from backend.helpers import *  # noqa: F403
+from backend.helpers import (  # noqa: E402
+    _add_months,
+    _analyze_import_dataframe,
+    _build_attachment_target_path,
+    _build_import_execution_fingerprint,
+    _build_import_template,
+    _build_report_export_filename,
+    _create_backup_snapshot,
+    _create_mariadb_backup_snapshot,
+    _csv_response,
+    _email_delivery_missing_config,
+    _enrich_verfall_rows,
+    _get_avatar_path_for_user,
+    _get_user_flags,
+    _is_valid_sqlite_file,
+    _list_backup_files,
+    _load_import_dataframe,
+    _map_import_columns,
+    _normalize_user_row,
+    _normalize_verfall_thresholds,
+    _parse_id_list_csv,
+    _parse_iso_datetime,
+    _pdf_response,
+    _permissions_for_role,
+    _permissions_json_for_storage,
+    _persist_pdf_upload,
+    _pptx_response,
+    _require_http_scheme,
+    _restore_mariadb_backup_payload,
+    _run_auto_backup_if_due,
+    _run_auto_backup_if_due_mariadb,
+    _summarize_import_errors,
+    _validate_restore_upload_size,
+    _validated_report_date_range,
+)
 from backend.mariadb_repository import MariaDbRepository
-from security_manager import SecurityManager
 
 # Re-exports for monkeypatch/tests (backend.app._send_email_via_smtp etc.)
 from backend.models import *  # noqa: F403
-from backend.helpers import *  # noqa: F403
-
 from backend.models import (  # noqa: E402
     ALL_PERMISSION_KEYS,
     ALLOWED_USER_ROLES,
@@ -74,57 +106,6 @@ from backend.models import (  # noqa: E402
     UserPasswordResetRequest,
     UserUpdateRequest,
 )
-from backend.helpers import (  # noqa: E402
-    _add_months,
-    _analyze_import_dataframe,
-    _build_attachment_target_path,
-    _build_import_execution_fingerprint,
-    _build_import_template,
-    _build_report_export_filename,
-    _classify_import_error_code,
-    _create_backup_snapshot,
-    _create_mariadb_backup_snapshot,
-    _csv_response,
-    _email_delivery_missing_config,
-    _enrich_verfall_rows,
-    _ensure_import_dependencies,
-    _get_avatar_path_for_user,
-    _get_user_flags,
-    _is_valid_sqlite_file,
-    _list_backup_files,
-    _load_import_dataframe,
-    _map_import_columns,
-    _normalize_import_column_name,
-    _normalize_json_value,
-    _normalize_user_row,
-    _normalize_verfall_thresholds,
-    _parse_id_list_csv,
-    _parse_import_date,
-    _parse_iso_datetime,
-    _parse_optional_iso_date,
-    _parse_permission_list,
-    _pdf_response,
-    _permissions_for_role,
-    _permissions_json_for_storage,
-    _persist_pdf_upload,
-    _pptx_response,
-    _quote_sql_identifier,
-    _read_upload_size_bytes,
-    _require_http_scheme,
-    _restore_mariadb_backup_payload,
-    _run_auto_backup_if_due,
-    _run_auto_backup_if_due_mariadb,
-    _safe_backup_label,
-    _safe_report_filename_token,
-    _sanitize_filename_part,
-    _send_email_via_smtp,
-    _summarize_import_errors,
-    _validate_restore_upload_size,
-    _validated_report_date_range,
-    _verfall_category,
-)
-
-import backend.helpers as _helpers_mod
 
 
 def create_app(db_path: str | None = None) -> FastAPI:
@@ -528,8 +509,8 @@ def create_app(db_path: str | None = None) -> FastAPI:
 
     # ---- Shared routers (Issues #60/#61/#65) ----
     from backend.routers.auth import create_auth_router
-    from backend.routers.users import create_users_router
     from backend.routers.depots import create_depots_router
+    from backend.routers.users import create_users_router
 
     def _enrich_auth_me(session: SessionInfo) -> dict:
         depot_permissions = _allowed_depot_permissions(session)
@@ -584,11 +565,11 @@ def create_app(db_path: str | None = None) -> FastAPI:
     )
     app.include_router(_depots_router)
 
-    from backend.routers.praeparate import create_praeparate_router
-    from backend.routers.kontakte import create_kontakte_router
     from backend.routers.audit import create_audit_router
-    from backend.routers.permissions import create_permissions_router
     from backend.routers.bewegungen import create_bewegungen_router
+    from backend.routers.kontakte import create_kontakte_router
+    from backend.routers.permissions import create_permissions_router
+    from backend.routers.praeparate import create_praeparate_router
 
     app.include_router(
         create_permissions_router(
@@ -637,10 +618,10 @@ def create_app(db_path: str | None = None) -> FastAPI:
     )
 
 
-    from backend.routers.imports import create_imports_router
-    from backend.routers.verfall import create_verfall_router
     from backend.routers.dashboard import create_dashboard_router
+    from backend.routers.imports import create_imports_router
     from backend.routers.notifications import create_notifications_router
+    from backend.routers.verfall import create_verfall_router
 
     app.include_router(
         create_imports_router(
@@ -691,8 +672,8 @@ def create_app(db_path: str | None = None) -> FastAPI:
     )
 
 
-    from backend.routers.emails import create_emails_router
     from backend.routers.admin_backup import create_admin_backup_router
+    from backend.routers.emails import create_emails_router
 
     def _close_security():
         nonlocal security

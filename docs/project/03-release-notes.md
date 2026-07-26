@@ -48,7 +48,7 @@ Aenderungen.
 
 ### Architektur
 
-- 16 neue DB-Methoden in `db_manager.py` für Analytics-Queries.
+- Analytics-Queries liegen in Mixins unter `core/db/*` (Facade `db_manager.py`).
 - 3 neue SQLite-Tabellen: `analytics_saved_views`, `analytics_saved_queries`, `analytics_email_schedule`.
 - 84 neue Tests (alle grün), ruff clean, 0 SyntaxErrors.
 - Alte `page_auswertungen.py` → 15-Zeilen-Shim (rückwärtskompatibel).

@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 
 from core.setup_wizard_contract import DRAFT_VERSION as _DRAFT_VERSION
 from db_manager import DB
+
 from ui.dialogs.setup_wizard.helpers import (
     _default_depot_row,
     _depot_assignments_from_dict,

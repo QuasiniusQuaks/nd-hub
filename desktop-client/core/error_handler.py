@@ -3,7 +3,6 @@ import sys
 import traceback
 
 from PySide6 import QtCore, QtWidgets
-
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 
 logger = logging.getLogger("ND-Hub.ErrorHandler")

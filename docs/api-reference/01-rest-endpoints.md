@@ -1,8 +1,15 @@
 # REST-Endpunkte
 
 Diese Seite enthaelt eine konsolidierte Uebersicht aller wichtigen
-Endpunkte. Quelle: `ndhub-web/backend/app.py` und
-`ndhub-web/backend/README.md`. Alle Endpunkte ausser `GET /health` und
+Endpunkte. **Quellen (v0.5 / ndhub-web 0.1.1):**
+
+- Factory: `ndhub-web/backend/app_factory.py` (+ duenner Shim `backend/app.py`)
+- Domain-Router: `shared/routers/*`
+- Web-only: `ndhub-web/backend/routers/sync.py`, `institutions.py`, `desktop_sync_auth.py`
+- Kurzuebersicht: `ndhub-web/backend/README.md`
+- **Source of Truth zur Laufzeit:** `GET /openapi.json`
+
+Alle Endpunkte ausser `GET /health` und
 `POST /auth/login` erfordern einen Bearer-Token.
 
 ## System

@@ -1,9 +1,9 @@
 """Zuordnungen - Depot ↔ Präparate zuordnen mit Sollbestand."""
-from PySide6 import QtWidgets
-
 from apple_theme import AppleTheme
 from db_manager import Database
 from icon_manager import IconManager
+from PySide6 import QtWidgets
+
 from ui.utils import create_card_widget
 
 

@@ -7,12 +7,11 @@ from __future__ import annotations
 
 import logging
 
-from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHeaderView
-
 from apple_theme import AppleTheme
 from db_manager import Database
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHeaderView
 
 if False:  # TYPE_CHECKING
     from .._db.analytics_queries import AnalyticsQueries

@@ -6,7 +6,6 @@ Importpfade erhalten und bettet die neue Seite in einen Dialog ein.
 """
 
 from PySide6 import QtWidgets
-
 from ui.pages.page_grundeinstellungen.user_management_tab import UserManagementPage
 
 

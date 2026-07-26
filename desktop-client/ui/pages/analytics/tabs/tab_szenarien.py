@@ -10,10 +10,9 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
-from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt
-
 from apple_theme import AppleTheme
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
 
 from ._base_tab import BaseTab
 

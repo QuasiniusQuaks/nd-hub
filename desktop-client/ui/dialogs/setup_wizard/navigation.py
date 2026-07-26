@@ -3,14 +3,13 @@ from __future__ import annotations
 
 import logging
 
-from PySide6 import QtWidgets
-
 from core.setup_wizard_contract import (
     validate_depot_kontakt_and_assignments,
     validate_depot_stamm_rows,
     validate_email_required,
 )
 from db_manager import DB
+from PySide6 import QtWidgets
 
 logger = logging.getLogger("ND-Hub")
 

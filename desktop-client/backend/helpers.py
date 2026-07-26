@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import io
+import json
 import logging
-import os
 import re
-import shutil
 import sqlite3
 import tempfile
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.database import SqliteRepository
 
 logger = logging.getLogger(__name__)
 
@@ -32,16 +33,17 @@ except ImportError:  # pragma: no cover
     Workbook = None
     DataValidation = None
 
+from security_manager import SecurityManager
+
 from backend.models import (
+    ALL_PERMISSION_KEYS,
     ALLOWED_IMPORT_TYPES,
+    DEFAULT_USER_PERMISSIONS,
     IMPORT_COLUMN_ALIASES,
     IMPORT_REQUIRED_COLUMNS,
     MAX_ATTACHMENT_SIZE_BYTES,
-    PDF_MIME_TYPES,
-    ALL_PERMISSION_KEYS,
-    DEFAULT_USER_PERMISSIONS,
 )
-from security_manager import SecurityManager
+
 
 def _sanitize_filename_part(value: str) -> str:
     safe = re.sub(r"[^A-Za-z0-9._-]+", "_", value or "")

@@ -1,9 +1,8 @@
 """Institution master-data step."""
 from __future__ import annotations
 
-from PySide6 import QtWidgets
-
 from core.setup_wizard_contract import validate_institution_dict
+from PySide6 import QtWidgets
 
 
 class InstitutionStepMixin:

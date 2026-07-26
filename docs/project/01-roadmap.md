@@ -84,6 +84,11 @@ flowchart LR
 
 ## Naechste sinnvolle Schritte (Outlook)
 
+- Abgeschlossen (Welle 3 / audit-2026-07-2): shared-Router, `app_factory`,
+  `db_manager`-Mixins (`core/db/*`), Analytics Control Center, Setup-Wizard-Package.
+- Offen: Web-DB-Layer-Konsolidierung ([#70](https://github.com/QuasiniusQuaks/nd-hub/issues/70)),
+  Dual-Stack-Share ([#94](https://github.com/QuasiniusQuaks/nd-hub/issues/94)),
+  UI-Monolithen ([#93](https://github.com/QuasiniusQuaks/nd-hub/issues/93)), CI Phase 2/3.
 - Frontend-E2E-Suite ausbauen (Browserseitig).
 - Externer Session-Store fuer horizontalen Skalierungs-Pfad.
 - Konfliktassistenz V2 (Sync) und partielles Attachment-Sync.

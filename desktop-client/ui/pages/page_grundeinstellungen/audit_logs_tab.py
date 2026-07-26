@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from PySide6 import QtWidgets
-
 from apple_theme import AppleTheme
 from core.data_access_layer import BackendApiClient, BackendSyncConfig
+from PySide6 import QtWidgets
+
 from ui.utils import configure_responsive_table
 
 

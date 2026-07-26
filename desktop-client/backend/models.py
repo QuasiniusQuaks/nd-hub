@@ -1,9 +1,9 @@
 """Pydantic models + constants for ND-Hub desktop backend (Issue #61)."""
 
 from datetime import date
-from typing import Any, Optional
 
 from pydantic import BaseModel, Field
+
 
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1)

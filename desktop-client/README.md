@@ -1,70 +1,83 @@
-# ND-Hub – Enterprise Edition v0.5
+# ND-Hub – Desktop Client v0.5
 
-ND-Hub ist eine professionelle Apotheken-Verwaltungssoftware, die für höchste Stabilität, Sicherheit und Benutzerfreundlichkeit entwickelt wurde. Diese Dokumentation beschreibt die Enterprise-Hardening-Maßnahmen und die Software-Architektur.
+PySide6-Desktop-Client für die Notfalldepot-Verwaltung. Daten liegen unter
+`%APPDATA%/ND-Hub` (Windows) bzw. `~/.ND-Hub` (Linux).
 
-## 🚀 Key Features (Enterprise Grade)
+## Key Features
 
-- **Modern UI**: Apple-inspiriertes Design mit dynamischem Dark Mode und flüssigen Animationen.
-- **Robustes Path-Management**: Verwendet den `ConfigManager`, um Daten (`APPDATA`) strikt von Programmdateien zu trennen. Kompatibel mit Windows Restricted Environments.
-- **Globales Error Handling**: Unbehandelte Exceptions werden abgefangen, geloggt und in einem professionellen Dialog angezeigt, statt die App kommentarlos zu beenden.
-- **Sicherheits-Architektur**: Integrierter `SecurityManager` mit `bcrypt`-Hashing, Account-Sperrung und erzwungenem Passwortwechsel.
-- **Asset-Modularisierung**: Große Binär-Assets (Logos) sind in separate Module ausgelagert, um die Code-Wartbarkeit zu erhöhen.
-- **Datenbank-Performance**: SQLite mit WAL-Mode und optimierten PRAGMA-Einstellungen für reibungslose Zugriffe.
+- Apple-inspiriertes UI inkl. Dark Mode
+- `ConfigManager` trennt Config/Daten strikt vom Programmpfad
+- `SecurityManager` (bcrypt, Account-Sperre, Passwortwechsel)
+- Hybrid-Sync gegen ndhub-web (`core/sync_service`, `core/sync_worker`)
+- Analytics Control Center (`ui/pages/analytics/**`)
+- DB-Facade `db_manager.py` + Mixins unter `core/db/*`
 
-## 📂 Projektstruktur
+## Projektstruktur (Ist)
 
 ```text
 desktop-client/
-├── core/                   # Core Logik & Infrastruktur
-│   ├── config_manager.py   # Globales Pfad- & Einstellungsmanagement
-│   ├── error_handler.py    # Globaler Exception Hook & Dialoge
-│   └── security_manager.py # Authentifizierung & Kryptographie
-├── ui/                     # Benutzeroberfläche
-│   ├── resources.py        # Base64 Assets
-│   ├── pages/              # Modulare UI-Seiten
-│   └── dialogs/            # Modale Dialoge
-├── nd_hub.py               # Haupteinstiegspunkt & Orchestrator
-├── db_manager.py           # Datenbank-Abstraktionsschicht
-└── build_windows_exe.py    # PyInstaller Build-Script
+├── core/                      # Infrastruktur
+│   ├── config_manager.py
+│   ├── error_handler.py
+│   ├── secure_token_store.py
+│   ├── sync_service.py / sync_worker.py
+│   └── db/                    # DB-Mixins (Analytics, Sync, Setup, CRUD)
+├── ui/
+│   ├── pages/                 # UI-Seiten inkl. analytics/
+│   └── dialogs/               # Login, Setup-Wizard-Package, …
+├── backend/                   # Eingebettetes FastAPI (app_factory + helpers)
+├── tests/                     # unit / integration / performance
+├── security_manager.py        # Auth (Root-Level)
+├── db_manager.py              # DB-Facade (<500 LOC)
+├── nd_hub.py                  # Haupteinstieg
+├── run_notfalldepots.py       # Alternativer Launcher
+└── build_windows_exe.py
 ```
 
-## 🛠 Installation & Entwicklung
+## Installation & Entwicklung
 
-### Abhängigkeiten installieren
 ```bash
+cd desktop-client
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+pip install -r requirements-dev.txt   # pytest, ruff, bandit, …
 ```
 
-### Entwicklungs-Tooling (Lint, Tests, Security)
-```bash
-pip install -r requirements-dev.txt
-ruff check .
-ruff format --check .
-pytest
-```
+### Lokal starten
 
-CI erzwingt zusätzlich:
-- Lint + Format-Check auf Linux und Windows (Python 3.10/3.11)
-- Test-Coverage mit Mindestschwelle (aktuell 30 % für Kernmodule)
-- Security-Scan (`bandit`) und Dependency-Audit (`pip-audit`)
-
-Performance-Tests laufen separat und optional:
-- Lokal: `pytest -m performance --no-cov`
-- GitHub Actions: manueller Workflow `Performance Tests` per `workflow_dispatch`
-
-### Anwendung starten
 ```bash
 python nd_hub.py
+# alternativ:
+python run_notfalldepots.py
 ```
 
-## 🔒 Konfiguration
+### Lint / Tests (lokal)
 
-Die Konfiguration wird zentral in der `settings.ini` im Anwendungsdaten-Verzeichnis verwaltet:
+```bash
+ruff check . --config pyproject.toml
+pytest tests/unit -m "not performance" --ignore=tests/unit/test_sync_worker.py
+# Performance separat:
+pytest -m performance --no-cov
+```
+
+### CI (GitHub Actions)
+
+Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (`CI`):
+
+| Job | Inhalt |
+|---|---|
+| **Ruff** | Lint `desktop-client/`, `ndhub-web/`, `shared/` |
+| **Desktop unit** | pytest unit mit PySide6-Stub (ohne Display); Ignore: `test_sync_worker.py` |
+| **Web API smoke** | `test_smoke.py` + `test_security_headers.py` (SQLite) |
+| **Bandit** | medium+ gegen Produktionscode |
+
+Kein Windows-Runner in Phase 1. Coverage-Fail-under gilt für Kernmodule (siehe `pyproject.toml`).
+Image-Publish bleibt ein eigener Workflow (`publish-ndhub-web-image.yml`).
+
+## Konfiguration
+
 - **Windows**: `%APPDATA%/ND-Hub/settings.ini`
 - **Linux**: `~/.ND-Hub/settings.ini`
 
-Dort können Administratoren den Pfad zur Netzwerk-Datenbank oder das Log-Level anpassen.
-
 ---
-© 2025 ND-Hub Enterprise Team. Alle Rechte vorbehalten.
+© 2026 ND-Hub Enterprise Team. Alle Rechte vorbehalten.

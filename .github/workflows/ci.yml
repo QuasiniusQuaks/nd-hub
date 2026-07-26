@@ -1,0 +1,170 @@
+# Quality gates for ND-Hub (Issue #92).
+# Runs on every PR and on push to main. Separate from multi-arch image publish.
+#
+# Jobs:
+#   lint     — ruff (desktop / web / shared) with package configs
+#   desktop  — unit tests with PySide6 stub (no display / libEGL)
+#   web      — API smoke + security headers (SQLite TestClient)
+#   bandit   — medium+ security findings (root .bandit.yml)
+#
+# Documented ignores (desktop unit, stub-incompatible Qt threading):
+#   tests/unit/test_sync_worker.py  — needs real QThreadPool/Signals; stub insufficient
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            desktop-client/requirements-dev.txt
+            ndhub-web/requirements.txt
+
+      - name: Install ruff
+        run: pip install "ruff>=0.6,<1.0"
+
+      - name: Ruff desktop-client
+        run: ruff check desktop-client --config desktop-client/pyproject.toml --exclude "**/tests/**,**/.venv/**,**/__pycache__/**"
+
+      - name: Ruff ndhub-web
+        run: ruff check ndhub-web --config ndhub-web/pyproject.toml --exclude "**/tests/**,**/.venv/**,**/node_modules/**,**/__pycache__/**"
+
+      - name: Ruff shared
+        run: ruff check shared --config desktop-client/pyproject.toml
+
+  desktop-unit:
+    name: Desktop unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            desktop-client/requirements.txt
+            desktop-client/requirements-dev.txt
+
+      - name: Install desktop deps (no PySide6 — stub path)
+        working-directory: desktop-client
+        run: |
+          python -m pip install -U pip
+          # Runtime deps minus PySide6/matplotlib GUI stack; unit suite uses _pyside6_stub.
+          grep -vE '^(PySide6|matplotlib|pywin32)' requirements.txt > /tmp/desktop-ci-req.txt
+          pip install -r /tmp/desktop-ci-req.txt
+          pip install -r requirements-dev.txt
+
+      - name: Pytest unit (stub-compatible)
+        working-directory: desktop-client
+        env:
+          ND_HUB_FORCE_PYSIDE_STUB: "1"
+        run: |
+          python -m pytest tests/unit -q \
+            --ignore=tests/unit/test_sync_worker.py \
+            -m "not performance" \
+            --cov=security_manager \
+            --cov=db_manager \
+            --cov=core/sync_worker \
+            --cov=core/secure_token_store \
+            --cov=core/config_manager \
+            --cov-report=term-missing \
+            --cov-fail-under=30
+
+  web-api:
+    name: Web API smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ndhub-web/requirements.txt
+
+      - name: Install web backend deps
+        working-directory: ndhub-web
+        run: |
+          python -m pip install -U pip
+          # Web API tests do not need desktop GUI packages.
+          grep -vE '^(PySide6|matplotlib|pywin32|python-pptx)' requirements.txt > /tmp/web-ci-req.txt
+          pip install -r /tmp/web-ci-req.txt
+          pip install "pytest>=9.0.3,<10.0" "pytest-cov>=5.0,<7.0" "httpx>=0.28,<1.0" "ruff>=0.6,<1.0"
+
+      - name: Pytest smoke (+ security headers when stable)
+        working-directory: ndhub-web
+        env:
+          PYTHONPATH: backend:..
+          ND_HUB_DB_ENGINE: sqlite
+        run: |
+          # Phase-1 gate: smoke is required. Security-header suite is included on
+          # Linux runners (Windows tempfile/SQLite lock issues are local-only).
+          python -m pytest \
+            backend/tests/test_smoke.py \
+            backend/tests/test_security_headers.py \
+            -q --tb=short --no-cov \
+            -m "not performance"
+
+  bandit:
+    name: Bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install bandit
+        run: pip install "bandit>=1.7.9,<2.0" "pyyaml>=6.0"
+
+      - name: Bandit scan (medium+)
+        run: |
+          bandit -q -r desktop-client ndhub-web/backend shared \
+            -c .bandit.yml \
+            -ll \
+            --exclude './desktop-client/tests,./ndhub-web/backend/tests,./desktop-client/build_windows_exe.py,./ndhub-web/frontend-react,**/__pycache__,**/.venv'
+
+  # Aggregate gate used by branch protection / optional image-publish needs.
+  ci-success:
+    name: CI success
+    if: always()
+    needs: [lint, desktop-unit, web-api, bandit]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        run: |
+          echo "lint=${{ needs.lint.result }}"
+          echo "desktop=${{ needs.desktop-unit.result }}"
+          echo "web=${{ needs.web-api.result }}"
+          echo "bandit=${{ needs.bandit.result }}"
+          test "${{ needs.lint.result }}" = "success"
+          test "${{ needs.desktop-unit.result }}" = "success"
+          test "${{ needs.web-api.result }}" = "success"
+          test "${{ needs.bandit.result }}" = "success"

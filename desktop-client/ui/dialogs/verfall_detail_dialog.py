@@ -5,12 +5,12 @@ Version: 1.0 - Angepasst an bestehendes Verfall-System
 
 import logging
 
-from PySide6 import QtCore, QtGui, QtWidgets
-
 from apple_theme import AppleTheme
 from icon_manager import IconManager
-from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
+from PySide6 import QtCore, QtGui, QtWidgets
 from verfallmanager import VerfallManager
+
+from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 
 logger = logging.getLogger(__name__)
 

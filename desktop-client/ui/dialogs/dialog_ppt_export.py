@@ -1,9 +1,8 @@
 import os
 
-from PySide6 import QtCore, QtWidgets
-
 from apple_theme import AppleTheme
 from icon_manager import IconManager
+from PySide6 import QtCore, QtWidgets
 
 
 class PPTExportDialog(QtWidgets.QDialog):

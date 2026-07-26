@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import logging
 
-from PySide6 import QtCore, QtWidgets
-
 from apple_theme import AppleTheme
 from db_manager import Database
+from PySide6 import QtCore, QtWidgets
+
 from ui.utils import configure_responsive_table
 
 from ._base_tab import BaseTab

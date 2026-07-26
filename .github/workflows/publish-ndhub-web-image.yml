@@ -5,6 +5,8 @@
 #   - Optional Docker Hub: repository variable DOCKERHUB_PUSH = true
 #
 # Image on GHCR matches the repository name (linked under the repo "Packages").
+# Quality gates: .github/workflows/ci.yml (required check "CI success" recommended
+# under branch protection — kept separate from multi-arch Docker build).
 
 name: Publish ndhub-web container image
 

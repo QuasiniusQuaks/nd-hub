@@ -4,11 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +14,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from security_manager import SecurityManager
 
 from backend.auth import SessionInfo, TokenStore, bearer_scheme, get_current_session
 from backend.config import resolve_db_path
 from backend.database import SqliteRepository
-from security_manager import SecurityManager
-
-from backend.models import *  # noqa: F403
 from backend.helpers import *  # noqa: F403
-
+from backend.helpers import (  # noqa: E402
+    _add_months,
+    _analyze_import_dataframe,
+    _build_attachment_target_path,
+    _build_import_template,
+    _create_backup_snapshot,
+    _csv_response,
+    _enrich_verfall_rows,
+    _get_avatar_path_for_user,
+    _get_user_flags,
+    _list_backup_files,
+    _load_import_dataframe,
+    _map_import_columns,
+    _normalize_user_row,
+    _normalize_verfall_thresholds,
+    _parse_id_list_csv,
+    _pdf_response,
+    _permissions_for_role,
+    _permissions_json_for_storage,
+    _persist_pdf_upload,
+    _pptx_response,
+    _run_auto_backup_if_due,
+)
+from backend.models import *  # noqa: F403
 from backend.models import (  # noqa: E402
+    ALL_PERMISSION_KEYS,
     ALLOWED_USER_ROLES,
     DEFAULT_USER_PERMISSIONS,
     PDF_MIME_TYPES,
@@ -46,36 +65,7 @@ from backend.models import (  # noqa: E402
     UserPasswordResetRequest,
     UserUpdateRequest,
 )
-from backend.helpers import (  # noqa: E402
-    _add_months,
-    _analyze_import_dataframe,
-    _build_attachment_target_path,
-    _build_import_template,
-    _create_backup_snapshot,
-    _csv_response,
-    _enrich_verfall_rows,
-    _ensure_import_dependencies,
-    _get_avatar_path_for_user,
-    _get_user_flags,
-    _list_backup_files,
-    _load_import_dataframe,
-    _map_import_columns,
-    _normalize_import_column_name,
-    _normalize_user_row,
-    _normalize_verfall_thresholds,
-    _parse_id_list_csv,
-    _parse_import_date,
-    _parse_permission_list,
-    _pdf_response,
-    _permissions_for_role,
-    _permissions_json_for_storage,
-    _persist_pdf_upload,
-    _pptx_response,
-    _run_auto_backup_if_due,
-    _safe_backup_label,
-    _sanitize_filename_part,
-    _verfall_category,
-)
+
 
 def create_app(db_path: str | None = None) -> FastAPI:
     """Application factory for runtime and tests."""
@@ -258,8 +248,8 @@ def create_app(db_path: str | None = None) -> FastAPI:
 
     # ---- Shared routers (Issues #60/#61/#65) ----
     from backend.routers.auth import create_auth_router
-    from backend.routers.users import create_users_router
     from backend.routers.depots import create_depots_router
+    from backend.routers.users import create_users_router
 
     _auth_router = create_auth_router(
         security=security,
@@ -301,11 +291,11 @@ def create_app(db_path: str | None = None) -> FastAPI:
     )
     app.include_router(_depots_router)
 
-    from backend.routers.praeparate import create_praeparate_router
-    from backend.routers.kontakte import create_kontakte_router
     from backend.routers.audit import create_audit_router
-    from backend.routers.permissions import create_permissions_router
     from backend.routers.bewegungen import create_bewegungen_router
+    from backend.routers.kontakte import create_kontakte_router
+    from backend.routers.permissions import create_permissions_router
+    from backend.routers.praeparate import create_praeparate_router
 
     app.include_router(
         create_permissions_router(
@@ -353,10 +343,10 @@ def create_app(db_path: str | None = None) -> FastAPI:
     )
 
 
-    from backend.routers.imports import create_imports_router
-    from backend.routers.verfall import create_verfall_router
     from backend.routers.dashboard import create_dashboard_router
+    from backend.routers.imports import create_imports_router
     from backend.routers.notifications import create_notifications_router
+    from backend.routers.verfall import create_verfall_router
 
     app.include_router(
         create_imports_router(
@@ -400,8 +390,8 @@ def create_app(db_path: str | None = None) -> FastAPI:
     )
 
 
-    from backend.routers.emails import create_emails_router
     from backend.routers.admin_backup import create_admin_backup_router
+    from backend.routers.emails import create_emails_router
 
     def _close_security():
         nonlocal security

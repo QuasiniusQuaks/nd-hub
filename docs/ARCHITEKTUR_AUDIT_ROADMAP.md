@@ -1,4 +1,4 @@
-# Roadmap: Architektur-Audit (Wellen 1 + 2)
+# Roadmap: Architektur-Audit (Wellen 1–3)
 
 ## Welle 1 — Architektur-Audit Desktop-Client (2026-06-16)
 
@@ -116,3 +116,25 @@ PR #W: **Polish** — #38, #39, #40 als 3 Commits
 - Commit-Messages: Conventional Commits (`fix:`, `perf:`, `security:`, `chore:`, `refactor:`) + Issue-Ref
 - PR-Template: siehe `docs/PULL_REQUEST_TEMPLATE.md`
 - Tests: Jeder PR muss neue Tests für die geänderte Logik mitbringen (Coverage-Maintenance)
+
+---
+
+## Welle 3 — Modularisierung Router/DB + Quality Gates (audit-2026-07-2)
+
+Kontext: Nach Security-Wellen 1+2 wurden Domain-Router nach `shared/routers/*`
+gezogen, `create_app` nach `app_factory.py` ausgelagert und `db_manager` in
+Mixins unter `core/db/*` zerlegt (Issues #60–#69 geschlossen).
+
+### Status (Welle 3)
+
+| Prio | Issue | Befund | Status |
+|---|---|---|---|
+| **P1** | [#66](https://github.com/QuasiniusQuaks/nd-hub/issues/66) / PRs #87–#90 | `db_manager` Mixins (Analytics, Sync, Setup, CRUD) | ✅ fertig |
+| **P1** | [#60](https://github.com/QuasiniusQuaks/nd-hub/issues/60) / #61 | Shared-Router + `app_factory` | ✅ fertig |
+| **P1** | [#67](https://github.com/QuasiniusQuaks/nd-hub/issues/67) | Setup-Wizard Package-Split | ✅ fertig |
+| **P1** | [#91](https://github.com/QuasiniusQuaks/nd-hub/issues/91) | Doku-Drift v0.5 / shared / core/db | 🔧 dieser Stand |
+| **P1** | [#92](https://github.com/QuasiniusQuaks/nd-hub/issues/92) | CI: Ruff / pytest / Bandit | 🔧 dieser Stand |
+| **P2** | [#70](https://github.com/QuasiniusQuaks/nd-hub/issues/70) | Web `database.py` + `mariadb_repository.py` Konsolidierung | 🔓 open |
+| **P2** | [#93](https://github.com/QuasiniusQuaks/nd-hub/issues/93)–[#96](https://github.com/QuasiniusQuaks/nd-hub/issues/96) | UI-Monolithen, Dual-Stack-Share, Lint-Rest, app_factory-Rest | 🔓 open |
+
+**Offen als Naechstes:** #70 (DB-Layer Web), CI/Docs-Haertung Phase 2, Dual-Stack-Share (#94).

@@ -40,20 +40,27 @@ MariaDB-/Engine-Optionen:
 
 ## Docker Compose
 
-Default (SQLite):
+Default-Stack (MariaDB **ohne** Compose-Profile — Service ist immer definiert):
 
 ```bash
+# Secrets in .env setzen (mind. ND_HUB_MARIADB_PASSWORD, MARIADB_ROOT_PASSWORD, …)
 docker compose up -d --build
 ```
 
-Mit MariaDB-Profil:
+Engine-Umschaltung:
 
 ```bash
-docker compose --profile mariadb up -d --build
+# Compose-Default
+ND_HUB_DB_ENGINE=mariadb
+
+# Lokaler/Dev-SQLite-Modus (MariaDB-Service kann ungenutzt bleiben)
+ND_HUB_DB_ENGINE=sqlite
 ```
 
-Hinweis: Das MariaDB-Profil startet die Datenbank und kann zusammen mit
-`ND_HUB_DB_ENGINE=mariadb` fuer den MariaDB-Betrieb genutzt werden.
+Hinweis: Aeltere Docs erwaehnten `docker compose --profile mariadb` — das trifft
+auf den aktuellen `docker-compose.yml` **nicht** zu (kein `profiles:` am MariaDB-Service).
+Root-README und Deployment-Doku sind Source of Truth.
+
 Fuer Umstieg/Betrieb gelten Runbook und Smoke-Checklist.
 
 ## Aktueller Cutover-Stand (inkrementell)

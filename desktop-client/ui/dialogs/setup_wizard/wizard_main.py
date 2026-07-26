@@ -6,10 +6,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6 import QtCore, QtWidgets
-
 from apple_theme import AppleTheme
 from db_manager import Database
+from PySide6 import QtCore, QtWidgets
+
 from ui.dialogs.setup_wizard.chrome import ChromeMixin
 from ui.dialogs.setup_wizard.draft import DraftMixin
 from ui.dialogs.setup_wizard.navigation import NavigationMixin

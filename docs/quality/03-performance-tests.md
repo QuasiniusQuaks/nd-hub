@@ -15,11 +15,12 @@ pytest -m performance --no-cov
 `--no-cov` deaktiviert das Coverage-Plugin, das fuer Lasttests
 ungeeignet ist.
 
-## CI
+## CI-Status
 
-- Performance-Tests sind in einem **manuell ausgeloesten** Workflow
-  unter GitHub Actions hinterlegt (`Performance Tests`).
-- Sie laufen nicht bei jedem Push und nicht bei jedem PR.
+- Phase-1-CI (`.github/workflows/ci.yml`) enthaelt **keine** Performance-Suite.
+- Es gibt derzeit **keinen** GitHub-Actions-Workflow „Performance Tests“.
+- Follow-up: optional `workflow_dispatch`-Workflow anlegen **oder**
+  Performance bewusst nur lokal/vor Release fahren (Issue #92 Phase 3).
 
 ## Backend / API-Performance
 

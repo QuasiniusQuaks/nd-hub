@@ -8,9 +8,8 @@ from __future__ import annotations
 import logging
 
 import numpy as np
-from PySide6 import QtWidgets
-
 from apple_theme import AppleTheme
+from PySide6 import QtWidgets
 
 from .._charts.heatmap import HeatmapChart
 from .._charts.ranking_bar import RankingBarChart

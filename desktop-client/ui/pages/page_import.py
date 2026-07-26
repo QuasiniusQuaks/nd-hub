@@ -7,12 +7,12 @@ import pandas as pd
 
 HAS_PANDAS = True
 
-from PySide6 import QtWidgets
-from PySide6.QtCore import Qt
-
 from apple_theme import AppleTheme
 from db_manager import Database
 from icon_manager import IconManager
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
+
 from ui.utils import configure_responsive_table, create_card_widget
 
 

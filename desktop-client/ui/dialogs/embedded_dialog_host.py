@@ -1,9 +1,8 @@
 """Hilfsfunktionen für integrierte Dialoge im Hauptfenster."""
 
+from apple_theme import AppleTheme
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
-
-from apple_theme import AppleTheme
 
 _PATCHED = False
 _ORIG_MSG_INFORMATION = QtWidgets.QMessageBox.information
