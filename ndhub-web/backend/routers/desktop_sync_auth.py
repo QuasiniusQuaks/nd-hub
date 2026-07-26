@@ -3,7 +3,6 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials
 
 
 def create_desktop_sync_auth_router(token_store, get_current_session, DesktopSyncTokenResponse, DesktopSyncTokenCreateRequest, DesktopSyncTokenArchiveItem, DesktopSyncTokenRevokeRequest, _parse_iso_datetime, _mask_token, _resolve_archive_status) -> APIRouter:

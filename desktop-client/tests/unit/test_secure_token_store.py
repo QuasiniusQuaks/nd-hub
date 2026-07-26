@@ -111,35 +111,44 @@ class TestConfigManagerTokenIntegration:
         assert cm.get_backend_token() == "my-secret-jwt-xyz"
 
     def test_legacy_cleartext_token_migrates(self, temp_data_dir, monkeypatch):
-        """
-        Wenn noch ein Klartext-Token in der INI steht, muss ``get_backend_token``
-        es automatisch in den Store migrieren und aus der INI entfernen.
-        """
-        from core import secure_token_store
-        monkeypatch.setattr(secure_token_store, "_machine_specific_seed",
-                            staticmethod(lambda: b"test-seed"))
+            """
+            Wenn noch ein Klartext-Token in der INI steht, muss ``get_backend_token``
+            es automatisch in den Store migrieren und aus der INI entfernen.
+            """
+            from core import secure_token_store
 
-        # INI mit Legacy-Klartext anlegen
-        cm = ConfigManager()
-        cm.data_dir = temp_data_dir
-        if "General" not in cm.config:
-            cm.config["General"] = {}
-        cm.config["General"]["backend_token"] = "legacy-cleartext-abc"
-        cm.save_config()
+            monkeypatch.setattr(
+                secure_token_store, "_machine_specific_seed", lambda: b"test-seed"
+            )
 
-        # reset cache, damit der neue data_dir gezogen wird
-        reset_secure_store_cache()
-        cm2 = ConfigManager()
-        cm2.data_dir = temp_data_dir
+            # Headless/CI: force Fernet file backend (no OS keyring side effects).
+            class _NullKeyring:  # name contains "null" → SecureTokenStore skips it
+                pass
 
-        # Erster Aufruf: liest legacy, migriert in Store
-        token = cm2.get_backend_token()
-        assert token == "legacy-cleartext-abc"
+            monkeypatch.setattr("keyring.get_keyring", lambda: _NullKeyring())
 
-        # INI wurde auf leer gesetzt
-        ini = configparser.ConfigParser()
-        ini.read(cm2.config_path, encoding="utf-8")
-        assert ini.get("General", "backend_token", fallback="") == ""
+            reset_secure_store_cache()
+            # INI mit Legacy-Klartext im temp data_dir anlegen
+            cm = ConfigManager()
+            cm.data_dir = temp_data_dir
+            cm.config = configparser.ConfigParser()
+            cm.config["General"] = {"backend_token": "legacy-cleartext-abc"}
+            cm.save_config()
+
+            # reset cache, damit der neue data_dir gezogen wird
+            reset_secure_store_cache()
+            cm2 = ConfigManager()
+            cm2.data_dir = temp_data_dir
+            cm2.load_config()
+
+            # Erster Aufruf: liest legacy, migriert in Store
+            token = cm2.get_backend_token()
+            assert token == "legacy-cleartext-abc"
+
+            # INI wurde auf leer gesetzt
+            ini = configparser.ConfigParser()
+            ini.read(cm2.config_path, encoding="utf-8")
+            assert ini.get("General", "backend_token", fallback="") == ""
 
     def test_set_empty_token_clears_store(self, temp_data_dir, monkeypatch):
         from core import secure_token_store

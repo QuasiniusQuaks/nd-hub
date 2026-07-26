@@ -1,8 +1,9 @@
 """Web multi-institution routes: onboarding, institutions, map, geo (Issue #60)."""
 
-from typing import Any
+import json
 from urllib.parse import urlencode
-from urllib.request import Request as UrlRequest, urlopen
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 
 from fastapi import APIRouter, Depends, HTTPException, status
 

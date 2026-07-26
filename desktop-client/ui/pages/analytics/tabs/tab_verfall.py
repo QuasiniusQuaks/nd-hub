@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import logging
 
-from PySide6 import QtWidgets
-
 from apple_theme import AppleTheme
+from PySide6 import QtWidgets
 
 from .._charts.forecast_band import ForecastBandChart
 from .._filters.cross_filter_state import CrossFilterState

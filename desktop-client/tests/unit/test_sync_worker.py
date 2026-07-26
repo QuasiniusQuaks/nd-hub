@@ -10,11 +10,24 @@ Stellt sicher, dass:
 """
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from dataclasses import dataclass
+from unittest.mock import MagicMock
 
 import pytest
+
+# Real Qt signals/QThreadPool required — PySide6 MagicMock stub is insufficient.
+if isinstance(sys.modules.get("PySide6"), MagicMock) or isinstance(
+    sys.modules.get("PySide6.QtCore"), MagicMock
+):
+    pytest.skip(
+        "test_sync_worker needs real PySide6 (QThreadPool/Signals); "
+        "skipped under unit stub (CI documented ignore).",
+        allow_module_level=True,
+    )
+
 from PySide6 import QtCore
 
 from core.sync_worker import SyncWorkerRunner

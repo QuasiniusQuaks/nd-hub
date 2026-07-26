@@ -5,11 +5,10 @@ Apple-Style Dashboard für ND-Hub
 import logging
 from datetime import datetime
 
-from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import Qt, Signal
-
 from apple_theme import AppleTheme
 from icon_manager import IconManager
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import Qt, Signal
 from responsive_widgets import FlowLayout, ResponsiveWidget
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog
 from ui.dialogs.verfall_detail_dialog import VerfallDetailDialog

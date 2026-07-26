@@ -1,9 +1,8 @@
 """Globale Dialoge fuer Passwoerter, Depots und Kontakte."""
-from PySide6 import QtWidgets
-from PySide6.QtCore import Qt
-
 from apple_theme import AppleTheme
 from core.auth_worker import AuthVerifyRunner
+from PySide6 import QtWidgets
+from PySide6.QtCore import Qt
 
 
 class PasswordDialog(QtWidgets.QDialog):

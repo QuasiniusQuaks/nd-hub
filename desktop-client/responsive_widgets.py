@@ -2,10 +2,9 @@
 Responsive Widgets für die Notfalldepots Verwaltung
 """
 
+from apple_theme import AppleTheme
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
-
-from apple_theme import AppleTheme
 
 
 class ResponsiveWidget(QtWidgets.QWidget):

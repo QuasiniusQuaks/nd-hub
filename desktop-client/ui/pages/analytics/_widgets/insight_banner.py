@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import logging
 
-from PySide6 import QtCore, QtWidgets
-
 from db_manager import Database
+from PySide6 import QtCore, QtWidgets
 
 from .sparkline_kpi_card import SparklineKpiCard
 

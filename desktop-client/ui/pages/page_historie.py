@@ -1,13 +1,13 @@
 """Bewegungshistorie - Tabellenansicht aller Bewegungen."""
 import os
 
+from apple_theme import AppleTheme
+from db_manager import Database
+from icon_manager import IconManager
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 
-from apple_theme import AppleTheme
-from db_manager import Database
-from icon_manager import IconManager
 from ui.utils import NumericTableWidgetItem, configure_responsive_table, create_card_widget
 
 

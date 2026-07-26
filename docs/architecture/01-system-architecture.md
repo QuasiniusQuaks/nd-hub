@@ -6,6 +6,8 @@ ND-Hub folgt einigen klaren Leitplanken, die im gesamten Stack durchgehalten wer
 
 - **Server-first, modulare Clients**: Fachlogik liegt im Backend; Desktop und Web
   konsumieren dieselben Regeln ueber API-Schnittstellen.
+- **Shared API-Router**: Domain-Routen leben unter `shared/routers/*` und werden
+  von Desktop- und Web-Factory eingebunden.
 - **API-Vertrag stabil halten**: SQLite oder MariaDB sind austauschbare Storage-
   Implementierungen; die API aendert sich dadurch nicht.
 - **Auditierbarkeit by Default**: Aenderungen an Stammdaten werden ueber
@@ -25,15 +27,17 @@ flowchart TB
     end
 
     subgraph apiLayer["API-Schicht"]
-        fastapiApp["FastAPI App (backend/app.py)"]
-        authMod["Auth & Tokens (backend/auth.py)"]
-        secMgr["Security Manager (security_manager.py)"]
-        configMod["Config (backend/config.py)"]
+        factory["create_app (app_factory.py)"]
+        sharedRouters["shared/routers/*"]
+        webOnly["Web-only Router (sync, institutions, desktop_sync_auth)"]
+        authMod["Auth & Tokens"]
+        secMgr["Security Manager"]
+        configMod["Config"]
     end
 
     subgraph repoLayer["Repository-Schicht"]
-        sqliteRepo["SqliteRepository (backend/database.py)"]
-        mariaRepo["MariaDbRepository (backend/mariadb_repository.py)"]
+        sqliteRepo["SqliteRepository (database.py)"]
+        mariaRepo["MariaDbRepository (mariadb_repository.py)"]
     end
 
     subgraph storageLayer["Persistenz"]
@@ -43,17 +47,19 @@ flowchart TB
         backups["Backups /data/backups"]
     end
 
-    desktopClient -->|REST + Sync v1| fastapiApp
-    webClient -->|REST| fastapiApp
-    fastapiApp --> authMod
-    fastapiApp --> secMgr
-    fastapiApp --> configMod
-    fastapiApp --> sqliteRepo
-    fastapiApp --> mariaRepo
+    desktopClient -->|REST + Sync v1| factory
+    webClient -->|REST| factory
+    factory --> sharedRouters
+    factory --> webOnly
+    factory --> authMod
+    factory --> secMgr
+    factory --> configMod
+    factory --> sqliteRepo
+    factory --> mariaRepo
     sqliteRepo --> sqliteFile
     mariaRepo --> mariadbServer
-    fastapiApp --> attachments
-    fastapiApp --> backups
+    factory --> attachments
+    factory --> backups
 ```
 
 ## Komponenten im Detail
@@ -66,26 +72,40 @@ flowchart TB
 | `core/config_manager.py` | Pfad- und Einstellungsmanagement (APPDATA/Linux Home). |
 | `core/error_handler.py` | Globaler Exception-Hook und Fehler-Dialoge. |
 | `core/data_access_layer.py` | Router lokal vs. remote (Hybrid-Modus). |
-| `core/sync_service.py` | Push-/Pull-Mechanik gegen das Web-Backend. |
-| `db_manager.py` | SQLite-Abstraktion fuer Desktop. |
+| `core/sync_service.py` / `core/sync_worker.py` | Push-/Pull-Mechanik (Worker-Thread). |
+| `core/secure_token_store.py` | Token in Keyring/Fernet statt Klartext-INI. |
+| `core/db/*` | DB-Mixins (Analytics, Sync-Outbox, Setup-Wizard, CRUD). |
+| `db_manager.py` | SQLite-Facade (<500 LOC), delegiert an Mixins. |
 | `security_manager.py` | bcrypt, Account-Sperre, Passwortregeln. |
-| `ui/pages/*` | Modulare UI-Seiten (Bewegungen, Historie, Auswertungen, etc.). |
-| `ui/dialogs/*` | Modale Dialoge (Login, Setup-Wizard, Detailansichten). |
-| `backend/app.py` | Eingebettetes FastAPI-Modul fuer lokale Web-Hilfen. |
+| `ui/pages/*` | UI-Seiten inkl. **Analytics Control Center**. |
+| `ui/dialogs/*` | Login, Setup-Wizard-Package, Detailansichten. |
+| `backend/app.py` | Duenner Shim → `backend/app_factory.create_app`. |
+| `backend/app_factory.py` | FastAPI-Factory (Desktop-eingebettet). |
 
 ### Webanwendung (`ndhub-web/`)
 
 | Modul | Zweck |
 |---|---|
-| `backend/app.py` | FastAPI-App, alle REST-Endpunkte und Lifecycle. |
+| `backend/app.py` | Duenner Shim (wenige LOC) → `create_app`. |
+| `backend/app_factory.py` | FastAPI-Factory: Lifecycle, Middleware, Router-Mount. |
+| `shared/routers/*` | Domain-Router (auth, users, depots, praeparate, … reports). |
+| `backend/routers/sync.py` | Web-only Hybrid-Sync. |
+| `backend/routers/institutions.py` | Multi-Institution / Onboarding / Geo. |
+| `backend/routers/desktop_sync_auth.py` | Desktop-Sync-Auth. |
 | `backend/auth.py` | Token-Store und Authentifizierung. |
 | `backend/database.py` | `SqliteRepository`, Schemaverwaltung. |
 | `backend/mariadb_repository.py` | MariaDB-Pfad mit optionalem Dual-Write. |
+| `backend/helpers.py` | Shared Helper (Imports, Backups, Reports-Hilfen). |
 | `backend/config.py` | Resolver fuer Engines, Pfade und SMTP. |
-| `backend/tools/migrate_sqlite_to_mariadb.py` | Migrationsskript SQLite -> MariaDB. |
-| `backend/web/*` | Statische Web-MVP-Assets (Fallback-Frontend). |
-| `frontend-react/` | Vite/React-Frontend (Islands-Strategie). |
-| `Dockerfile`, `docker-compose.yml` | Deployment-Stack. |
+| `security_manager.py` | Passwortpolitik (Web-Kopie / Dual-Stack, siehe #94). |
+| `frontend-react/` | Vite/React-Frontend. |
+| `Dockerfile`, `docker-compose.yml` | Deployment-Stack (Default: MariaDB). |
+
+### Shared (`shared/`)
+
+| Modul | Zweck |
+|---|---|
+| `shared/routers/*.py` | Domain-Router, von Desktop- und Web-Factory genutzt. |
 
 ### Externe Abhaengigkeiten
 
@@ -99,7 +119,7 @@ flowchart TB
 ```mermaid
 flowchart TD
     ui["UI - Desktop / Web"] --> apiClient["API Client / DAL Router"]
-    apiClient --> rest["REST API (FastAPI)"]
+    apiClient --> rest["REST API (app_factory + shared/routers)"]
     rest --> domain["Fachlogik / Validierung"]
     domain --> repo["Repository Layer"]
     repo --> sqlite["SQLite"]
@@ -118,8 +138,6 @@ flowchart TD
 
 ## Designprinzipien fuer Erweiterungen
 
-- Neue API-Endpunkte folgen den vorhandenen Konventionen (Auth, Audit, Pagination).
-- Neue Reports werden ueber dieselbe `report/<name>` Routenfamilie eingefuegt.
-- Repository-Erweiterungen werden zuerst im SqliteRepository umgesetzt und
-  anschliessend MariaDB-konform gespiegelt (siehe
-  [Migration & Sync](../migration-and-sync/01-sqlite-vs-mariadb.md)).
+- Neue Domain-Endpunkte bevorzugt in `shared/routers/` legen und in beiden Factories mounten.
+- Web-only-Verhalten (Sync, Multi-Institution) bleibt unter `ndhub-web/backend/routers/`.
+- Desktop-DB-Erweiterungen als Mixin unter `core/db/`, nicht als Monolith in `db_manager.py`.

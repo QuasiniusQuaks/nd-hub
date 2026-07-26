@@ -4,7 +4,7 @@
 
 | Komponente | Version |
 |---|---|
-| Python | 3.10 oder 3.11 |
+| Python | 3.10+ (CI: 3.12 Linux) |
 | Betriebssystem | Windows 10/11, Linux (x86_64), macOS (best effort) |
 | Festplatte | mind. 500 MB |
 | RAM | mind. 4 GB empfohlen |
@@ -22,6 +22,8 @@ python -m venv .venv
 . .venv/bin/activate            # Linux/macOS
 # .\.venv\Scripts\activate     # Windows
 pip install -r requirements.txt
+python nd_hub.py
+# alternativ:
 python run_notfalldepots.py
 ```
 
@@ -35,21 +37,31 @@ Beim ersten Start:
 
 ```bash
 pip install -r requirements-dev.txt
-ruff check .
-ruff format --check .
-pytest
+ruff check . --config pyproject.toml
+pytest tests/unit -m "not performance" --ignore=tests/unit/test_sync_worker.py
 ```
 
-CI-Anforderungen (Linux + Windows, Python 3.10/3.11):
+### CI (GitHub Actions)
 
-- Lint und Format-Check muessen gruen sein.
-- Test-Coverage mit Mindestschwelle (aktuell 30 % fuer Kernmodule).
-- Security-Scan (`bandit`) und Dependency-Audit (`pip-audit`).
+Workflow **CI** (`.github/workflows/ci.yml`), Linux / Python 3.12:
 
-Performance-Tests sind separat:
+- Ruff fuer `desktop-client/`, `ndhub-web/`, `shared/`
+- Desktop-Unit mit PySide6-Stub (ohne Display); dokumentierter Ignore: `test_sync_worker.py`
+- Web-API-Smoke + Security-Headers (SQLite)
+- Bandit medium+ (Root-`.bandit.yml`)
+- Coverage-Fail-under fuer Desktop-Kernmodule (siehe `pyproject.toml`)
 
-- Lokal: `pytest -m performance --no-cov`
-- GitHub Actions: manueller Workflow `Performance Tests`.
+Kein Windows-Runner und kein `pip-audit`-Hard-Gate in Phase 1.
+Image-Publish ist ein separater Workflow.
+
+Performance-Tests sind separat und **lokal**:
+
+```bash
+pytest -m performance --no-cov
+```
+
+(Der fruehere manuelle Workflow-Name „Performance Tests“ existiert nicht;
+siehe [Performance-Tests](../quality/03-performance-tests.md).)
 
 ## Windows-Installer
 

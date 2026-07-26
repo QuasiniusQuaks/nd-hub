@@ -9,14 +9,14 @@ from datetime import datetime
 from urllib import error, request
 from urllib.parse import urlparse
 
-from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import Qt
-
 from apple_theme import AppleTheme
 from core.data_access_layer import BackendApiClient, BackendSyncConfig, OperatingMode
 from db_manager import DB, Database
 from icon_manager import IconManager
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import Qt
 from security_manager import SecurityManager
+
 from ui.utils import create_card_widget
 
 # Sub-Module (extrahierte Klassen)

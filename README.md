@@ -238,36 +238,42 @@ ND-Hub ist besonders interessant fuer:
 
 ```text
 ND-Hub Plattform
+├── shared/
+│   └── routers/*              — Domain-REST (auth, users, depots, … reports)
 ├── Desktop Client (PySide6 + integriertes FastAPI-Modul)
-│   ├── Operative Fachprozesse (Depots, Praeparate, Bewegungen, Verfall)
-│   ├── Reporting & Exporte
-│   ├── Security / Audit / Backup
-│   ├── Core-Module (core/) — zentrale, wiederverwendbare Bausteine
-│   │   ├── sync_worker.py     — UI-Thread-entkoppelter Background-Sync (QRunnable)
-│   │   ├── secure_token_store.py — sichere Token-Persistenz (keyring + Fernet-Fallback)
-│   │   ├── error_handler.py   — einheitliche Fehlerbehandlung
-│   │   ├── exception_decorators.py — swallow_exceptions-Decorator-Familie
-│   │   └── cache_helpers.py   — TTL-Cache-Wrapper (cachetools) für Instanzmethoden
-│   └── Lokale Datenhaltung (SQLite, optimiert)
+│   ├── Operative Fachprozesse + Analytics Control Center (ui/pages/analytics)
+│   ├── Reporting & Exporte, Security / Audit / Backup
+│   ├── core/
+│   │   ├── db/*               — DB-Mixins (Analytics, Sync, Setup, CRUD)
+│   │   ├── sync_worker.py     — UI-Thread-entkoppelter Background-Sync
+│   │   ├── secure_token_store.py
+│   │   ├── error_handler.py / exception_decorators.py / cache_helpers.py
+│   │   └── config_manager.py
+│   ├── db_manager.py          — Facade (<500 LOC)
+│   ├── backend/app_factory.py — create_app (Shim: backend/app.py)
+│   └── SQLite (WAL)
 └── Webanwendung (FastAPI + React/Vite)
-    ├── API-zentrierte Fachlogik
-    ├── Browser-UI (inkrementelle Islands-Strategie)
-    ├── Containerbetrieb (Docker)
-    └── Datenpfad SQLite <-> MariaDB (Cutover/Go-Live dokumentiert)
+    ├── backend/app_factory.py + helpers.py
+    ├── backend/routers/       — web-only: sync, institutions, desktop_sync_auth
+    ├── Browser-UI (React Islands)
+    ├── Docker Compose (Default: MariaDB 11.4)
+    └── SQLite <-> MariaDB (Cutover dokumentiert)
 ```
 
 ---
 
-## Architektur-Audit & Code-Qualität (2026-06)
+## Architektur-Audit & Code-Qualität (2026-06 / 2026-07)
 
 Das Repository wird regelmäßig einem systematischen Architektur-Audit unterzogen.
 Befunde, Fixes und Diskussionen sind direkt auf GitHub dokumentiert.
+Roadmap: [`docs/ARCHITEKTUR_AUDIT_ROADMAP.md`](docs/ARCHITEKTUR_AUDIT_ROADMAP.md).
 
 ### Audit-Ergebnisse
 
-| Audit | Issues gesamt | P0 | P1 | P2 | Roadmap |
-|---|---|---|---|---|---|
-| [2026-06](docs/ARCHITEKTUR_AUDIT_ROADMAP.md) | 15 | 4 | 6 | 5 | ✅ abgeschlossen |
+| Audit | Fokus | Status |
+|---|---|---|
+| 2026-06 Welle 1–2 | Security, Threading, Dependencies | ✅ abgeschlossen |
+| 2026-07 Welle 3 (audit-2026-07-2) | shared-Router, app_factory, db Mixins, CI/Docs | 🔧 aktiv (#70 und P2 offen) |
 
 ### Wichtigste Fixes aus dem Audit 2026-06
 
@@ -284,19 +290,25 @@ Befunde, Fixes und Diskussionen sind direkt auf GitHub dokumentiert.
 
 Nach dem Abschluss des 2026-06-Audits wurden weitere P0/P1-Befunde systematisch behoben:
 
-- **Login Rate-Limit / Lockout** ([#48](https://github.com/QuasiniusQuaks/nd-hub/pull/48)) — `slowapi`-basiertes per-IP-Rate-Limit und per-Username-Lockout nach konfigurierbaren Fehlversuchen inkl. `Retry-After`-Header und Audit-Log
-- **Auth-Worker fuer Desktop-Login** ([#47](https://github.com/QuasiniusQuaks/nd-hub/pull/47)) — PBKDF2-Passwortpruefung aus dem UI-Thread in einen `QThreadPool`-Worker ausgelagert
-- **P1-Sammel-Cleanup** ([#46](https://github.com/QuasiniusQuaks/nd-hub/pull/46)) — `DB`-Konstanten auf `StrEnum`, `@lru_cache` auf `cachetools.TTLCache`, typisierte `except`-Klauseln, explizite `pydantic`-Abhaengigkeit
+- **Login Rate-Limit / Lockout** ([#48](https://github.com/QuasiniusQuaks/nd-hub/pull/48)) — `slowapi`-basiertes per-IP-Rate-Limit und per-Username-Lockout
+- **Auth-Worker fuer Desktop-Login** ([#47](https://github.com/QuasiniusQuaks/nd-hub/pull/47)) — PBKDF2 aus dem UI-Thread
+- **P1-Sammel-Cleanup** ([#46](https://github.com/QuasiniusQuaks/nd-hub/pull/46)) — `DB`-Konstanten, TTLCache, typisierte excepts
+- **Shared-Router + app_factory** (PRs #78–#85) — Domain-Routen unter `shared/routers/*`
+- **db_manager-Mixins** (PRs #87–#90) — Analytics/Sync/Setup/CRUD unter `core/db/*`
+- **CI Quality Gates** (Issue #92) — Workflow `CI` mit Ruff, Desktop-Unit, Web-Smoke, Bandit
 
 ### Lokale Entwicklung
 
 ```bash
-# Linting
-ruff check desktop-client/ --select F401        # ungenutzte Imports
-bandit -r desktop-client/ -c desktop-client/.bandit.yml   # Security
+# Linting (wie CI)
+ruff check desktop-client --config desktop-client/pyproject.toml
+ruff check ndhub-web --config ndhub-web/pyproject.toml
+ruff check shared --config desktop-client/pyproject.toml
+bandit -r desktop-client ndhub-web/backend shared -c .bandit.yml -ll
 
-# Tests
-pytest desktop-client/tests/unit/ -v
+# Tests (wie CI)
+cd desktop-client && pytest tests/unit -m "not performance" --ignore=tests/unit/test_sync_worker.py
+cd ../ndhub-web && PYTHONPATH=backend:.. pytest backend/tests/test_smoke.py --no-cov
 ```
 
 ### Issue-Workflow
@@ -315,9 +327,9 @@ Dieser Abschnitt beschreibt den **tatsaechlichen aktuellen Deployment-Stand** de
 - Deployment erfolgt ueber `ndhub-web/docker-compose.yml`.
 - Der Stack besteht aus:
   - `ndhub-web` (FastAPI + statische Webassets auf Port `8000`)
-  - `mariadb` (MariaDB 11.4 auf Port `3306`)
-- Die Datenbank-Engine im Backend wird ueber `ND_HUB_DB_ENGINE` gesteuert (`mariadb` oder `sqlite`).
-- Im Compose-Setup ist `ND_HUB_DB_ENGINE` standardmaessig auf `mariadb` gesetzt.
+  - `mariadb` (MariaDB 11.4 auf Port `3306`, **ohne Compose-Profile** — immer im Stack)
+- Die Datenbank-Engine im Backend wird ueber `ND_HUB_DB_ENGINE` gesteuert (`mariadb` Default, oder `sqlite`).
+
 - Persistenz wird ueber Docker-Volumes umgesetzt (`ndhub_data`, `ndhub_uploads`, `ndhub_backups`, `ndhub_mariadb_data`).
 
 ### 1a) Vorgefertigtes Web-Image (GHCR / optional Docker Hub)
@@ -481,10 +493,15 @@ python run_backend.py
 
 ## Wichtige Projektpfade
 
-- `desktop-client/` - Desktopprodukt inkl. UI, Kernlogik und lokaler Betriebswerkzeuge
-- `ndhub-web/` - Webprodukt inkl. Backend, Frontend und Docker-/Migrationspfaden
-- `desktop-client/tests/` - Unit-, Integrations- und Performancetests
-- `ndhub-web/backend/tests/` - API-, Security-, Stabilitaets- und Sync-Tests
+- `desktop-client/` — Desktopprodukt (UI, Kernlogik, eingebettetes Backend)
+- `ndhub-web/` — Webprodukt (Backend, Frontend, Docker/Migration)
+- `shared/` — gemeinsame Domain-Router (`shared/routers/*`)
+- `docs/` — Enterprise-Dokumentation (MkDocs)
+- `tools/` — Hilfsskripte
+- `desktop-client/tests/` — Unit-, Integrations- und Performancetests
+- `ndhub-web/backend/tests/` — API-, Security-, Stabilitaets- und Sync-Tests
+- `.github/workflows/ci.yml` — Quality Gates (Ruff, pytest, Bandit)
+- `.bandit.yml` — Root-Bandit-Konfiguration
 
 ---
 

@@ -1,10 +1,10 @@
 """Integrierte Benutzerverwaltung als Tab in den Grundeinstellungen."""
 import os
 
-from PySide6 import QtCore, QtWidgets
-
 from apple_theme import AppleTheme
 from icon_manager import IconManager
+from PySide6 import QtCore, QtWidgets
+
 from ui.dialogs.embedded_dialog_host import exec_embedded_dialog, get_text_embedded
 from ui.utils import configure_responsive_table
 

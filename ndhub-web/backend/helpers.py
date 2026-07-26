@@ -7,9 +7,7 @@ import hashlib
 import io
 import json
 import logging
-import os
 import re
-import shutil
 import smtplib
 import sqlite3
 import tempfile
@@ -18,9 +16,8 @@ from decimal import Decimal
 from email.message import EmailMessage
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Optional
-from urllib.parse import urlencode, urlparse
-from urllib.request import Request as UrlRequest, urlopen
+from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -38,19 +35,19 @@ except ImportError:  # pragma: no cover
     Workbook = None
     DataValidation = None
 
+from security_manager import SecurityManager
+
 from backend.config import EmailDeliverySettings, resolve_mariadb_settings
 from backend.database import SqliteRepository
-from backend.mariadb_repository import MariaDbRepository
 from backend.models import (
+    ALL_PERMISSION_KEYS,
     ALLOWED_IMPORT_TYPES,
+    DEFAULT_USER_PERMISSIONS,
     IMPORT_COLUMN_ALIASES,
     IMPORT_REQUIRED_COLUMNS,
     MAX_ATTACHMENT_SIZE_BYTES,
-    PDF_MIME_TYPES,
-    ALL_PERMISSION_KEYS,
-    DEFAULT_USER_PERMISSIONS,
 )
-from security_manager import SecurityManager
+
 
 def _require_http_scheme(url: str) -> str:
     """Validates that the URL uses only http/https (SSRF protection)."""

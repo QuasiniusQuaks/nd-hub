@@ -16,9 +16,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from PySide6 import QtCore
-
 from apple_theme import AppleTheme
+from PySide6 import QtCore
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +197,7 @@ class BaseChartCanvas:
 
     def enable_responsive_size(self, min_height_px: int = 320) -> None:
         """Charts füllen die verfügbare Breite des Parents (Bildschirmbreite)."""
-        from PySide6 import QtCore, QtWidgets
+        from PySide6 import QtWidgets
 
         self._responsive_min_height = min_height_px
         self.setSizePolicy(

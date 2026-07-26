@@ -40,9 +40,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Now run the main application
 if __name__ == "__main__":
-    from PySide6 import QtWidgets
-
     from nd_hub import MainWindow, config
+    from PySide6 import QtWidgets
     from ui.dialogs.embedded_dialog_host import install_embedded_dialog_patches
 
     # ---------------------------------------------------------------

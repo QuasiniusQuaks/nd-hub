@@ -14,11 +14,10 @@ from __future__ import annotations
 
 import logging
 
-from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt
-
 from apple_theme import AppleTheme
 from db_manager import Database
+from PySide6 import QtCore, QtWidgets
+from PySide6.QtCore import Qt
 
 from ._db.analytics_queries import AnalyticsQueries
 from ._filters.global_filter_bar import GlobalFilterBar

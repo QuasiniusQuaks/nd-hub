@@ -20,9 +20,6 @@ import logging
 import sqlite3
 import uuid
 
-from PySide6 import QtWidgets
-from PySide6.QtCore import QDate, Qt
-
 from core.cache_helpers import clear_all_caches
 from core.db.analytics import AnalyticsMixin
 from core.db.analytics_charts import AnalyticsChartsMixin
@@ -36,6 +33,8 @@ from core.db.stammdaten import StammdatenMixin
 from core.db.sync_apply import SyncApplyMixin
 from core.db.sync_outbox import SyncOutboxMixin
 from core.db.test_data import TestDataMixin
+from PySide6 import QtWidgets
+from PySide6.QtCore import QDate, Qt
 
 logger = logging.getLogger(__name__)
 

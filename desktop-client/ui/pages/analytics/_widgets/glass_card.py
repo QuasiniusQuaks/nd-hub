@@ -8,9 +8,8 @@ Issue #42 Phase 1 — Design-System.
 
 from __future__ import annotations
 
-from PySide6 import QtWidgets
-
 from apple_theme import AppleTheme
+from PySide6 import QtWidgets
 
 
 class GlassCard(QtWidgets.QFrame):

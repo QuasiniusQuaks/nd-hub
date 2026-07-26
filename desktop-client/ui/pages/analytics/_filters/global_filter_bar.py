@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import logging
 
-from PySide6 import QtCore, QtWidgets
-
 from apple_theme import AppleTheme
 from db_manager import Database
+from PySide6 import QtCore, QtWidgets
 
 from .cross_filter_state import CrossFilterState
 

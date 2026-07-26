@@ -1,10 +1,9 @@
 """Praeparate step."""
 from __future__ import annotations
 
-from PySide6 import QtWidgets
-
 from apple_theme import AppleTheme
 from core.setup_wizard_contract import validate_praeparate_names
+from PySide6 import QtWidgets
 
 
 class PraeparateStepMixin:

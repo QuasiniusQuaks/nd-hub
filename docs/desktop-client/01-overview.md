@@ -4,11 +4,12 @@
 
 | Eigenschaft | Wert |
 |---|---|
-| Sprache | Python 3.10+ (Tests laufen auf 3.10/3.11) |
+| Sprache | Python 3.10+ (CI: 3.12 Linux; lokal 3.10/3.11 ok) |
 | UI-Framework | PySide6 (Qt 6) |
 | Datenbank lokal | SQLite (WAL-Mode, optimierte PRAGMAs) |
-| Eingebettetes Backend | FastAPI (lokal, optional) |
-| Sicherheit | bcrypt, Account-Sperre, erzwungener Passwortwechsel |
+| DB-Schicht | `db_manager.py` Facade + Mixins unter `core/db/*` |
+| Eingebettetes Backend | FastAPI via `backend/app_factory.py` |
+| Sicherheit | bcrypt, Account-Sperre, erzwungener Passwortwechsel, SecureTokenStore |
 | Build | PyInstaller + Inno Setup (Windows) |
 | Lieferform | Quellcode oder Windows-Installer |
 
@@ -19,8 +20,9 @@
   sind strikt getrennt.
 - **Globales Error-Handling** mit professionellem Fehlerdialog statt
   abrupten Anwendungsabbruechen.
-- **Setup-Wizard** fuer eine gefuehrte Erstkonfiguration.
-- **Hybrid-Modus** ueber Sync-Service, alternativ vollstaendiger
+- **Setup-Wizard** (Package unter `ui/dialogs/…`) fuer gefuehrte Erstkonfiguration.
+- **Analytics Control Center** unter `ui/pages/analytics/**`.
+- **Hybrid-Modus** ueber Sync-Service/Worker, alternativ vollstaendiger
   Local-only-Betrieb ohne Backend.
 - **Audit-Tab** und Backup-/Restore-Funktionen direkt in der UI.
 
@@ -30,18 +32,19 @@
 flowchart LR
     subgraph desktopApp["Desktop Client"]
         ndhub["nd_hub.py (MainWindow)"]
-        ui["ui/pages + ui/dialogs"]
-        core["core/config_manager + error_handler"]
-        sync["core/sync_service + data_access_layer"]
-        dbm["db_manager.py"]
+        ui["ui/pages + analytics + dialogs"]
+        core["core/config + error + secure_token"]
+        sync["core/sync_service + sync_worker + DAL"]
+        dbm["db_manager + core/db/*"]
+        emb["backend/app_factory"]
     end
     subgraph local["Lokale Persistenz"]
-        sqliteFile["SQLite (~/.ND-Hub)"]
+        sqliteFile["SQLite (%APPDATA%/ND-Hub)"]
         attachments["lokale Anhaenge"]
         settings["settings.ini"]
     end
     subgraph remote["Optional: Web-Backend"]
-        api["ndhub-web FastAPI"]
+        api["ndhub-web FastAPI + shared/routers"]
     end
     ui --> ndhub
     ndhub --> core
@@ -49,6 +52,7 @@ flowchart LR
     dbm --> sqliteFile
     ndhub --> sync
     sync --> api
+    ndhub --> emb
     core --> settings
     ui --> attachments
 ```
@@ -66,7 +70,7 @@ Details zur Sync-Mechanik siehe
 
 ## Beziehung zur Webanwendung
 
-Der Desktop Client teilt mit `ndhub-web` denselben fachlichen Kern.
+Der Desktop Client teilt mit `ndhub-web` denselben fachlichen Kern und —
+soweit moeglich — dieselben Domain-Router unter `shared/routers/*`.
 Wesentliche Aenderungen an Domaenenregeln werden serverseitig gehalten.
-Eine vollstaendige, fortgeschriebene Funktionsparitaet siehe
-[Projekt / Parity-Matrix](../project/02-parity-matrix.md).
+Funktionsparitaet: [Projekt / Parity-Matrix](../project/02-parity-matrix.md).

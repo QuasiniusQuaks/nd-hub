@@ -6,15 +6,18 @@ import sys
 logger = logging.getLogger("ND-Hub.Config")
 
 # Lazy-Import, damit Tests ohne installiertes keyring/cryptography funktionieren
-_secure_store_cache = {}
+# Keyed by data_dir so tests can point ConfigManager at a temp directory.
+_secure_store_cache: dict[str, object] = {}
 
 
 def _get_secure_store(data_dir: str):
     """Lazy-Initializer für SecureTokenStore (vermeidet Import auf Modulebene)."""
-    if "store" not in _secure_store_cache:
+    store = _secure_store_cache.get(data_dir)
+    if store is None:
         from core.secure_token_store import SecureTokenStore
-        _secure_store_cache["store"] = SecureTokenStore(data_dir)
-    return _secure_store_cache["store"]
+        store = SecureTokenStore(data_dir)
+        _secure_store_cache[data_dir] = store
+    return store
 
 
 def reset_secure_store_cache():
@@ -28,11 +31,22 @@ class ConfigManager:
     DEFAULT_CONFIG_FILENAME = "settings.ini"
 
     def __init__(self):
-        self.data_dir = self._get_app_data_dir()
-        self.config_path = os.path.join(self.data_dir, self.DEFAULT_CONFIG_FILENAME)
+        self._data_dir = self._get_app_data_dir()
+        self.config_path = os.path.join(self._data_dir, self.DEFAULT_CONFIG_FILENAME)
         self.config = configparser.ConfigParser()
         self._ensure_data_dir_exists()
         self.load_config()
+
+    @property
+    def data_dir(self) -> str:
+        return self._data_dir
+
+    @data_dir.setter
+    def data_dir(self, value: str) -> None:
+        """Update data directory and keep config_path in sync (tests / relocation)."""
+        self._data_dir = value
+        self.config_path = os.path.join(value, self.DEFAULT_CONFIG_FILENAME)
+
 
     def _get_app_data_dir(self) -> str:
         """Ermittelt den Pfad für Anwendungsdaten (Benutzer-AppData oder Home). Rezession-sicher."""

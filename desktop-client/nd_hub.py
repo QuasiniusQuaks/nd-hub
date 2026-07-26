@@ -20,9 +20,6 @@ import sys
 import time
 from enum import IntEnum
 
-from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import Qt
-
 # ===== NEUE IMPORTS FÜR APPLE-STYLE =====
 from apple_theme import AppleTheme
 
@@ -38,6 +35,8 @@ from core.error_handler import setup_global_error_handler
 from core.sync_service import DesktopSyncService
 from core.sync_worker import SyncWorkerRunner
 from icon_manager import IconManager
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import Qt
 
 # import win32com.client  # Windows-only Outlook integration
 from security_manager import SecurityManager
@@ -54,8 +53,9 @@ VERSION = "0.5"
 #   -Verfallsdatenüberwachung
 # =============================================================================
 
-import logging
 import faulthandler
+import logging
+
 faulthandler.enable()
 
 # Initialisiere Konfiguration (vor dem Logging)

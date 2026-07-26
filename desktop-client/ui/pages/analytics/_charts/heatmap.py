@@ -11,11 +11,10 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
+from apple_theme import AppleTheme
 from matplotlib import colors as mcolors
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-
-from apple_theme import AppleTheme
 
 from .base_chart import BaseChartCanvas, ChartElement
 
