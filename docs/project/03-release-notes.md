@@ -4,6 +4,25 @@ Diese Seite buendelt die Releaseuebersicht von ND-Hub auf den
 aktuellen Stand v0.5 (ndhub-web **0.1.1**) und gibt eine Kurzfassung der wesentlichen
 Aenderungen.
 
+## Unreleased — P2 Modularisierung (2026-07-26)
+
+### Web Backend (#96)
+
+- **`app_factory.py` geschrumpft** (~749 → ~329 LOC): Login-Lockout, Security-Middleware und Router-Wiring in eigene Module.
+- Neu: `login_protection.py`, `security_middleware.py`, `router_registration.py`.
+- **`helpers.py` Facade**: Domain-Module `helper_{common,email,import,report,authz,backup}.py` (Monkeypatch-Oberfläche `backend.helpers` bleibt stabil).
+- Tests: OpenAPI-Path-Parity + Unit-Tests für Lockout-Tracker.
+
+### Desktop Grundeinstellungen (#93, Phase 1)
+
+- **`_hauptseite.py` Orchestrator** (~1830 → ~216 LOC).
+- Extrahiert: `email_smtp_tab.py`, `backup_page.py`, `sync_tab.py`, `security_tab.py` (Qt-Stub-sichere Funktionsbindung, kein Multi-Inheritance).
+- Unit-Smoke für Split + SSRF-Helper.
+
+### Lint (#95)
+
+- Bereits mit CI-PR #98 erledigt (ruff clean desktop/web/shared); Issue geschlossen.
+
 ## v0.5.1 Desktop Hotfix (2026-07-20)
 
 ### Desktop-Client Stabilität
