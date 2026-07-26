@@ -18,13 +18,10 @@ from backend.auth import SessionInfo, TokenStore, get_current_session
 from backend.config import (
     resolve_auto_backup_hours,
     resolve_db_engine,
-    resolve_dual_write_sqlite,
     resolve_email_delivery_settings,
-    resolve_mariadb_settings,
     resolve_max_backup_restore_mb,
     resolve_runtime_paths,
 )
-from backend.database import SqliteRepository
 
 # Re-exports for monkeypatch/tests (backend.app._send_email_via_smtp etc.)
 from backend.helpers import *  # noqa: E402, F403
@@ -39,9 +36,9 @@ from backend.login_protection import (
     attach_login_protection,
     make_login_lockout_callbacks,
 )
-from backend.mariadb_repository import MariaDbRepository
 from backend.models import *  # noqa: E402, F403
 from backend.models import ALL_PERMISSION_KEYS, LoginRequest, LoginResponse
+from backend.repository_factory import create_repository
 from backend.router_registration import register_all_routers
 from backend.security_middleware import apply_security_middleware
 
@@ -70,15 +67,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
         "yes",
         "on",
     }
-    sqlite_fallback_repository = SqliteRepository(database_path)
-    if db_engine == "mariadb":
-        repository = MariaDbRepository(
-            settings=resolve_mariadb_settings(),
-            fallback=sqlite_fallback_repository,
-            dual_write_sqlite=resolve_dual_write_sqlite(default=True),
-        )
-    else:
-        repository = sqlite_fallback_repository
+    repository = create_repository(db_path=database_path, db_engine=db_engine)
     security = SecurityManager(database_path)
     token_store = TokenStore(storage_path=database_path)
 
