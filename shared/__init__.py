@@ -1,8 +1,8 @@
-"""Shared-Package für gemeinsame Router, Services und Models.
+"""Shared-Package für gemeinsame Router, Security und Helpers.
 
-Issue #65 — Code-Duplikation zwischen Desktop- und Web-Backend reduzieren.
+Issue #65 — Router-Duplikation Desktop/Web.
+Issue #94 — Security-Policy + pure Backend-Helpers sharen.
 
-Beide Backends (desktop-client/backend/ und ndhub-web/backend/) haben
-identische Endpoint-Logik. Dieses Package stellt gemeinsame Router-Factorys
-bereit, die von beiden Backends importiert werden.
+Beide Backends (desktop-client/backend/ und ndhub-web/backend/) importieren
+gemeinsame Module aus diesem Package.
 """

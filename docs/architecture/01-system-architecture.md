@@ -106,6 +106,12 @@ flowchart TB
 | Modul | Zweck |
 |---|---|
 | `shared/routers/*.py` | Domain-Router, von Desktop- und Web-Factory genutzt. |
+| `shared/security/` | Kanonische Passwort-Policy (`hash_password` / `verify_password`, bcrypt/PBKDF2). |
+| `shared/backend_helpers/` | Reine Helper (Datum, Verfall, Permissions-Sets, Dateinamen) ohne FastAPI. |
+
+Desktop- und Web-`security_manager.py` bleiben Adapter (DB-Cursor, MariaDB-Hooks bzw. Shared-Connection);
+Hash/Verify kommen aus `shared.security`. Backend-`helpers` re-exportieren shared-Funktionen unter den
+historischen `_`-Namen (Monkeypatch-Stabilität).
 
 ### Externe Abhaengigkeiten
 

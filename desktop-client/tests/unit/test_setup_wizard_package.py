@@ -37,8 +37,7 @@ class SetupWizardPackageTests(unittest.TestCase):
     def test_step_methods_attached_on_dialog_class(self):
         import inspect
 
-        from ui.dialogs.setup_wizard import SetupWizardDialog
-        from ui.dialogs.setup_wizard import navigation, step_backend
+        from ui.dialogs.setup_wizard import SetupWizardDialog, navigation, step_backend
 
         for name in (
             "_build_backend_page",

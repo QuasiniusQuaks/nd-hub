@@ -1,5 +1,4 @@
 import pytest
-
 from db_manager import Database
 
 

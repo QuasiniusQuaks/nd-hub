@@ -28,9 +28,8 @@ if isinstance(sys.modules.get("PySide6"), MagicMock) or isinstance(
         allow_module_level=True,
     )
 
-from PySide6 import QtCore
-
 from core.sync_worker import SyncWorkerRunner
+from PySide6 import QtCore
 
 # --- QApplication-Fixture (singleton für alle Tests) -----------------------
 

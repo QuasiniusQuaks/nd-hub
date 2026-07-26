@@ -16,7 +16,6 @@ import os
 import cryptography  # noqa: F401
 import keyring  # noqa: F401
 import pytest
-
 from core.config_manager import ConfigManager, reset_secure_store_cache
 
 

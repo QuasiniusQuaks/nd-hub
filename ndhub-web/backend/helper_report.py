@@ -30,6 +30,15 @@ from backend.helper_common import (
     _parse_optional_iso_date,
     _safe_report_filename_token,
 )
+from shared.backend_helpers.common import (
+    enrich_verfall_rows as _shared_enrich_verfall_rows,
+)
+from shared.backend_helpers.common import (
+    normalize_verfall_thresholds as _shared_normalize_verfall_thresholds,
+)
+from shared.backend_helpers.common import (
+    verfall_category as _shared_verfall_category,
+)
 
 
 def _normalize_verfall_thresholds(
@@ -37,10 +46,8 @@ def _normalize_verfall_thresholds(
     warning_days: int = 90,
     attention_days: int = 180,
 ) -> tuple[int, int, int]:
-    critical = max(1, min(int(critical_days), 3650))
-    warning = max(critical + 1, min(int(warning_days), 3650))
-    attention = max(warning + 1, min(int(attention_days), 3650))
-    return critical, warning, attention
+    return _shared_normalize_verfall_thresholds(critical_days, warning_days, attention_days)
+
 
 def _verfall_category(
     tage_bis_verfall: int,
@@ -48,13 +55,8 @@ def _verfall_category(
     warning_days: int,
     attention_days: int,
 ) -> str:
-    if tage_bis_verfall <= critical_days:
-        return "kritisch"
-    if tage_bis_verfall <= warning_days:
-        return "warnung"
-    if tage_bis_verfall <= attention_days:
-        return "achtung"
-    return "ok"
+    return _shared_verfall_category(tage_bis_verfall, critical_days, warning_days, attention_days)
+
 
 def _enrich_verfall_rows(
     rows: list[dict],
@@ -62,17 +64,7 @@ def _enrich_verfall_rows(
     warning_days: int,
     attention_days: int,
 ) -> list[dict]:
-    enriched: list[dict] = []
-    for row in rows:
-        item = dict(row)
-        try:
-            tage = int(item.get("tage_bis_verfall"))
-        except (TypeError, ValueError):
-            tage = 99999
-        item["tage_bis_verfall"] = tage
-        item["kategorie"] = _verfall_category(tage, critical_days, warning_days, attention_days)
-        enriched.append(item)
-    return enriched
+    return _shared_enrich_verfall_rows(rows, critical_days, warning_days, attention_days)
 
 def _validated_report_date_range(start_date: str, end_date: str) -> tuple[str | None, str | None]:
     safe_start = _parse_optional_iso_date(start_date, "start_date")

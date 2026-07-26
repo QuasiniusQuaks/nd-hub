@@ -2,7 +2,6 @@ import time
 from datetime import datetime
 
 import pytest
-
 from db_manager import Database
 
 

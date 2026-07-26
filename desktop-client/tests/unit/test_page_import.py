@@ -16,7 +16,6 @@ import hashlib
 from pathlib import Path
 
 import pandas as pd
-
 from db_manager import Database
 from ui.pages import page_import
 
