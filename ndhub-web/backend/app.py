@@ -9,4 +9,7 @@ from backend.helpers import *  # noqa: F403
 from backend.helpers import _send_email_via_smtp  # noqa: F401  # monkeypatch surface
 from backend.models import *  # noqa: F403
 
-__all__ = ["create_app"]
+# ASGI entry for uvicorn / Docker: `backend.app:app`
+app = create_app()
+
+__all__ = ["app", "create_app"]
