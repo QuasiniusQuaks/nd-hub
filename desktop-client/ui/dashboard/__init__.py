@@ -1,10 +1,6 @@
-"""Apple-Style Dashboard — thin re-export shim (Issue #93).
-
-Public API remains ``from apple_dashboard import AppleDashboard`` etc.
-Implementation lives in ``ui.dashboard``.
-"""
-from ui.dashboard import (
-    AppleDashboard,
+"""Dashboard package (Issue #93)."""
+from .page import AppleDashboard
+from .widgets import (
     CollapsibleSection,
     CompletionRing,
     StatusBadge,
