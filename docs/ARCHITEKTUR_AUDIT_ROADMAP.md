@@ -165,4 +165,4 @@ Sprint: [#120](https://github.com/QuasiniusQuaks/nd-hub/issues/120). Stand nach 
 | **P2** | [#116](https://github.com/QuasiniusQuaks/nd-hub/issues/116) | except-Hotspots typisieren | ✅ | #133 |
 | **P2** | [#117](https://github.com/QuasiniusQuaks/nd-hub/issues/117) | CI Coverage-Gate + Sync-Worker-Kern | ✅ | #134 |
 | **P2** | [#118](https://github.com/QuasiniusQuaks/nd-hub/issues/118) | Dockerfile nur Runtime-Artefakt | ✅ | #135 |
-| **P2** | [#119](https://github.com/QuasiniusQuaks/nd-hub/issues/119) | Diese Roadmap + README | ✅ | dieser PR |
+| **P2** | [#119](https://github.com/QuasiniusQuaks/nd-hub/issues/119) | Diese Roadmap + README | ✅ | #136 |
