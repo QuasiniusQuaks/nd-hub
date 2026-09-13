@@ -16,6 +16,7 @@ from db_manager import Database
 
 logger = logging.getLogger(__name__)
 
+from shared.security.lockout import is_currently_locked, register_failed_attempt
 from shared.security.password import HAS_BCRYPT
 from shared.security.password import hash_password as _shared_hash_password
 from shared.security.password import verify_password as _shared_verify_password
@@ -274,8 +275,7 @@ class SecurityManager:
 
         # Prüfe ob Account gesperrt ist
         if locked_until:
-            lock_time = datetime.strptime(locked_until, '%Y-%m-%d %H:%M:%S')
-            if datetime.now() < lock_time:
+            if is_currently_locked(locked_until):
                 return False, f"Account ist gesperrt bis {locked_until}"
             else:
                 # Entsperre Account
@@ -305,28 +305,20 @@ class SecurityManager:
             logger.info(f"✓ Login: '{username}' ({role})")
             return True, f"Willkommen {username}!"
         else:
-            # Fehlgeschlagener Login
-            failed_attempts += 1
-            locked_until = None
-
-            # Sperre Account nach 5 fehlgeschlagenen Versuchen
-            if failed_attempts >= 5:
-                from datetime import timedelta
-                lock_time = datetime.now() + timedelta(minutes=15)
-                locked_until = lock_time.strftime('%Y-%m-%d %H:%M:%S')
+            failed_attempts, locked_until, message = register_failed_attempt(failed_attempts)
+            if locked_until:
                 self.cur.execute("""
                     UPDATE users
                     SET failed_attempts = ?, locked_until = ?
                     WHERE id = ?
                 """, (failed_attempts, locked_until, user_id))
                 self.conn.commit()
-                return False, "Account wurde nach 5 Fehlversuchen für 15 Minuten gesperrt"
-            else:
-                self.cur.execute("""
+                return False, message
+            self.cur.execute("""
                     UPDATE users SET failed_attempts = ? WHERE id = ?
                 """, (failed_attempts, user_id))
-                self.conn.commit()
-                return False, f"Falsches Passwort ({5 - failed_attempts} Versuche übrig)"
+            self.conn.commit()
+            return False, message
 
     def logout(self):
         """Loggt den aktuellen Benutzer aus"""
