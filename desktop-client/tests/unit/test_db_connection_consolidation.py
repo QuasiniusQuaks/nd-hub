@@ -36,7 +36,7 @@ def temp_db_path() -> Iterator[str]:
 def test_legacy_verfallmanager_creates_own_connection(temp_db_path: str) -> None:
     """Legacy-Aufruf mit db_path erstellt eigene Connection."""
     from verfallmanager import VerfallManager
-    vm = VerfallManager(temp_db_path)
+    vm = VerfallManager(temp_db_path, allow_own_connection=True)
     try:
         assert vm._owns_connection is True
         assert vm.db_path == temp_db_path
@@ -49,7 +49,7 @@ def test_legacy_verfallmanager_creates_own_connection(temp_db_path: str) -> None
 def test_legacy_securitymanager_creates_own_connection(temp_db_path: str) -> None:
     """Legacy-Aufruf mit db_path erstellt eigene Connection."""
     from security_manager import SecurityManager
-    sm = SecurityManager(temp_db_path)
+    sm = SecurityManager(temp_db_path, allow_own_connection=True)
     try:
         assert sm._owns_connection is True
         assert sm.db_path == temp_db_path
@@ -77,7 +77,7 @@ def test_securitymanager_raises_with_empty_db_path_and_no_database() -> None:
 def test_legacy_close_closes_own_connection(temp_db_path: str) -> None:
     """Legacy: close() schließt die eigene Connection."""
     from verfallmanager import VerfallManager
-    vm = VerfallManager(temp_db_path)
+    vm = VerfallManager(temp_db_path, allow_own_connection=True)
     own_conn = vm.conn
     vm.close()
     # Connection sollte geschlossen sein — neue Query muss fehlschlagen
@@ -147,3 +147,14 @@ def test_shared_connection_writes_visible_in_database(temp_db_path: str) -> None
         assert result[0] == "test_table"
     finally:
         db.conn.close()
+
+
+def test_prod_constructor_without_shared_db_raises(temp_db_path: str) -> None:
+    """Issue #113: parallel live sqlite3.connect is not the default."""
+    from security_manager import SecurityManager
+    from verfallmanager import VerfallManager
+
+    with pytest.raises(TypeError, match="database="):
+        SecurityManager(temp_db_path)
+    with pytest.raises(TypeError, match="database="):
+        VerfallManager(temp_db_path)

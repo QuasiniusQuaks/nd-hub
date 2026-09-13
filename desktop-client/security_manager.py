@@ -37,15 +37,22 @@ class SecurityManager:
     ROLE_USER = "User"
     ROLES = [ROLE_ADMIN, ROLE_USER]
 
-    def __init__(self, db_path: str = "", *, database: Optional["Database"] = None):
+    def __init__(
+        self,
+        db_path: str = "",
+        *,
+        database: Optional["Database"] = None,
+        allow_own_connection: bool = False,
+    ):
         """
         Initialisiert den SecurityManager.
 
         Args:
-            db_path: Pfad zur Datenbank (Legacy-Modus — eigene Connection).
-            database: Optional, bestehende ``Database``-Instanz. Wenn
-                      übergeben, wird deren Connection geteilt (kein
-                      Lock-Contention). Issue #18: Architektur-Audit-Befund.
+            db_path: Pfad zur Datenbank (nur Tests/Restore mit
+                     ``allow_own_connection=True``).
+            database: Geteilte ``Database``-Instanz (Prod-Pfad, Issue #113).
+            allow_own_connection: Explizit eigene sqlite3-Connection. Nur Tests
+                                  oder Backup-Restore.
         """
         if database is not None:
             self._db = database
@@ -57,6 +64,11 @@ class SecurityManager:
             if not db_path:
                 raise TypeError(
                     "SecurityManager benötigt entweder 'db_path' (nicht-leer) oder 'database'"
+                )
+            if not allow_own_connection:
+                raise TypeError(
+                    "SecurityManager requires database= in production "
+                    "(allow_own_connection=True only for tests/restore)"
                 )
             self._db = None
             self.db_path = db_path

@@ -55,7 +55,7 @@ class TestVerfallManagerInit:
 
     def test_init_with_db_path_legacy_mode(self, temp_db_path: str) -> None:
         Database(temp_db_path)  # schema erstellen
-        vm = VerfallManager(db_path=temp_db_path)
+        vm = VerfallManager(db_path=temp_db_path, allow_own_connection=True)
         assert vm._owns_connection is True
         assert vm.db_path == temp_db_path
         vm.close()
@@ -319,7 +319,7 @@ class TestVerfallManagerClose:
 
     def test_close_owned_connection(self, temp_db_path: str) -> None:
         Database(temp_db_path)
-        vm = VerfallManager(db_path=temp_db_path)
+        vm = VerfallManager(db_path=temp_db_path, allow_own_connection=True)
         assert vm._owns_connection is True
         vm.close()
         # conn sollte geschlossen sein — execute schlägt fehl

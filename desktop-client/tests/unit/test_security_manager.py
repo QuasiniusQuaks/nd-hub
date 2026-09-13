@@ -14,7 +14,7 @@ def test_default_admin_password_from_env(monkeypatch, tmp_path: Path):
     db_path = tmp_path / "security_test.db"
     monkeypatch.setenv("ND_HUB_INITIAL_ADMIN_PASSWORD", "InitPass!12345")
 
-    manager = SecurityManager(str(db_path))
+    manager = SecurityManager(str(db_path), allow_own_connection=True)
     try:
         success, _ = manager.authenticate("admin", "InitPass!12345")
         assert success is True

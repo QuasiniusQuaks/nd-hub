@@ -34,7 +34,13 @@ class VerfallManager:
         'typ': ['typ', 'type', 'bewegungstyp', 'art']
     }
 
-    def __init__(self, db_path: str = "", *, database: Optional["Database"] = None):
+    def __init__(
+        self,
+        db_path: str = "",
+        *,
+        database: Optional["Database"] = None,
+        allow_own_connection: bool = False,
+    ):
         """
         Initialisiert den VerfallManager
 
@@ -46,9 +52,8 @@ class VerfallManager:
                       Issue #18: Architektur-Audit-Befund.
 
         Backwards-Kompatibilität:
-            Aufrufer ohne ``database``-Argument funktionieren weiterhin
-            (eigene Connection). Das ist der Default für Tests und
-            Backend-Kontexte, die keine ``Database``-Instanz haben.
+            Eigene Connection nur mit ``allow_own_connection=True``
+            (Tests / Restore). Prod nutzt ``database=``.
         """
         if database is not None:
             # Geteilte Connection — kein zusätzliches connect()
@@ -58,10 +63,14 @@ class VerfallManager:
             self.cur = database.cur
             self._owns_connection = False
         else:
-            # Legacy: eigene Connection
             if not db_path:
                 raise TypeError(
                     "VerfallManager benötigt entweder 'db_path' (nicht-leer) oder 'database'"
+                )
+            if not allow_own_connection:
+                raise TypeError(
+                    "VerfallManager requires database= in production "
+                    "(allow_own_connection=True only for tests/restore)"
                 )
             self._db = None
             self.db_path = db_path
