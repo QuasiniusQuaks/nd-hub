@@ -109,6 +109,7 @@ Diese Variable steuert **nicht** das Python-Backend direkt; sie wird von
 | Variable | Bedeutung | Default (in Compose) |
 |---|---|---|
 | `NDHUB_WEB_IMAGE` | Vollqualifizierter Image-Name fuer den Service `ndhub-web` (z. B. GHCR-`latest`). Gesetzt: `docker compose pull ndhub-web` und `up -d --no-build`. Ungesetzt: lokaler Build, Tag `ndhub-web:local`. | (leer) |
+| `ND_HUB_WEB_BIND` | Host-Interface fuer Publish `8000`. Default Loopback, damit LAN nicht an Pangolin/NPM vorbei geht. Nur `0.0.0.0` setzen, wenn Pangolin den NAS-App-Port direkt trifft. | `127.0.0.1` |
 
 ## Desktop-Konfiguration (Vergleich)
 

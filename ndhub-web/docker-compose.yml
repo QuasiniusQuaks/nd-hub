@@ -4,8 +4,10 @@ services:
     image: ${NDHUB_WEB_IMAGE:-ndhub-web:local}
     container_name: ndhub-web
     restart: unless-stopped
+    # Issue #108: default loopback so LAN cannot skip Pangolin/NPM.
+    # Override ND_HUB_WEB_BIND=0.0.0.0 only if Pangolin targets the NAS app port.
     ports:
-      - "8000:8000"
+      - "${ND_HUB_WEB_BIND:-127.0.0.1}:8000:8000"
     env_file:
       - .env
     environment:

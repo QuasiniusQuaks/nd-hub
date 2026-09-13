@@ -25,6 +25,11 @@ docker compose logs -f mariadb
 
 ## Healthcheck pruefen
 
+`ndhub-web` published `8000` nur auf `127.0.0.1` (Issue #108). NPM/Pangolin
+auf dem NAS-Host verbinden lokal; LAN umgeht die Proxy-Kette nicht.
+Ausnahme: `ND_HUB_WEB_BIND=0.0.0.0` in `.env`, wenn Pangolin den App-Port
+direkt auf der NAS ansteuert.
+
 ```bash
 curl http://localhost:8000/health
 ```

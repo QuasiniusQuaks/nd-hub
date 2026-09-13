@@ -33,6 +33,7 @@ flowchart LR
 | Healthcheck | `GET /health` (intern via `urllib`) |
 | Restart | `unless-stopped` |
 | Default-Engine | `ND_HUB_DB_ENGINE=mariadb` |
+| Host-Bind | `127.0.0.1:8000` (Issue #108; Override `ND_HUB_WEB_BIND`) |
 
 ### `mariadb`
 
