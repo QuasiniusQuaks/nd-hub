@@ -1,6 +1,7 @@
 # Build context is the repository root (publish + compose). Issue #118.
 # --- Stage 1: Build React frontend ---
-FROM node:20.14-slim AS frontend-build
+# Vite 8 engines: ^20.19.0 || >=22.12.0 (Issue #138). 20.14 breaks rolldown.
+FROM node:20.19-slim AS frontend-build
 
 WORKDIR /frontend
 COPY ndhub-web/frontend-react/package*.json ./
