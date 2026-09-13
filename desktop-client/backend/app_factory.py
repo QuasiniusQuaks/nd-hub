@@ -9,6 +9,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+from db_manager import Database
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -74,7 +75,8 @@ def create_app(db_path: str | None = None) -> FastAPI:
     backups_dir = source_db_path.parent / "backups"
     auto_backup_hours = int((os.environ.get("ND_HUB_AUTO_BACKUP_HOURS", "24") or "24").strip() or "24")
     repository = SqliteRepository(database_path)
-    security = SecurityManager(database_path)
+    shared_db = Database(database_path)
+    security = SecurityManager(database=shared_db)
     token_store = TokenStore()
 
     def _user_permissions(username: str, role: str | None) -> set[str]:
@@ -399,7 +401,8 @@ def create_app(db_path: str | None = None) -> FastAPI:
 
     def _reopen_security():
         nonlocal security, token_store
-        security = SecurityManager(database_path)
+        # Restore opens a fresh handle (Issue #113). Not a parallel live path.
+        security = SecurityManager(database_path, allow_own_connection=True)
         app.state.security = security
         token_store = TokenStore()
         app.state.token_store = token_store

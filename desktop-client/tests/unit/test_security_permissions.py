@@ -11,7 +11,7 @@ class CrossInstitutionPermissionTests(unittest.TestCase):
         os.close(fd)
         os.environ["ND_HUB_INITIAL_ADMIN_PASSWORD"] = "TestAdmin!12345"
         try:
-            manager = SecurityManager(path)
+            manager = SecurityManager(path, allow_own_connection=True)
             try:
                 ok, _ = manager.authenticate("admin", "TestAdmin!12345")
                 self.assertTrue(ok)
