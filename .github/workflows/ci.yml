@@ -111,9 +111,7 @@ jobs:
         working-directory: ndhub-web
         run: |
           python -m pip install -U pip
-          # Web API tests do not need desktop GUI packages.
-          grep -vE '^(PySide6|matplotlib|pywin32|python-pptx)' requirements.txt > /tmp/web-ci-req.txt
-          pip install -r /tmp/web-ci-req.txt
+          pip install -r requirements.txt
           pip install "pytest>=9.0.3,<10.0" "pytest-cov>=5.0,<7.0" "httpx>=0.28,<1.0" "ruff>=0.6,<1.0"
 
       - name: Pytest smoke (+ security headers when stable)
