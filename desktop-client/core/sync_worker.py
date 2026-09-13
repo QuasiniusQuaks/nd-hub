@@ -36,6 +36,32 @@ from PySide6 import QtCore
 logger = logging.getLogger("ND-Hub.SyncWorker")
 
 
+def execute_sync_cycle(service, username: str) -> dict:
+    """Run one sync cycle without Qt (Issue #117).
+
+    Returns a dict with ``kind`` in ``finished`` / ``skipped`` / ``failed``.
+    """
+    try:
+        cycle = service.run_cycle(actor_username=username)
+    except Exception as exc:  # noqa: BLE001 — cycle errors become a failed outcome
+        tb = traceback.format_exc(limit=2)
+        logger.warning("Sync-Worker-Fehler: %s\n%s", exc, tb)
+        return {"kind": "failed", "error": f"{type(exc).__name__}: {exc}"}
+    if getattr(cycle, "skipped", False):
+        return {"kind": "skipped", "reason": cycle.reason or "Übersprungen"}
+    return {
+        "kind": "finished",
+        "payload": {
+            "effective_mode": cycle.effective_mode,
+            "reason": cycle.reason,
+            "pushed": cycle.pushed,
+            "pulled": cycle.pulled,
+            "rejected": cycle.rejected,
+            "conflicts": cycle.conflicts,
+        },
+    }
+
+
 class SyncWorkerSignals(QtCore.QObject):
     """Signals für die Sync-Worker-Kommunikation (thread-safe via Qt-Queues)."""
     # Wird nach erfolgreichem Cycle emittiert (Cycle-Ergebnis als Dict).
@@ -67,42 +93,22 @@ class SyncWorkerRunnable(QtCore.QRunnable):
         self.setAutoDelete(True)
 
     def run(self) -> None:  # noqa: D401  (Qt-API)
+        outcome = execute_sync_cycle(self.service, self.username)
         try:
-            cycle = self.service.run_cycle(actor_username=self.username)
-        except Exception as exc:  # noqa: BLE001 — explizit broad, Fehler werden via Signal propagiert
-            tb = traceback.format_exc(limit=2)
-            logger.warning("Sync-Worker-Fehler: %s\n%s", exc, tb)
-            try:
-                self.signals.cycle_failed.emit(f"{type(exc).__name__}: {exc}")
-            except Exception:
-                # Signals dürfen niemals den Worker crashen lassen
-                pass
-            try:
-                self.signals.cycle_ended.emit()
-            except Exception:
-                logger.exception("Sync-Worker Cleanup fehlgeschlagen")
-            return
-
-        try:
-            if cycle.skipped:
-                self.signals.cycle_skipped.emit(cycle.reason or "Übersprungen")
+            kind = outcome.get("kind")
+            if kind == "failed":
+                self.signals.cycle_failed.emit(outcome.get("error") or "Sync fehlgeschlagen")
+            elif kind == "skipped":
+                self.signals.cycle_skipped.emit(outcome.get("reason") or "Übersprungen")
             else:
-                payload = {
-                    "effective_mode": cycle.effective_mode,
-                    "reason": cycle.reason,
-                    "pushed": cycle.pushed,
-                    "pulled": cycle.pulled,
-                    "rejected": cycle.rejected,
-                    "conflicts": cycle.conflicts,
-                }
-                self.signals.cycle_finished.emit(payload)
+                self.signals.cycle_finished.emit(outcome.get("payload") or {})
         except Exception as exc:  # noqa: BLE001
             logger.warning("Sync-Worker-Signal-Übermittlung fehlgeschlagen: %s", exc)
         finally:
             try:
                 self.signals.cycle_ended.emit()
             except Exception:
-                pass
+                logger.exception("Sync-Worker Cleanup fehlgeschlagen")
 
 
 class SyncWorkerRunner:

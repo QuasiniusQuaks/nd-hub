@@ -10,6 +10,8 @@
 #
 # Documented ignores (desktop unit, stub-incompatible Qt threading):
 #   tests/unit/test_sync_worker.py  — needs real QThreadPool/Signals; stub insufficient
+#   Sync-cycle core is covered by tests/unit/test_sync_cycle_core.py (Issue #117).
+# Coverage gate: --cov-fail-under=40 (raised from 30; not a 80 jump).
 
 name: CI
 
@@ -91,11 +93,11 @@ jobs:
             -m "not performance" \
             --cov=security_manager \
             --cov=db_manager \
-            --cov=core/sync_worker \
-            --cov=core/secure_token_store \
-            --cov=core/config_manager \
+            --cov=core.sync_worker \
+            --cov=core.secure_token_store \
+            --cov=core.config_manager \
             --cov-report=term-missing \
-            --cov-fail-under=30
+            --cov-fail-under=40
 
   web-api:
     name: Web API smoke
@@ -116,17 +118,24 @@ jobs:
           pip install -r requirements.txt
           pip install "pytest>=9.0.3,<10.0" "pytest-cov>=5.0,<7.0" "httpx>=0.28,<1.0" "ruff>=0.6,<1.0"
 
-      - name: Pytest smoke (+ security headers when stable)
+      - name: Pytest smoke + stable web tests (no libEGL)
         working-directory: ndhub-web
         env:
           PYTHONPATH: backend:..
           ND_HUB_DB_ENGINE: sqlite
         run: |
-          # Phase-1 gate: smoke is required. Security-header suite is included on
-          # Linux runners (Windows tempfile/SQLite lock issues are local-only).
           python -m pytest \
             backend/tests/test_smoke.py \
             backend/tests/test_security_headers.py \
+            backend/tests/test_dockerignore.py \
+            backend/tests/test_web_requirements_no_gui.py \
+            backend/tests/test_mariadb_password_required.py \
+            backend/tests/test_compose_web_bind.py \
+            backend/tests/test_schema_sql_literals.py \
+            backend/tests/test_shared_lockout.py \
+            backend/tests/test_publish_waits_for_ci.py \
+            backend/tests/test_web_db_domain_modules.py \
+            backend/tests/test_frontend_island_loc.py \
             -q --tb=short --no-cov \
             -m "not performance"
 
