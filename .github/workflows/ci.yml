@@ -1,5 +1,6 @@
 # Quality gates for ND-Hub (Issue #92).
-# Runs on every PR and on push to main. Separate from multi-arch image publish.
+# Runs on every PR, push to main, and version tags. Separate from multi-arch image publish.
+# Publish waits for this workflow via workflow_run (Issue #109).
 #
 # Jobs:
 #   lint     — ruff (desktop / web / shared) with package configs
@@ -16,6 +17,7 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:

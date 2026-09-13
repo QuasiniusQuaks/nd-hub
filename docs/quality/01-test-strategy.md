@@ -47,7 +47,9 @@ Laeuft auf `pull_request` und `push` zu `main` (Linux / Python 3.12):
 - Coverage-Upload als Artefakt (Fail-under fuer Desktop-Kernmodule laeuft im Desktop-Job)
 - `pip-audit` / `npm audit` als harte Gates
 - Performance-Suite (kein `workflow_dispatch` „Performance Tests“ — lokal via `pytest -m performance`)
-- Image-Publish (`publish-ndhub-web-image.yml`) bleibt getrennt; empfohlen: Required Check **CI success**
+- Image-Publish (`publish-ndhub-web-image.yml`) laeuft nur nach erfolgreichem **CI**
+  (`workflow_run`, Issue #109). PR-CI published nicht. Zusaetzlich empfohlen:
+  Branch Protection Required Check **CI success**.
 
 ## Wichtige Suiten (Backend)
 

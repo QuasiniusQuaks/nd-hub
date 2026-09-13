@@ -1,19 +1,21 @@
 # Publishes the ndhub-web image to GHCR (always) and optionally to Docker Hub.
 #
+# Trigger: successful CI on main or v* tags (Issue #109). Pull-request CI never
+# publishes. workflow_dispatch is an emergency bypass — do not use to ship a red SHA.
+#
 # GitHub: Settings → Secrets and variables → Actions
 #   - Optional Docker Hub: secrets DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
 #   - Optional Docker Hub: repository variable DOCKERHUB_PUSH = true
+#   - Branch protection on main: required check "CI success" (recommended extra gate)
 #
 # Image on GHCR matches the repository name (linked under the repo "Packages").
-# Quality gates: .github/workflows/ci.yml (required check "CI success" recommended
-# under branch protection — kept separate from multi-arch Docker build).
 
 name: Publish ndhub-web container image
 
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -21,15 +23,39 @@ permissions:
   packages: write
 
 concurrency:
-  group: publish-ndhub-web-image-${{ github.ref }}
+  group: publish-ndhub-web-image-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event != 'pull_request' &&
+        (
+          github.event.workflow_run.head_branch == 'main' ||
+          startsWith(github.event.workflow_run.head_branch, 'v')
+        )
+      )
     steps:
+      - name: Resolve source SHA
+        id: src
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "sha=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+            echo "branch=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "${GITHUB_OUTPUT}"
+            echo "branch=${{ github.event.workflow_run.head_branch }}" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.src.outputs.sha }}
+          fetch-depth: 0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -59,7 +85,7 @@ jobs:
             ghcr.io/${{ github.repository }}
             name=docker.io/spypanther/ndhub-web,enable=${{ vars.DOCKERHUB_PUSH == 'true' }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ steps.src.outputs.branch == 'main' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
