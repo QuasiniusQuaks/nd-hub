@@ -9,11 +9,13 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+from db_manager import Database
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from security_manager import SecurityManager
 
 from backend.auth import SessionInfo, TokenStore, bearer_scheme, get_current_session
 from backend.config import resolve_db_path
@@ -64,8 +66,6 @@ from backend.models import (  # noqa: E402
     UserPasswordResetRequest,
     UserUpdateRequest,
 )
-from db_manager import Database
-from security_manager import SecurityManager
 
 
 def create_app(db_path: str | None = None) -> FastAPI:
