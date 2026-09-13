@@ -262,45 +262,61 @@ class Database(
         """Split-Adresse + Geo (Paritaet mit ndhub-web / Sync-Pull)."""
         inst_cols = [r[1] for r in self.cur.execute("PRAGMA table_info(institutions)").fetchall()]
         changed = False
-        for col, sql_type in (
-            ("strasse", "TEXT"),
-            ("hausnummer", "TEXT"),
-            ("postleitzahl", "TEXT"),
-            ("stadt", "TEXT"),
-        ):
-            if col not in inst_cols:
-                self.cur.execute(f"ALTER TABLE institutions ADD COLUMN {col} {sql_type}")
-                changed = True
+        if "strasse" not in inst_cols:
+            self.cur.execute("ALTER TABLE institutions ADD COLUMN strasse TEXT")
+            changed = True
+        if "hausnummer" not in inst_cols:
+            self.cur.execute("ALTER TABLE institutions ADD COLUMN hausnummer TEXT")
+            changed = True
+        if "postleitzahl" not in inst_cols:
+            self.cur.execute("ALTER TABLE institutions ADD COLUMN postleitzahl TEXT")
+            changed = True
+        if "stadt" not in inst_cols:
+            self.cur.execute("ALTER TABLE institutions ADD COLUMN stadt TEXT")
+            changed = True
         dep_cols = [r[1] for r in self.cur.execute("PRAGMA table_info(depots)").fetchall()]
-        for col, sql_type in (
-            ("strasse", "TEXT"),
-            ("hausnummer", "TEXT"),
-            ("postleitzahl", "TEXT"),
-            ("stadt", "TEXT"),
-            ("latitude", "REAL"),
-            ("longitude", "REAL"),
-        ):
-            if col not in dep_cols:
-                self.cur.execute(f"ALTER TABLE depots ADD COLUMN {col} {sql_type}")
-                changed = True
+        if "strasse" not in dep_cols:
+            self.cur.execute("ALTER TABLE depots ADD COLUMN strasse TEXT")
+            changed = True
+        if "hausnummer" not in dep_cols:
+            self.cur.execute("ALTER TABLE depots ADD COLUMN hausnummer TEXT")
+            changed = True
+        if "postleitzahl" not in dep_cols:
+            self.cur.execute("ALTER TABLE depots ADD COLUMN postleitzahl TEXT")
+            changed = True
+        if "stadt" not in dep_cols:
+            self.cur.execute("ALTER TABLE depots ADD COLUMN stadt TEXT")
+            changed = True
+        if "latitude" not in dep_cols:
+            self.cur.execute("ALTER TABLE depots ADD COLUMN latitude REAL")
+            changed = True
+        if "longitude" not in dep_cols:
+            self.cur.execute("ALTER TABLE depots ADD COLUMN longitude REAL")
+            changed = True
         if changed:
             self.conn.commit()
 
     def _migrate_praeparate_extended_columns(self):
         cols = [r[1] for r in self.cur.execute("PRAGMA table_info(praeparate)").fetchall()]
-        additions = {
-            "wirkstoff": "TEXT",
-            "darreichungsform": "TEXT",
-            "staerke": "TEXT",
-            "einheit": "TEXT",
-            "pzn": "TEXT",
-            "hersteller": "TEXT",
-        }
         changed = False
-        for name, sql_type in additions.items():
-            if name not in cols:
-                self.cur.execute(f"ALTER TABLE praeparate ADD COLUMN {name} {sql_type}")
-                changed = True
+        if "wirkstoff" not in cols:
+            self.cur.execute("ALTER TABLE praeparate ADD COLUMN wirkstoff TEXT")
+            changed = True
+        if "darreichungsform" not in cols:
+            self.cur.execute("ALTER TABLE praeparate ADD COLUMN darreichungsform TEXT")
+            changed = True
+        if "staerke" not in cols:
+            self.cur.execute("ALTER TABLE praeparate ADD COLUMN staerke TEXT")
+            changed = True
+        if "einheit" not in cols:
+            self.cur.execute("ALTER TABLE praeparate ADD COLUMN einheit TEXT")
+            changed = True
+        if "pzn" not in cols:
+            self.cur.execute("ALTER TABLE praeparate ADD COLUMN pzn TEXT")
+            changed = True
+        if "hersteller" not in cols:
+            self.cur.execute("ALTER TABLE praeparate ADD COLUMN hersteller TEXT")
+            changed = True
         if changed:
             self.conn.commit()
 
@@ -395,7 +411,10 @@ class Database(
 
     def set_query_only(self, enabled: bool):
         """Schaltet SQLite in nur-Lesen Modus für diese Verbindung."""
-        self.cur.execute(f"PRAGMA query_only={'ON' if enabled else 'OFF'}")
+        if enabled:
+            self.cur.execute("PRAGMA query_only=ON")
+        else:
+            self.cur.execute("PRAGMA query_only=OFF")
         self.conn.commit()
 
     def is_read_only_mode(self) -> bool:

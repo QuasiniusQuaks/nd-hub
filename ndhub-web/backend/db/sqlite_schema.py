@@ -175,31 +175,24 @@ class SqliteSchemaMixin:
             conn.commit()
 
     def _ensure_bewegung_attachment_columns(self, cur: sqlite3.Cursor) -> None:
-        rows = cur.execute("PRAGMA table_info(bewegungen)").fetchall()
-        existing = {row[1] for row in rows}
-        required_columns = {
-            "datei_pfad": "TEXT",
-            "datei_name": "TEXT",
-            "datei_groesse": "INTEGER",
-            "datei_hochgeladen_am": "TEXT",
-        }
-        for column_name, column_type in required_columns.items():
-            if column_name in existing:
-                continue
-            cur.execute(f"ALTER TABLE bewegungen ADD COLUMN {column_name} {column_type}")
+        existing = {row[1] for row in cur.execute("PRAGMA table_info(bewegungen)").fetchall()}
+        if "datei_pfad" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_pfad TEXT")
+        if "datei_name" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_name TEXT")
+        if "datei_groesse" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_groesse INTEGER")
+        if "datei_hochgeladen_am" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_hochgeladen_am TEXT")
 
     def _ensure_email_verlauf_columns(self, cur: sqlite3.Cursor) -> None:
-        rows = cur.execute("PRAGMA table_info(email_verlauf)").fetchall()
-        existing = {row[1] for row in rows}
-        required_columns = {
-            "versand_status": "TEXT DEFAULT 'draft'",
-            "versand_kanal": "TEXT",
-            "versand_fehler": "TEXT",
-        }
-        for column_name, column_type in required_columns.items():
-            if column_name in existing:
-                continue
-            cur.execute(f"ALTER TABLE email_verlauf ADD COLUMN {column_name} {column_type}")
+        existing = {row[1] for row in cur.execute("PRAGMA table_info(email_verlauf)").fetchall()}
+        if "versand_status" not in existing:
+            cur.execute("ALTER TABLE email_verlauf ADD COLUMN versand_status TEXT DEFAULT 'draft'")
+        if "versand_kanal" not in existing:
+            cur.execute("ALTER TABLE email_verlauf ADD COLUMN versand_kanal TEXT")
+        if "versand_fehler" not in existing:
+            cur.execute("ALTER TABLE email_verlauf ADD COLUMN versand_fehler TEXT")
 
     def _ensure_institution_columns(self, cur: sqlite3.Cursor) -> None:
         rows = cur.execute("PRAGMA table_info(depots)").fetchall()
@@ -225,35 +218,39 @@ class SqliteSchemaMixin:
         )
 
     def _ensure_praeparat_columns(self, cur: sqlite3.Cursor) -> None:
-        rows = cur.execute("PRAGMA table_info(praeparate)").fetchall()
-        existing = {row[1] for row in rows}
-        required_columns = {
-            "wirkstoff": "TEXT",
-            "darreichungsform": "TEXT",
-            "staerke": "TEXT",
-            "einheit": "TEXT",
-            "pzn": "TEXT",
-            "hersteller": "TEXT",
-        }
-        for column_name, column_type in required_columns.items():
-            if column_name in existing:
-                continue
-            cur.execute(f"ALTER TABLE praeparate ADD COLUMN {column_name} {column_type}")
+        existing = {row[1] for row in cur.execute("PRAGMA table_info(praeparate)").fetchall()}
+        if "wirkstoff" not in existing:
+            cur.execute("ALTER TABLE praeparate ADD COLUMN wirkstoff TEXT")
+        if "darreichungsform" not in existing:
+            cur.execute("ALTER TABLE praeparate ADD COLUMN darreichungsform TEXT")
+        if "staerke" not in existing:
+            cur.execute("ALTER TABLE praeparate ADD COLUMN staerke TEXT")
+        if "einheit" not in existing:
+            cur.execute("ALTER TABLE praeparate ADD COLUMN einheit TEXT")
+        if "pzn" not in existing:
+            cur.execute("ALTER TABLE praeparate ADD COLUMN pzn TEXT")
+        if "hersteller" not in existing:
+            cur.execute("ALTER TABLE praeparate ADD COLUMN hersteller TEXT")
 
     def _ensure_address_split_columns(self, cur: sqlite3.Cursor) -> None:
-        for table_name in ("depots", "institutions"):
-            rows = cur.execute(f"PRAGMA table_info({table_name})").fetchall()
-            existing = {row[1] for row in rows}
-            required_columns = {
-                "strasse": "TEXT",
-                "hausnummer": "TEXT",
-                "postleitzahl": "TEXT",
-                "stadt": "TEXT",
-            }
-            for column_name, column_type in required_columns.items():
-                if column_name in existing:
-                    continue
-                cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+        depots = {row[1] for row in cur.execute("PRAGMA table_info(depots)").fetchall()}
+        if "strasse" not in depots:
+            cur.execute("ALTER TABLE depots ADD COLUMN strasse TEXT")
+        if "hausnummer" not in depots:
+            cur.execute("ALTER TABLE depots ADD COLUMN hausnummer TEXT")
+        if "postleitzahl" not in depots:
+            cur.execute("ALTER TABLE depots ADD COLUMN postleitzahl TEXT")
+        if "stadt" not in depots:
+            cur.execute("ALTER TABLE depots ADD COLUMN stadt TEXT")
+        institutions = {row[1] for row in cur.execute("PRAGMA table_info(institutions)").fetchall()}
+        if "strasse" not in institutions:
+            cur.execute("ALTER TABLE institutions ADD COLUMN strasse TEXT")
+        if "hausnummer" not in institutions:
+            cur.execute("ALTER TABLE institutions ADD COLUMN hausnummer TEXT")
+        if "postleitzahl" not in institutions:
+            cur.execute("ALTER TABLE institutions ADD COLUMN postleitzahl TEXT")
+        if "stadt" not in institutions:
+            cur.execute("ALTER TABLE institutions ADD COLUMN stadt TEXT")
 
     def _compose_adresse(
         self,
