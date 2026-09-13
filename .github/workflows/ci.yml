@@ -5,6 +5,7 @@
 # Jobs:
 #   lint     — ruff (desktop / web / shared) with package configs
 #   desktop  — unit tests with PySide6 stub (no display / libEGL)
+#   frontend — npm ci + npm run build (Node 20.19, Issues #138 #139)
 #   web      — API smoke + security headers (SQLite TestClient)
 #   bandit   — medium+ security findings (root .bandit.yml)
 #
@@ -99,6 +100,25 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=40
 
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Match Dockerfile frontend stage (Issue #138 / #139).
+          node-version: "20.19"
+          cache: npm
+          cache-dependency-path: ndhub-web/frontend-react/package-lock.json
+
+      - name: npm ci + build
+        working-directory: ndhub-web/frontend-react
+        run: |
+          npm ci
+          npm run build
+
   web-api:
     name: Web API smoke
     runs-on: ubuntu-latest
@@ -137,6 +157,7 @@ jobs:
             backend/tests/test_web_db_domain_modules.py \
             backend/tests/test_frontend_island_loc.py \
             backend/tests/test_dockerfile_runtime_copy.py \
+            backend/tests/test_frontend_build_gate.py \
             -q --tb=short --no-cov \
             -m "not performance"
 
@@ -174,7 +195,7 @@ jobs:
   ci-success:
     name: CI success
     if: always()
-    needs: [lint, desktop-unit, web-api, bandit]
+    needs: [lint, desktop-unit, web-api, bandit, frontend-build]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
@@ -183,7 +204,9 @@ jobs:
           echo "desktop=${{ needs.desktop-unit.result }}"
           echo "web=${{ needs.web-api.result }}"
           echo "bandit=${{ needs.bandit.result }}"
+          echo "frontend=${{ needs.frontend-build.result }}"
           test "${{ needs.lint.result }}" = "success"
           test "${{ needs.desktop-unit.result }}" = "success"
           test "${{ needs.web-api.result }}" = "success"
           test "${{ needs.bandit.result }}" = "success"
+          test "${{ needs.frontend-build.result }}" = "success"
