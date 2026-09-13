@@ -121,18 +121,15 @@ class SqliteRepository:
             conn.commit()
 
     def _ensure_bewegung_attachment_columns(self, cur: sqlite3.Cursor) -> None:
-        rows = cur.execute("PRAGMA table_info(bewegungen)").fetchall()
-        existing = {row[1] for row in rows}
-        required_columns = {
-            "datei_pfad": "TEXT",
-            "datei_name": "TEXT",
-            "datei_groesse": "INTEGER",
-            "datei_hochgeladen_am": "TEXT",
-        }
-        for column_name, column_type in required_columns.items():
-            if column_name in existing:
-                continue
-            cur.execute(f"ALTER TABLE bewegungen ADD COLUMN {column_name} {column_type}")
+        existing = {row[1] for row in cur.execute("PRAGMA table_info(bewegungen)").fetchall()}
+        if "datei_pfad" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_pfad TEXT")
+        if "datei_name" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_name TEXT")
+        if "datei_groesse" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_groesse INTEGER")
+        if "datei_hochgeladen_am" not in existing:
+            cur.execute("ALTER TABLE bewegungen ADD COLUMN datei_hochgeladen_am TEXT")
 
     def list_depots(self, q: str = "", limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         safe_limit = max(1, min(int(limit), 200))

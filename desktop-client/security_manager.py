@@ -408,7 +408,10 @@ class SecurityManager:
     def set_query_only(self, enabled: bool):
         """Schaltet diese Security-Verbindung auf read-only/write."""
         try:
-            self.cur.execute(f"PRAGMA query_only={'ON' if enabled else 'OFF'}")
+            if enabled:
+                self.cur.execute("PRAGMA query_only=ON")
+            else:
+                self.cur.execute("PRAGMA query_only=OFF")
             self.conn.commit()
         except sqlite3.Error as e:
             logger.warning("Konnte query_only in SecurityManager nicht setzen: %s", e)
