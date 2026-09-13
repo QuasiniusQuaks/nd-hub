@@ -112,13 +112,22 @@ def resolve_db_engine(default: str = "sqlite") -> str:
 
 
 def resolve_mariadb_settings() -> MariaDbSettings:
-    """Resolve MariaDB settings used by migration scripts/runtime checks."""
+    """Resolve MariaDB settings used by migration scripts/runtime checks.
+
+    Empty passwords are rejected (Issue #104). There is no fallback secret.
+    """
+    password = _read_env_str("ND_HUB_MARIADB_PASSWORD", "")
+    if not password:
+        raise RuntimeError(
+            "ND_HUB_MARIADB_PASSWORD must be set when using MariaDB "
+            "(empty passwords are not allowed)."
+        )
     return MariaDbSettings(
         host=_read_env_str("ND_HUB_MARIADB_HOST", "mariadb"),
         port=max(1, _read_env_int("ND_HUB_MARIADB_PORT", 3306)),
         database=_read_env_str("ND_HUB_MARIADB_DATABASE", "ndhub"),
         user=_read_env_str("ND_HUB_MARIADB_USER", "ndhub"),
-        password=_read_env_str("ND_HUB_MARIADB_PASSWORD", ""),
+        password=password,
     )
 
 

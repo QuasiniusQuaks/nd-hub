@@ -43,7 +43,8 @@ MariaDB-/Engine-Optionen:
 Default-Stack (MariaDB **ohne** Compose-Profile — Service ist immer definiert):
 
 ```bash
-# Secrets in .env setzen (mind. ND_HUB_MARIADB_PASSWORD, MARIADB_ROOT_PASSWORD, …)
+# Secrets in .env setzen (Pflicht: ND_HUB_MARIADB_PASSWORD, ND_HUB_MARIADB_ROOT_PASSWORD).
+# Leere Werte: Compose bricht ab. Kein Default-Passwort.
 docker compose up -d --build
 ```
 

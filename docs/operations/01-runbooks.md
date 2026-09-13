@@ -4,8 +4,13 @@ Diese Seite buendelt operative Standardablaeufe.
 
 ## Stack starten / stoppen
 
+Ohne gesetztes `ND_HUB_MARIADB_PASSWORD` und `ND_HUB_MARIADB_ROOT_PASSWORD`
+startet Compose nicht (fail-closed, Issue #104). Es gibt kein Default-Passwort —
+auch nicht `changeme`. Platzhalter aus `.env.example` ersetzen, dann starten.
+
 ```bash
 cd ndhub-web
+cp .env.example .env   # Passwoerter setzen, nichts leer lassen
 docker compose up -d --build
 docker compose down                    # ohne Volume-Loeschung
 docker compose down -v                 # mit Volumes (DESTRUCTIVE)

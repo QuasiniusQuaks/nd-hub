@@ -190,7 +190,12 @@ class SecurityManager:
             port = int((os.environ.get("ND_HUB_MARIADB_PORT", "3306") or "3306").strip() or "3306")
             database = os.environ.get("ND_HUB_MARIADB_DATABASE", "ndhub").strip() or "ndhub"
             user = os.environ.get("ND_HUB_MARIADB_USER", "ndhub").strip() or "ndhub"
-            password = os.environ.get("ND_HUB_MARIADB_PASSWORD", "")
+            password = (os.environ.get("ND_HUB_MARIADB_PASSWORD") or "").strip()
+            if not password:
+                raise RuntimeError(
+                    "ND_HUB_MARIADB_PASSWORD must be set when using MariaDB "
+                    "(empty passwords are not allowed)."
+                )
             raw_conn = pymysql.connect(
                 host=host,
                 port=port,
