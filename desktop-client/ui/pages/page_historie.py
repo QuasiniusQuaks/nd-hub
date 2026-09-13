@@ -134,7 +134,6 @@ class BewegungshistoriePage(QtWidgets.QWidget):
         if hasattr(host, "_begin_busy_operation"):
             busy_op_id = host._begin_busy_operation("Lade Verlauf ...", delay_ms=0)
         self.lbl_loading.setVisible(True)
-        QtWidgets.QApplication.processEvents()
 
         # UI Updates pausieren für maximalen Performance-Gewinn
         self.table.setUpdatesEnabled(False)
