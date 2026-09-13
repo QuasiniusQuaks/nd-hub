@@ -136,6 +136,7 @@ jobs:
             backend/tests/test_publish_waits_for_ci.py \
             backend/tests/test_web_db_domain_modules.py \
             backend/tests/test_frontend_island_loc.py \
+            backend/tests/test_dockerfile_runtime_copy.py \
             -q --tb=short --no-cov \
             -m "not performance"
 

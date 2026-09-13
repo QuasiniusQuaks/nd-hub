@@ -1,0 +1,23 @@
+# Repo-root build context (Issue #118). Secrets/DBs stay out (Issue #105).
+.git
+.gitignore
+.cursor
+.hermes
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/agent-transcripts
+desktop-client
+docs
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+**/*.db
+**/*.sqlite*
+**/node_modules
+**/tests
+**/.coverage
