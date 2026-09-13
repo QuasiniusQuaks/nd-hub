@@ -16,8 +16,10 @@ from typing import List, Optional, Tuple
 try:
     import pymysql
     HAS_PYMYSQL = True
+    _DB_IO_ERRORS: tuple[type[BaseException], ...] = (sqlite3.Error, OSError, pymysql.Error)
 except ImportError:
     HAS_PYMYSQL = False
+    _DB_IO_ERRORS = (sqlite3.Error, OSError)
 
 logger = logging.getLogger(__name__)
 
@@ -290,15 +292,15 @@ class SecurityManager:
             # Für abwärtskompatibilität, füge Spalte is_default_password hinzu falls nicht existent
             try:
                 self.cur.execute("ALTER TABLE users ADD COLUMN is_default_password INTEGER DEFAULT 0")
-            except Exception:
+            except _DB_IO_ERRORS:
                 logger.debug("Column is_default_password may already exist", exc_info=True)
             try:
                 self.cur.execute("ALTER TABLE users ADD COLUMN avatar_path TEXT")
-            except Exception:
+            except _DB_IO_ERRORS:
                 logger.debug("Column avatar_path may already exist", exc_info=True)
             try:
                 self.cur.execute("ALTER TABLE users ADD COLUMN permissions TEXT")
-            except Exception:
+            except _DB_IO_ERRORS:
                 logger.debug("Column permissions may already exist", exc_info=True)
 
             # Aktivitäts-Log
@@ -426,7 +428,7 @@ class SecurityManager:
                 return False
             logger.error(f"DB-Fehler bei is_using_default_password: {e}")
             return False
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"Unerwarteter Fehler: {e}", exc_info=True)
             return False
 
@@ -548,7 +550,7 @@ class SecurityManager:
             else:
                 self.cur.execute("PRAGMA query_only=OFF")
             self.conn.commit()
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.warning("Konnte query_only in SecurityManager nicht setzen: %s", e)
 
     # ==================== USER MANAGEMENT ====================
@@ -594,7 +596,7 @@ class SecurityManager:
 
             logger.info(f"✓ Benutzer '{username}' erstellt")
             return True, "Benutzer erfolgreich erstellt"
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Fehler beim Erstellen: {e}")
             return False, f"Fehler: {str(e)}"
 
@@ -640,7 +642,7 @@ class SecurityManager:
             )
 
             return True, "Benutzer aktualisiert"
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Fehler beim Aktualisieren: {e}")
             return False, str(e)
 
@@ -677,7 +679,7 @@ class SecurityManager:
             )
 
             return True, "Benutzer gelöscht"
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Fehler beim Löschen: {e}")
             return False, str(e)
 
@@ -713,10 +715,10 @@ class SecurityManager:
                 self.log_activity(user_id, username, "CHANGE_PASSWORD", "Passwort erfolgreich geändert")
                 logger.info(f"✓ Passwort geändert und Flag zurückgesetzt: '{username}'")
                 return True, "Passwort erfolgreich geändert"
-            else:
-                raise Exception("Datenbank-Flag 'is_default_password' konnte nicht auf 0 gesetzt werden.")
+            self.conn.rollback()
+            return False, "Datenbank-Flag 'is_default_password' konnte nicht auf 0 gesetzt werden."
 
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             self.conn.rollback()
             logger.error(f"✗ Fehler beim Passwortändern: {e}")
             return False, f"Fehler beim Speichern: {str(e)}"
@@ -744,7 +746,7 @@ class SecurityManager:
             )
 
             return True, "Passwort zurückgesetzt"
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             return False, str(e)
 
     def list_users(self) -> List[Tuple]:
@@ -798,7 +800,7 @@ class SecurityManager:
             self.cur.execute("UPDATE users SET avatar_path = ? WHERE id = ?", (target_path, safe_user_id))
             self.conn.commit()
             return True, "Profilbild gespeichert."
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error("Fehler beim Speichern des Profilbilds: %s", e)
             return False, f"Fehler beim Speichern: {e}"
 
@@ -819,7 +821,7 @@ class SecurityManager:
                 except OSError:
                     pass
             return True, "Profilbild entfernt."
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error("Fehler beim Entfernen des Profilbilds: %s", e)
             return False, f"Fehler beim Entfernen: {e}"
 
@@ -834,7 +836,7 @@ class SecurityManager:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, username, action, details, now, ip))
             self.conn.commit()
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Logging-Fehler: {e}")
 
     def get_activity_log(self, user_id: int = None, limit: int = 100) -> List[Tuple]:

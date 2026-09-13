@@ -129,7 +129,7 @@ def create_admin_backup_router(
                     file.file.seek(0)
                     raw = file.file.read()
                     payload = json.loads(raw.decode("utf-8"))
-                except Exception as exc:
+                except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Backup-Datei konnte nicht gelesen werden: {exc}",
@@ -139,7 +139,7 @@ def create_admin_backup_router(
                     restore_mariadb_backup_payload(payload)
                     close_security()
                     reopen_security()
-                except Exception as exc:
+                except (OSError, sqlite3.Error, ValueError, TypeError, KeyError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail=f"MariaDB-Restore fehlgeschlagen: {exc}",
@@ -179,7 +179,7 @@ def create_admin_backup_router(
                 except HTTPException:
                     temp_restore_path.unlink(missing_ok=True)
                     raise
-                except Exception as exc:
+                except (OSError, sqlite3.Error) as exc:
                     temp_restore_path.unlink(missing_ok=True)
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -191,7 +191,7 @@ def create_admin_backup_router(
                     close_security()
                     shutil.move(str(temp_restore_path), str(db_target_path))
                     reopen_security()
-                except Exception as exc:
+                except (OSError, sqlite3.Error) as exc:
                     temp_restore_path.unlink(missing_ok=True)
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -242,7 +242,7 @@ def create_admin_backup_router(
         except HTTPException:
             temp_restore_path.unlink(missing_ok=True)
             raise
-        except Exception as exc:
+        except (OSError, sqlite3.Error) as exc:
             temp_restore_path.unlink(missing_ok=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -254,7 +254,7 @@ def create_admin_backup_router(
             close_security()
             shutil.move(str(temp_restore_path), str(db_target_path))
             reopen_security()
-        except Exception as exc:
+        except (OSError, sqlite3.Error) as exc:
             temp_restore_path.unlink(missing_ok=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

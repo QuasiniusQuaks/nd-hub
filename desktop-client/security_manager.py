@@ -15,6 +15,7 @@ from typing import Optional
 from db_manager import Database
 
 logger = logging.getLogger(__name__)
+_DB_IO_ERRORS = (sqlite3.Error, OSError)
 
 from shared.security.lockout import is_currently_locked, register_failed_attempt
 from shared.security.password import HAS_BCRYPT
@@ -231,7 +232,7 @@ class SecurityManager:
                 return False
             logger.error(f"DB-Fehler bei is_using_default_password: {e}")
             return False
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"Unerwarteter Fehler: {e}", exc_info=True)
             return False
 
@@ -459,7 +460,7 @@ class SecurityManager:
 
             logger.info(f"✓ Benutzer '{username}' erstellt")
             return True, "Benutzer erfolgreich erstellt"
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Fehler beim Erstellen: {e}")
             return False, f"Fehler: {str(e)}"
 
@@ -507,7 +508,7 @@ class SecurityManager:
             )
 
             return True, "Benutzer aktualisiert"
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Fehler beim Aktualisieren: {e}")
             return False, str(e)
 
@@ -544,7 +545,7 @@ class SecurityManager:
             )
 
             return True, "Benutzer gelöscht"
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Fehler beim Löschen: {e}")
             return False, str(e)
 
@@ -580,10 +581,10 @@ class SecurityManager:
                 self.log_activity(user_id, username, "CHANGE_PASSWORD", "Passwort erfolgreich geändert")
                 logger.info(f"✓ Passwort geändert und Flag zurückgesetzt: '{username}'")
                 return True, "Passwort erfolgreich geändert"
-            else:
-                raise Exception("Datenbank-Flag 'is_default_password' konnte nicht auf 0 gesetzt werden.")
+            self.conn.rollback()
+            return False, "Datenbank-Flag 'is_default_password' konnte nicht auf 0 gesetzt werden."
 
-        except Exception as e:
+        except (sqlite3.Error, OSError) as e:
             self.conn.rollback()
             logger.error(f"✗ Fehler beim Passwortändern: {e}")
             return False, f"Fehler beim Speichern: {str(e)}"
@@ -611,8 +612,8 @@ class SecurityManager:
             )
 
             return True, "Passwort zurückgesetzt"
-        except Exception:
-            logger.exception("Security check fehlgeschlagen")
+        except sqlite3.Error:
+            logger.exception("Passwort-Reset fehlgeschlagen")
             return False, "Security check fehlgeschlagen"
 
     def unlock_user(self, user_id: int) -> tuple[bool, str]:
@@ -636,7 +637,8 @@ class SecurityManager:
                 f"Benutzer entsperrt: '{username}'",
             )
             return True, "Benutzer entsperrt"
-        except Exception as e:
+        except sqlite3.Error as e:
+            logger.exception("Benutzer entsperren fehlgeschlagen")
             return False, str(e)
 
     def list_users(self) -> list[tuple]:
@@ -690,7 +692,7 @@ class SecurityManager:
             self.cur.execute("UPDATE users SET avatar_path = ? WHERE id = ?", (target_path, safe_user_id))
             self.conn.commit()
             return True, "Profilbild gespeichert."
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error("Fehler beim Speichern des Profilbilds: %s", e)
             return False, f"Fehler beim Speichern: {e}"
 
@@ -711,7 +713,7 @@ class SecurityManager:
                 except OSError:
                     pass
             return True, "Profilbild entfernt."
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error("Fehler beim Entfernen des Profilbilds: %s", e)
             return False, f"Fehler beim Entfernen: {e}"
 
@@ -726,7 +728,7 @@ class SecurityManager:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, username, action, details, now, ip))
             self.conn.commit()
-        except Exception as e:
+        except _DB_IO_ERRORS as e:
             logger.error(f"✗ Logging-Fehler: {e}")
 
     def get_activity_log(self, user_id: int = None, limit: int = 100) -> list[tuple]:
@@ -759,6 +761,6 @@ class SecurityManager:
         if self.conn:
             try:
                 self.conn.close()
-            except Exception as exc:  # noqa: BLE001
+            except sqlite3.Error as exc:
                 logger.debug("SecurityManager close fehlgeschlagen: %s", exc)
             logger.info("SecurityManager geschlossen")
