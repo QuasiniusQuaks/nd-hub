@@ -356,6 +356,8 @@ Ohne `NDHUB_WEB_IMAGE` wird wie bisher lokal gebaut (`docker compose up -d --bui
 - Docker Engine + Docker Compose Plugin installiert.
 - Port `8000` (Web/API) und bei externer DB-Nutzung optional `3306` verfuegbar.
 - Fuer produktionsnahen Einsatz: gepflegte `.env`-Datei mit sicheren Secrets.
+  Ohne `ND_HUB_MARIADB_PASSWORD` und `ND_HUB_MARIADB_ROOT_PASSWORD` startet
+  Compose nicht (kein Default-Passwort).
 
 ### 3) Konfiguration vorbereiten
 

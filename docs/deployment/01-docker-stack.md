@@ -71,6 +71,10 @@ cd ndhub-web
 cp .env.example .env
 ```
 
+`ND_HUB_MARIADB_PASSWORD` und `ND_HUB_MARIADB_ROOT_PASSWORD` sind Pflicht.
+Leere Werte: Compose bricht ab (`${VAR:?...}`). Es gibt kein Default-Passwort
+im YAML. Platzhalter `__CHANGE_ME__` vor dem Start ersetzen.
+
 Wichtige Variablen siehe [Umgebungsvariablen](03-environment-variables.md).
 
 ## Deployment starten

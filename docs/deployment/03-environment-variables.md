@@ -33,8 +33,8 @@ Container-Stack auswerten, plus Compose-Interpolation (siehe unten). Quellen:
 | `ND_HUB_MARIADB_PORT` | MariaDB-Port. | `3306` |
 | `ND_HUB_MARIADB_DATABASE` | Datenbankname. | `ndhub` |
 | `ND_HUB_MARIADB_USER` | DB-Benutzer. | `ndhub` |
-| `ND_HUB_MARIADB_PASSWORD` | DB-Passwort. | `ChangeMe` (in Production zwingend ersetzen) |
-| `ND_HUB_MARIADB_ROOT_PASSWORD` | Root-Passwort fuer den MariaDB-Container. | `ChangeRootMe` |
+| `ND_HUB_MARIADB_PASSWORD` | DB-Passwort. Compose und App starten nicht, wenn leer. | (kein Default — Pflicht) |
+| `ND_HUB_MARIADB_ROOT_PASSWORD` | Root-Passwort fuer den MariaDB-Container. Compose startet nicht, wenn leer. | (kein Default — Pflicht) |
 | `ND_HUB_DUAL_WRITE_SQLITE` | `1` aktiviert Mirror-Writes auf SQLite-Fallback waehrend Cutover. Standard nach Go-Live: `0`. | `0` |
 
 ## Feature-Flags
@@ -78,8 +78,8 @@ ND_HUB_MARIADB_HOST=mariadb
 ND_HUB_MARIADB_PORT=3306
 ND_HUB_MARIADB_DATABASE=ndhub
 ND_HUB_MARIADB_USER=ndhub
-ND_HUB_MARIADB_PASSWORD=ChangeMe
-ND_HUB_MARIADB_ROOT_PASSWORD=ChangeRootMe
+ND_HUB_MARIADB_PASSWORD=__CHANGE_ME__
+ND_HUB_MARIADB_ROOT_PASSWORD=__CHANGE_ME__
 ND_HUB_DUAL_WRITE_SQLITE=0
 
 ND_HUB_FEATURE_MULTI_INSTITUTION=1
