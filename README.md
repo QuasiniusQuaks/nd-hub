@@ -275,6 +275,7 @@ Roadmap: [`docs/ARCHITEKTUR_AUDIT_ROADMAP.md`](docs/ARCHITEKTUR_AUDIT_ROADMAP.md
 | 2026-06 Welle 1–2 | Security, Threading, Dependencies | ✅ abgeschlossen |
 | 2026-07 Welle 3 (audit-2026-07-2) | shared-Router, app_factory, db Mixins, CI/Docs | ✅ abgeschlossen |
 | 2026-09 Welle 4 (audit-2026-09) | Wartbarkeit, Stabilität, Sicherheit | ✅ abgeschlossen — Tabelle in der Roadmap |
+| 2026-09 Welle 5 (audit-welle-5) | Publish/CI-Build, Secret-Hygiene | ✅ abgeschlossen — Tabelle in der Roadmap |
 
 ### Wichtigste Fixes aus dem Audit 2026-06
 
