@@ -7,3 +7,11 @@ __pycache__
 .pytest_cache
 tests
 agent-transcripts
+
+# Issue #105: COPY . /app must not bake secrets or local DBs into GHCR.
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite*
+frontend-react/node_modules

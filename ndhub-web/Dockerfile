@@ -31,7 +31,8 @@ RUN apt-get update \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy application and frontend build artifacts
+# Copy application and frontend build artifacts.
+# Secrets/DBs stay out of the context via .dockerignore (Issue #105).
 COPY . /app
 COPY --from=frontend-build /backend/web/react /app/backend/web/react
 
