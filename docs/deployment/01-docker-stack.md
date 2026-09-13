@@ -46,7 +46,8 @@ flowchart LR
 
 ## Container-Registry (GitHub Actions)
 
-Bei Push auf `main` und bei Git-Tags `v*` baut der Workflow
+Nach **erfolgreichem CI** auf `main` bzw. Tags `v*` (nicht bei rotem CI, nicht
+bei Pull Requests) baut der Workflow
 `.github/workflows/publish-ndhub-web-image.yml` das Web-Image und pusht es nach:
 
 - **GHCR:** `ghcr.io/quasiniusquaks/nd-hub` (Paket mit dem GitHub-Repository verknuepft)
