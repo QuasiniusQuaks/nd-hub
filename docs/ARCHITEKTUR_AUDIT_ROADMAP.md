@@ -1,4 +1,4 @@
-# Roadmap: Architektur-Audit (Wellen 1–3)
+# Roadmap: Architektur-Audit (Wellen 1–4)
 
 ## Welle 1 — Architektur-Audit Desktop-Client (2026-06-16)
 
@@ -132,9 +132,37 @@ Mixins unter `core/db/*` zerlegt (Issues #60–#69 geschlossen).
 | **P1** | [#66](https://github.com/QuasiniusQuaks/nd-hub/issues/66) / PRs #87–#90 | `db_manager` Mixins (Analytics, Sync, Setup, CRUD) | ✅ fertig |
 | **P1** | [#60](https://github.com/QuasiniusQuaks/nd-hub/issues/60) / #61 | Shared-Router + `app_factory` | ✅ fertig |
 | **P1** | [#67](https://github.com/QuasiniusQuaks/nd-hub/issues/67) | Setup-Wizard Package-Split | ✅ fertig |
-| **P1** | [#91](https://github.com/QuasiniusQuaks/nd-hub/issues/91) | Doku-Drift v0.5 / shared / core/db | 🔧 dieser Stand |
-| **P1** | [#92](https://github.com/QuasiniusQuaks/nd-hub/issues/92) | CI: Ruff / pytest / Bandit | 🔧 dieser Stand |
-| **P2** | [#70](https://github.com/QuasiniusQuaks/nd-hub/issues/70) | Web `database.py` + `mariadb_repository.py` Konsolidierung | 🔓 open |
-| **P2** | [#93](https://github.com/QuasiniusQuaks/nd-hub/issues/93)–[#96](https://github.com/QuasiniusQuaks/nd-hub/issues/96) | UI-Monolithen, Dual-Stack-Share, Lint-Rest, app_factory-Rest | 🔓 open |
+| **P1** | [#91](https://github.com/QuasiniusQuaks/nd-hub/issues/91) | Doku-Drift v0.5 / shared / core/db | ✅ fertig (PR #98) |
+| **P1** | [#92](https://github.com/QuasiniusQuaks/nd-hub/issues/92) | CI: Ruff / pytest / Bandit | ✅ fertig (PR #98) |
+| **P2** | [#70](https://github.com/QuasiniusQuaks/nd-hub/issues/70) | Web `database.py` + `mariadb_repository.py` Konsolidierung | ✅ fertig (PR #102) |
+| **P2** | [#93](https://github.com/QuasiniusQuaks/nd-hub/issues/93) | Desktop-UI-Monolithen splitten | ✅ fertig (PRs #99 #100) |
+| **P2** | [#94](https://github.com/QuasiniusQuaks/nd-hub/issues/94) | Dual-Stack security/helpers sharen | ✅ fertig (PR #101) |
+| **P2** | [#95](https://github.com/QuasiniusQuaks/nd-hub/issues/95) | Lint-Regression nach Router-Split | ✅ fertig (2026-07-26) |
+| **P2** | [#96](https://github.com/QuasiniusQuaks/nd-hub/issues/96) | Web create_app-Rest / factory slim | ✅ fertig (PR #99) |
 
-**Offen als Naechstes:** #70 (DB-Layer Web), CI/Docs-Haertung Phase 2, Dual-Stack-Share (#94).
+**Welle 3 geschlossen (2026-07-26).** Label `audit-2026-07-2`.
+
+---
+
+## Welle 4 — Wartbarkeit, Stabilität, Sicherheit (audit-2026-09)
+
+Sprint: [#120](https://github.com/QuasiniusQuaks/nd-hub/issues/120). Stand nach P2-Abschluss.
+
+| Prio | Issue | Befund | Status | PR |
+|---|---|---|---|---|
+| **P0** | [#104](https://github.com/QuasiniusQuaks/nd-hub/issues/104) | Compose MariaDB-Passwörter fail-closed | ✅ | #121 |
+| **P0** | [#105](https://github.com/QuasiniusQuaks/nd-hub/issues/105) | dockerignore `.env` / DB-Dateien | ✅ | #122 |
+| **P1** | [#106](https://github.com/QuasiniusQuaks/nd-hub/issues/106) | cryptography-Pin Desktop | ✅ | #123 |
+| **P1** | [#107](https://github.com/QuasiniusQuaks/nd-hub/issues/107) | Web-requirements ohne GUI-Stack | ✅ | #124 |
+| **P1** | [#108](https://github.com/QuasiniusQuaks/nd-hub/issues/108) | Compose Port 8000 auf Loopback | ✅ | #125 |
+| **P1** | [#109](https://github.com/QuasiniusQuaks/nd-hub/issues/109) | Image-Publish erst nach grüner CI | ✅ | #126 |
+| **P1** | [#110](https://github.com/QuasiniusQuaks/nd-hub/issues/110) | Web-DB Domain-Mixins | ✅ | #127 |
+| **P1** | [#111](https://github.com/QuasiniusQuaks/nd-hub/issues/111) | `main.tsx` Inseln | ✅ | #128 |
+| **P1** | [#112](https://github.com/QuasiniusQuaks/nd-hub/issues/112) | Shared lockout-policy | ✅ | #131 |
+| **P1** | [#113](https://github.com/QuasiniusQuaks/nd-hub/issues/113) | Kein Legacy-`sqlite3.connect` | ✅ | #129 |
+| **P1** | [#114](https://github.com/QuasiniusQuaks/nd-hub/issues/114) | `processEvents`-Reste | ✅ | #130 |
+| **P2** | [#115](https://github.com/QuasiniusQuaks/nd-hub/issues/115) | ALTER/PRAGMA SQL-Literale | ✅ | #132 |
+| **P2** | [#116](https://github.com/QuasiniusQuaks/nd-hub/issues/116) | except-Hotspots typisieren | ✅ | #133 |
+| **P2** | [#117](https://github.com/QuasiniusQuaks/nd-hub/issues/117) | CI Coverage-Gate + Sync-Worker-Kern | ✅ | #134 |
+| **P2** | [#118](https://github.com/QuasiniusQuaks/nd-hub/issues/118) | Dockerfile nur Runtime-Artefakt | ✅ | #135 |
+| **P2** | [#119](https://github.com/QuasiniusQuaks/nd-hub/issues/119) | Diese Roadmap + README | ✅ | #136 |

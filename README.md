@@ -262,7 +262,7 @@ ND-Hub Plattform
 
 ---
 
-## Architektur-Audit & Code-Qualität (2026-06 / 2026-07)
+## Architektur-Audit & Code-Qualität (2026-06 / 2026-07 / 2026-09)
 
 Das Repository wird regelmäßig einem systematischen Architektur-Audit unterzogen.
 Befunde, Fixes und Diskussionen sind direkt auf GitHub dokumentiert.
@@ -273,7 +273,8 @@ Roadmap: [`docs/ARCHITEKTUR_AUDIT_ROADMAP.md`](docs/ARCHITEKTUR_AUDIT_ROADMAP.md
 | Audit | Fokus | Status |
 |---|---|---|
 | 2026-06 Welle 1–2 | Security, Threading, Dependencies | ✅ abgeschlossen |
-| 2026-07 Welle 3 (audit-2026-07-2) | shared-Router, app_factory, db Mixins, CI/Docs | 🔧 aktiv (#70 und P2 offen) |
+| 2026-07 Welle 3 (audit-2026-07-2) | shared-Router, app_factory, db Mixins, CI/Docs | ✅ abgeschlossen |
+| 2026-09 Welle 4 (audit-2026-09) | Wartbarkeit, Stabilität, Sicherheit | ✅ abgeschlossen — Tabelle in der Roadmap |
 
 ### Wichtigste Fixes aus dem Audit 2026-06
 
