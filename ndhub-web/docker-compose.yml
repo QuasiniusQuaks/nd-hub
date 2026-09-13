@@ -1,6 +1,8 @@
 services:
   ndhub-web:
-    build: .
+    build:
+      context: ..
+      dockerfile: ndhub-web/Dockerfile
     image: ${NDHUB_WEB_IMAGE:-ndhub-web:local}
     container_name: ndhub-web
     restart: unless-stopped
