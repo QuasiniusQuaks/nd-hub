@@ -6,6 +6,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from shared.security.runtime_secrets import require_runtime_secret
+
 
 def _read_env_str(name: str, default: str = "") -> str:
     return (os.environ.get(name, default) or "").strip()
@@ -114,14 +116,16 @@ def resolve_db_engine(default: str = "sqlite") -> str:
 def resolve_mariadb_settings() -> MariaDbSettings:
     """Resolve MariaDB settings used by migration scripts/runtime checks.
 
-    Empty passwords are rejected (Issue #104). There is no fallback secret.
+    Empty passwords and documented placeholders such as ``__CHANGE_ME__``
+    are rejected (Issues #104 #142). There is no fallback secret.
     """
-    password = _read_env_str("ND_HUB_MARIADB_PASSWORD", "")
-    if not password:
-        raise RuntimeError(
-            "ND_HUB_MARIADB_PASSWORD must be set when using MariaDB "
-            "(empty passwords are not allowed)."
-        )
+    password = require_runtime_secret(
+        "ND_HUB_MARIADB_PASSWORD",
+        _read_env_str("ND_HUB_MARIADB_PASSWORD", ""),
+    )
+    root = _read_env_str("ND_HUB_MARIADB_ROOT_PASSWORD", "")
+    if root:
+        require_runtime_secret("ND_HUB_MARIADB_ROOT_PASSWORD", root)
     return MariaDbSettings(
         host=_read_env_str("ND_HUB_MARIADB_HOST", "mariadb"),
         port=max(1, _read_env_int("ND_HUB_MARIADB_PORT", 3306)),

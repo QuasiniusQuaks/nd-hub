@@ -370,7 +370,7 @@ cp .env.example .env
 Wichtige Variablen in `.env`:
 
 - **Sicherheit/Initialbetrieb**
-  - `ND_HUB_INITIAL_ADMIN_PASSWORD`
+  - `ND_HUB_INITIAL_ADMIN_PASSWORD` (Pflicht beim Erststart; `__CHANGE_ME__` wird abgelehnt, kein Auto-Passwort im Log)
   - `ND_HUB_FORCE_ADMIN_PASSWORD_SYNC` (nur gezielt/temporar verwenden)
 - **DB-Engine**
   - `ND_HUB_DB_ENGINE=sqlite|mariadb`
