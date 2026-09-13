@@ -32,6 +32,9 @@ ND-Hub nutzt eine durchgehende Auth-Architektur ueber Desktop und Web.
 
 - `ND_HUB_FORCE_ADMIN_PASSWORD_SYNC=1` setzt das Admin-Passwort beim
   Start auf `ND_HUB_INITIAL_ADMIN_PASSWORD` zurueck.
+- Beim allerersten Start (kein `admin` in der DB) ist
+  `ND_HUB_INITIAL_ADMIN_PASSWORD` Pflicht. Es wird kein Passwort
+  generiert und nicht ins Log geschrieben (`__CHANGE_ME__` gilt nicht).
 - Nur fuer Notfallzugriff verwenden, anschliessend wieder auf `0`
   zuruecksetzen.
 

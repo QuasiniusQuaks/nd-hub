@@ -158,6 +158,7 @@ jobs:
             backend/tests/test_frontend_island_loc.py \
             backend/tests/test_dockerfile_runtime_copy.py \
             backend/tests/test_frontend_build_gate.py \
+            backend/tests/test_runtime_secrets.py \
             -q --tb=short --no-cov \
             -m "not performance"
 

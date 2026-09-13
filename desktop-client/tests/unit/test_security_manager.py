@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from security_manager import SecurityManager
 
 
@@ -24,3 +26,15 @@ def test_default_admin_password_from_env(monkeypatch, tmp_path: Path):
     finally:
         manager.close()
         monkeypatch.delenv("ND_HUB_INITIAL_ADMIN_PASSWORD", raising=False)
+
+
+def test_default_admin_requires_env_and_rejects_placeholder(monkeypatch, tmp_path: Path):
+    from shared.security.runtime_secrets import PlaceholderSecretError
+
+    monkeypatch.delenv("ND_HUB_INITIAL_ADMIN_PASSWORD", raising=False)
+    with pytest.raises(PlaceholderSecretError):
+        SecurityManager(str(tmp_path / "a.db"), allow_own_connection=True)
+
+    monkeypatch.setenv("ND_HUB_INITIAL_ADMIN_PASSWORD", "__CHANGE_ME__")
+    with pytest.raises(PlaceholderSecretError):
+        SecurityManager(str(tmp_path / "b.db"), allow_own_connection=True)

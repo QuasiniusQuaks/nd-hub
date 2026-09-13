@@ -21,6 +21,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 import _pyside6_stub  # noqa: F401  (side-effect: stub installiert)
 
 
+def pytest_configure(config) -> None:
+    # Issue #141: first admin is fail-closed without env. Unit tests that
+    # construct SecurityManager/create_app inherit this default; tests that
+    # assert the fail-closed path still delenv.
+    os.environ.setdefault(
+        "ND_HUB_INITIAL_ADMIN_PASSWORD",
+        "TestAdmin!conftest-not-for-prod",
+    )
+
+
 @pytest.fixture
 def temp_db_path() -> Iterator[str]:
     """Erstellt eine temporäre SQLite-Datei für Test-DBs.
