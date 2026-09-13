@@ -14,6 +14,7 @@ from PySide6 import QtWidgets
 from ui.utils import create_card_widget
 
 logger = logging.getLogger("ND-Hub")
+_BACKUP_ERRORS = (OSError, sqlite3.Error)
 
 
 def create_backup_tab(self):
@@ -247,7 +248,8 @@ def reset_test_data(self):
         backup_path = f"{self.db.path}.before_reset_{timestamp}"
         shutil.copy2(self.db.path, backup_path)
         backup_created = True
-    except Exception as e:
+    except OSError as e:
+        logger.exception("Reset-Backup fehlgeschlagen")
         backup_created = False
         reply = QtWidgets.QMessageBox.warning(
             self,
@@ -315,9 +317,9 @@ def create_backup(self):
         try:
             self.db.cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             self.db.conn.commit()
-            print("WAL-Checkpoint durchgeführt")
-        except Exception as e:
-            print(f"⚠ WAL-Checkpoint Warnung: {e}")
+            logger.info("WAL-Checkpoint durchgeführt")
+        except sqlite3.Error as e:
+            logger.warning("WAL-Checkpoint Warnung: %s", e)
 
         # ✅ 2. Ordner erstellen
         os.makedirs(backup_dir, exist_ok=True)
@@ -332,7 +334,7 @@ def create_backup(self):
 
         # ✅ 5. Backup verifizieren
         if self._verify_backup(backup_path):
-            print(f"Backup erstellt und verifiziert: {backup_path}")
+            logger.info("Backup erstellt und verifiziert: %s", backup_path)
 
             # ✅ 6. Alte Backups aufräumen (max. 10 behalten)
             self._rotate_backups(backup_dir)
@@ -355,13 +357,11 @@ def create_backup(self):
                 "Das Backup wurde nicht gespeichert."
             )
 
-    except Exception as e:
+    except _BACKUP_ERRORS as e:
+        logger.exception("Backup konnte nicht erstellt werden")
         QtWidgets.QMessageBox.critical(
             self, "Fehler", f"Backup konnte nicht erstellt werden:\n\n{str(e)}"
         )
-        print(f"✗ Backup-Fehler: {e}")
-        import traceback
-        traceback.print_exc()
 
 
 def browse_restore_file(self):
@@ -455,7 +455,7 @@ def restore_backup(self):
             result = self.db.cur.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
             logger.info("   WAL-Checkpoint: %s", result)
             self.db.conn.commit()
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.warning("   WAL-Checkpoint Fehler: %s", e)
 
         # 2. Cursor und Connection explizit schließen
@@ -465,7 +465,7 @@ def restore_backup(self):
                 self.db.cur.close()
                 self.db.cur = None
                 logger.info("   Cursor geschlossen")
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.warning("   Cursor-Fehler: %s", e)
 
         try:
@@ -473,7 +473,7 @@ def restore_backup(self):
                 self.db.conn.close()
                 self.db.conn = None
                 logger.info("   Connection geschlossen")
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.warning("   Connection-Fehler: %s", e)
 
         # 3. Garbage Collection erzwingen
@@ -493,7 +493,7 @@ def restore_backup(self):
             if os.path.exists(emergency_backup):
                 try:
                     os.remove(emergency_backup)
-                except Exception as exc:
+                except OSError as exc:
                     logger.warning("   Konnte altes Notfall-Backup nicht löschen: %s", exc)
             shutil.copy2(self.db.path, emergency_backup)
             logger.info("   Gesichert nach: %s", emergency_backup)
@@ -522,7 +522,7 @@ def restore_backup(self):
                                 "   Konnte nicht gelöscht werden (wird beim Restore überschrieben): %s",
                                 os.path.basename(db_file),
                             )
-                    except Exception as e:
+                    except OSError as e:
                         logger.warning("   Fehler: %s", e)
                         break
 
@@ -544,12 +544,12 @@ def restore_backup(self):
                     logger.warning("   Versuch %d/10: Datei noch gesperrt, warte...", attempt + 1)
                     self._busy_sleep(1.0)
                 else:
-                    raise Exception("Datei konnte nach 10 Versuchen nicht überschrieben werden!")
-            except Exception as e:
-                raise Exception(f"Fehler beim Überschreiben: {e}")
+                    raise RuntimeError("Datei konnte nach 10 Versuchen nicht überschrieben werden!")
+            except OSError as e:
+                raise RuntimeError(f"Fehler beim Überschreiben: {e}") from e
 
         if not restored:
-            raise Exception("Restore fehlgeschlagen!")
+            raise RuntimeError("Restore fehlgeschlagen!")
 
         # 8. Verifizieren
         logger.info("7. Überprüfung...")
@@ -560,7 +560,7 @@ def restore_backup(self):
             else:
                 logger.warning("   Integritäts-Check fehlgeschlagen")
         else:
-            raise Exception("Wiederhergestellte Datei existiert nicht!")
+            raise RuntimeError("Wiederhergestellte Datei existiert nicht!")
 
         logger.info("=" * 50)
         logger.info("BACKUP-WIEDERHERSTELLUNG ABGESCHLOSSEN")
@@ -582,7 +582,7 @@ def restore_backup(self):
         QtWidgets.QApplication.quit()
         os.execl(sys.executable, sys.executable, *sys.argv)  # nosec B606: self-restart without shell
 
-    except Exception as e:
+    except (OSError, sqlite3.Error, RuntimeError) as e:
         logger.exception("FEHLER beim Restore: %s", e)
 
         # Bei Fehler: Datenbank wieder öffnen versuchen
@@ -590,8 +590,8 @@ def restore_backup(self):
             self.db.conn = sqlite3.connect(self.db.path, check_same_thread=False)
             self.db.cur = self.db.conn.cursor()
             logger.info("   Datenbankverbindung wiederhergestellt")
-        except Exception as reconn_err:
-            logger.error("   Verbindung konnte nicht wiederhergestellt werden: %s", reconn_err)
+        except sqlite3.Error as reconn_err:
+            logger.exception("   Verbindung konnte nicht wiederhergestellt werden: %s", reconn_err)
 
         error_msg = f"Backup-Wiederherstellung fehlgeschlagen:\n\n{str(e)}"
         if emergency_backup:
@@ -613,13 +613,12 @@ def _busy_sleep(self, seconds: float) -> None:
 def _verify_backup(self, backup_path):
     """Verifiziert die Integrität einer Backup-Datei"""
     try:
-        import sqlite3
         conn = sqlite3.connect(backup_path, timeout=10)
         result = conn.cursor().execute("PRAGMA integrity_check").fetchone()
         conn.close()
         return result[0] == "ok"
-    except Exception as e:
-        print(f"⚠ Backup-Verifikation fehlgeschlagen: {e}")
+    except (OSError, sqlite3.Error) as e:
+        logger.warning("Backup-Verifikation fehlgeschlagen: %s", e)
         return False
 
 
@@ -639,15 +638,15 @@ def _rotate_backups(self, backup_dir, max_backups=10):
             try:
                 os.remove(old_backup)
                 deleted_count += 1
-                print(f"   Altes Backup gelöscht: {os.path.basename(old_backup)}")
-            except Exception as e:
-                print(f"   ⚠ Konnte {os.path.basename(old_backup)} nicht löschen: {e}")
+                logger.info("   Altes Backup gelöscht: %s", os.path.basename(old_backup))
+            except OSError as e:
+                logger.warning("   Konnte %s nicht löschen: %s", os.path.basename(old_backup), e)
 
         if deleted_count > 0:
-            print(f"   {deleted_count} alte(s) Backup(s) gelöscht")
+            logger.info("   %s alte(s) Backup(s) gelöscht", deleted_count)
 
-    except Exception as e:
-        print(f"⚠ Backup-Rotation fehlgeschlagen: {e}")
+    except OSError as e:
+        logger.warning("Backup-Rotation fehlgeschlagen: %s", e)
 
 
 def check_auto_backup(self):
@@ -655,7 +654,7 @@ def check_auto_backup(self):
     if self._is_read_only_mode():
         return
     if not self.load_auto_backup_setting():
-        print("Auto-Backup ist deaktiviert")
+        logger.info("Auto-Backup ist deaktiviert")
         return
 
     try:
@@ -667,7 +666,7 @@ def check_auto_backup(self):
         heute = datetime.now().strftime("%Y-%m-%d")
 
         if result and result[0] == heute:
-            print(f"Heute bereits ein Backup erstellt: {heute}")
+            logger.info("Heute bereits ein Backup erstellt: %s", heute)
             return
 
         # Auto-Backup erstellen
@@ -678,8 +677,8 @@ def check_auto_backup(self):
         try:
             self.db.cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             self.db.conn.commit()
-        except Exception as exc:
-            print(f"WAL-Checkpoint fehlgeschlagen (ignoriert): {exc}")
+        except sqlite3.Error as exc:
+            logger.warning("WAL-Checkpoint fehlgeschlagen (ignoriert): %s", exc)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"auto_backup_{timestamp}.db"
@@ -694,13 +693,13 @@ def check_auto_backup(self):
         """, (heute,))
         self.db.conn.commit()
 
-        print(f"✅ Auto-Backup erstellt: {backup_path}")
+        logger.info("Auto-Backup erstellt: %s", backup_path)
 
         # Alte Auto-Backups aufräumen
         self._rotate_backups(backup_dir, max_backups=10)
 
-    except Exception as e:
-        print(f"Auto-Backup fehlgeschlagen: {e}")
+    except _BACKUP_ERRORS as e:
+        logger.exception("Auto-Backup fehlgeschlagen: %s", e)
 
 
 def load_auto_backup_setting(self):
@@ -713,8 +712,8 @@ def load_auto_backup_setting(self):
         if result:
             return result[0] == '1'
         return False
-    except Exception as e:
-        print(f"Fehler beim Laden der Auto-Backup-Einstellung: {e}")
+    except sqlite3.Error as e:
+        logger.warning("Fehler beim Laden der Auto-Backup-Einstellung: %s", e)
         return False
 
 
@@ -729,7 +728,7 @@ def save_auto_backup_setting_from_bool(self, checked):
         """, ('1' if checked else '0',))
         self.db.conn.commit()
 
-        print(f"✅ Auto-Backup gespeichert: {'aktiviert' if checked else 'deaktiviert'}")
-    except Exception as e:
-        print(f"❌ Fehler beim Speichern: {e}")
+        logger.info("Auto-Backup gespeichert: %s", "aktiviert" if checked else "deaktiviert")
+    except sqlite3.Error as e:
+        logger.exception("Fehler beim Speichern der Auto-Backup-Einstellung: %s", e)
 

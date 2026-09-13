@@ -197,26 +197,26 @@ class PDFReporter:
             verfall = self.db.get_verfall_warnings(days=30)
             kpis.append(["Verfälle <30 Tage", f"{len(verfall)} Präparate"])
         except Exception:
-            pass
+            logger.exception("KPI Verfall-Collection fehlgeschlagen")
 
         try:
             inactive = self.db.get_inactive_depots(days=180)
             kpis.append(["Inaktive Depots (>180T)", f"{len(inactive)}"])
         except Exception:
-            pass
+            logger.exception("KPI inaktive Depots fehlgeschlagen")
 
         try:
             dead = self.db.get_dead_stock(days=180)
             total_dead = sum(r["ist_bestand"] for r in dead) if dead else 0
             kpis.append(["Toter Bestand", f"{len(dead)} Präparate ({total_dead} EH)"])
         except Exception:
-            pass
+            logger.exception("KPI toter Bestand fehlgeschlagen")
 
         try:
             anomalies = self.db.get_anomalies(threshold_std=2.0)
             kpis.append(["Anomalien (Z≥2.0)", f"{len(anomalies)}"])
         except Exception:
-            pass
+            logger.exception("KPI Anomalien fehlgeschlagen")
 
         return kpis
 
@@ -255,6 +255,7 @@ class PDFReporter:
                 ])
             return data
         except Exception:
+            logger.exception("Abweichungs-Tabelle fehlgeschlagen")
             return []
 
     def _collect_anomaly_table(self) -> list[list[str]]:
@@ -273,4 +274,5 @@ class PDFReporter:
                 ])
             return data
         except Exception:
+            logger.exception("Anomalie-Tabelle fehlgeschlagen")
             return []
