@@ -1,4 +1,4 @@
-# Roadmap: Architektur-Audit (Wellen 1–4)
+# Roadmap: Architektur-Audit (Wellen 1–5)
 
 ## Welle 1 — Architektur-Audit Desktop-Client (2026-06-16)
 
@@ -166,3 +166,19 @@ Sprint: [#120](https://github.com/QuasiniusQuaks/nd-hub/issues/120). Stand nach 
 | **P2** | [#117](https://github.com/QuasiniusQuaks/nd-hub/issues/117) | CI Coverage-Gate + Sync-Worker-Kern | ✅ | #134 |
 | **P2** | [#118](https://github.com/QuasiniusQuaks/nd-hub/issues/118) | Dockerfile nur Runtime-Artefakt | ✅ | #135 |
 | **P2** | [#119](https://github.com/QuasiniusQuaks/nd-hub/issues/119) | Diese Roadmap + README | ✅ | #136 |
+
+---
+
+## Welle 5 — Publish-Heilung, CI-Build, Secret-Hygiene (audit-welle-5)
+
+Sprint: [#137](https://github.com/QuasiniusQuaks/nd-hub/issues/137). Audit 2026-09-13 nach Welle 4.
+
+| Prio | Issue | Befund | Status | PR |
+|---|---|---|---|---|
+| **P0** | [#138](https://github.com/QuasiniusQuaks/nd-hub/issues/138) | Dockerfile Node 20.14 vs Vite 8 (GHCR-Publish rot) | ✅ | #143 |
+| **P1** | [#139](https://github.com/QuasiniusQuaks/nd-hub/issues/139) | CI-Job `frontend-build` (`npm ci` + `npm run build`) | ✅ | #143 |
+| **P1** | [#140](https://github.com/QuasiniusQuaks/nd-hub/issues/140) | npm audit nanoid/postcss (Build-Zeit) | ✅ | #143 |
+| **P1** | [#141](https://github.com/QuasiniusQuaks/nd-hub/issues/141) | Generiertes Admin-Passwort nicht loggen | ✅ | #145 |
+| **P1** | [#142](https://github.com/QuasiniusQuaks/nd-hub/issues/142) | `__CHANGE_ME__` als Deploy-Passwort ablehnen | ✅ | #145 |
+
+GHCR-Publish nach #143/#145: grün (u. a. [34768056885](https://github.com/QuasiniusQuaks/nd-hub/actions/runs/34768056885)). P2-Monolithen bewusst nicht in diesem Sprint.
