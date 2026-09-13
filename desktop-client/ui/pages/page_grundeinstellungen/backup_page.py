@@ -602,26 +602,12 @@ def restore_backup(self):
 
 
 def _busy_sleep(self, seconds: float) -> None:
-    """Schläft ``seconds`` Sekunden, lässt aber die UI-Event-Queue weiterlaufen.
+    """Wait without pumping the event loop (Issue #114).
 
-    Issue #7: ``time.sleep`` blockiert den UI-Thread komplett. Diese
-    Methode ist der minimal-invasive Fix: 50ms-Intervalle, in denen
-    ``QApplication.processEvents()`` aufgerufen wird. Klicks und
-    Repaints werden weiterhin verarbeitet.
-
-    Für echte Async-Migration siehe ``core/backup_worker.py``.
+    Backup IO belongs in ``core/backup_worker.py``. A nested
+    ``processEvents`` loop here allowed re-entrant Restore clicks.
     """
-    from PySide6.QtWidgets import QApplication
-    app = QApplication.instance()
-    if app is None:
-        time.sleep(seconds)
-        return
-    elapsed = 0.0
-    interval = 0.05
-    while elapsed < seconds:
-        app.processEvents()
-        time.sleep(interval)
-        elapsed += interval
+    time.sleep(seconds)
 
 
 def _verify_backup(self, backup_path):

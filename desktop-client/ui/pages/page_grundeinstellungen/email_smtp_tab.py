@@ -165,7 +165,6 @@ def save_smtp_email_settings(self):
 
 def test_smtp_email_settings(self):
     self.smtp_status_label.setText("Teste Verbindung …")
-    QtWidgets.QApplication.processEvents()
     ok, msg = self.db.test_smtp_connection(self._collect_smtp_form_dict())
     self.smtp_status_label.setText(msg)
     if ok:

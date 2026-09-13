@@ -326,7 +326,6 @@ def test_sync_connection(self) -> None:
         self.sync_config_status_label.setText("Bitte zuerst eine Backend-URL eintragen.")
         return
     self.sync_config_status_label.setText("Pruefe Verbindung...")
-    QtWidgets.QApplication.processEvents()
     token = self.sync_backend_token_input.text().strip()
     try:
         client = BackendApiClient(BackendSyncConfig(base_url=backend_url, access_token=token))

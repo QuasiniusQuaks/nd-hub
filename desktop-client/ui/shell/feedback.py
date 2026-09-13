@@ -66,7 +66,6 @@ def _show_page_busy(self, message: str) -> None:
         self.busy_overlay.raise_()
         self.busy_overlay.show()
         self.busy_overlay.repaint()
-        QtWidgets.QApplication.processEvents(QtCore.QEventLoop.AllEvents)
 
 
 def _hide_page_busy(self) -> None:

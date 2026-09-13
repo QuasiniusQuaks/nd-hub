@@ -180,7 +180,9 @@ def exec_embedded_dialog(parent: QtWidgets.QWidget, dialog: QtWidgets.QDialog) -
     overlay.deleteLater()
     # Events verarbeiten, damit deleteLater das Overlay wirklich freigibt,
     # ohne den (jetzt entkoppelten) Dialog mitzunehmen.
-    QtWidgets.QApplication.processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
+    QtWidgets.QApplication.processEvents(
+        QtCore.QEventLoop.ExcludeUserInputEvents
+    )  # nosec B102: dialog teardown only, no user input
     return result
 
 
