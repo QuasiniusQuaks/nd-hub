@@ -9,7 +9,7 @@ Container-Stack auswerten, plus Compose-Interpolation (siehe unten). Quellen:
 
 | Variable | Bedeutung | Default |
 |---|---|---|
-| `ND_HUB_INITIAL_ADMIN_PASSWORD` | Initialpasswort fuer den `admin`-User. | (Beispielwert in `.env.example`) |
+| `ND_HUB_INITIAL_ADMIN_PASSWORD` | Initialpasswort fuer den `admin`-User. Pflicht beim allerersten Start; `__CHANGE_ME__` wird abgelehnt. Es wird kein Passwort generiert und geloggt. | (kein Default) |
 | `ND_HUB_FORCE_ADMIN_PASSWORD_SYNC` | Setzt `admin`-Passwort beim Start auf `ND_HUB_INITIAL_ADMIN_PASSWORD` zurueck. Nur temporaer verwenden. | `0` |
 | `ND_HUB_AUTO_BACKUP_HOURS` | Intervall fuer automatische Backups. | `24` |
 | `ND_HUB_MAX_BACKUP_RESTORE_MB` | Maximalgroesse fuer Restore-Uploads (MB). | `200` |
@@ -33,8 +33,8 @@ Container-Stack auswerten, plus Compose-Interpolation (siehe unten). Quellen:
 | `ND_HUB_MARIADB_PORT` | MariaDB-Port. | `3306` |
 | `ND_HUB_MARIADB_DATABASE` | Datenbankname. | `ndhub` |
 | `ND_HUB_MARIADB_USER` | DB-Benutzer. | `ndhub` |
-| `ND_HUB_MARIADB_PASSWORD` | DB-Passwort. Compose und App starten nicht, wenn leer. | (kein Default — Pflicht) |
-| `ND_HUB_MARIADB_ROOT_PASSWORD` | Root-Passwort fuer den MariaDB-Container. Compose startet nicht, wenn leer. | (kein Default — Pflicht) |
+| `ND_HUB_MARIADB_PASSWORD` | DB-Passwort. Compose startet nicht, wenn leer. Die App lehnt ausserdem `__CHANGE_ME__` ab. | (kein Default — Pflicht) |
+| `ND_HUB_MARIADB_ROOT_PASSWORD` | Root-Passwort fuer den MariaDB-Container. Compose startet nicht, wenn leer. Die App lehnt `__CHANGE_ME__` ab, falls die Variable gesetzt ist. | (kein Default — Pflicht) |
 | `ND_HUB_DUAL_WRITE_SQLITE` | `1` aktiviert Mirror-Writes auf SQLite-Fallback waehrend Cutover. Standard nach Go-Live: `0`. | `0` |
 
 ## Feature-Flags
@@ -62,7 +62,7 @@ Container-Stack auswerten, plus Compose-Interpolation (siehe unten). Quellen:
 ## Beispiel `.env`
 
 ```env
-ND_HUB_INITIAL_ADMIN_PASSWORD=ChangeMeToAStrongPassword_123!
+ND_HUB_INITIAL_ADMIN_PASSWORD=replace-with-your-own-admin-secret
 ND_HUB_FORCE_ADMIN_PASSWORD_SYNC=0
 ND_HUB_AUTO_BACKUP_HOURS=24
 ND_HUB_MAX_BACKUP_RESTORE_MB=200

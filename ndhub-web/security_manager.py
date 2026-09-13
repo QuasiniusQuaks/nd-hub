@@ -5,7 +5,6 @@ Version: 2.0 (V32 - Kryptobereinigt)
 
 import logging
 import os
-import secrets
 import shutil
 import sqlite3
 import threading
@@ -27,6 +26,7 @@ from shared.security.lockout import is_currently_locked, register_failed_attempt
 from shared.security.password import HAS_BCRYPT
 from shared.security.password import hash_password as _shared_hash_password
 from shared.security.password import verify_password as _shared_verify_password
+from shared.security.runtime_secrets import resolve_initial_admin_password
 
 if HAS_BCRYPT:
     logger.info("✓ bcrypt verfügbar (shared.security)")
@@ -328,12 +328,8 @@ class SecurityManager:
         ).fetchone()[0]
 
         if existing == 0:
-            initial_password = os.environ.get("ND_HUB_INITIAL_ADMIN_PASSWORD", "").strip()
-            generated_password = False
-            if not initial_password:
-                initial_password = secrets.token_urlsafe(18)
-                generated_password = True
-
+            # Fail-closed: never invent a password and write it to logs (Issue #141).
+            initial_password = resolve_initial_admin_password(required=True)
             password_hash = self.hash_password(initial_password)
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.cur.execute("""
@@ -341,16 +337,10 @@ class SecurityManager:
                 VALUES (?, ?, ?, ?, 1, 1)
             """, ("admin", password_hash, self.ROLE_ADMIN, now))
             self.conn.commit()
-            if generated_password:
-                logger.warning(
-                    "Initialer Admin erstellt (Username: admin). "
-                    "Kein ND_HUB_INITIAL_ADMIN_PASSWORD gesetzt; generiertes Initial-Passwort: %s",
-                    initial_password
-                )
-            else:
-                logger.info(
-                    "Initialer Admin erstellt (Username: admin). Passwort aus ND_HUB_INITIAL_ADMIN_PASSWORD verwendet."
-                )
+            logger.info(
+                "Initialer Admin erstellt (Username: admin). "
+                "Passwort aus ND_HUB_INITIAL_ADMIN_PASSWORD verwendet."
+            )
         else:
             # Selbstheilung: Sicherstellen, dass 'admin' auch wirklich Admin-Rechte hat
             # Dies löst das Problem "Role is None" bei inkonsistenten Datenbanken
@@ -359,7 +349,7 @@ class SecurityManager:
                 SET role = ?, is_active = 1
                 WHERE username = ? AND (role IS NULL OR role = '' OR role != ?)
             """, (self.ROLE_ADMIN, "admin", self.ROLE_ADMIN))
-            initial_password = os.environ.get("ND_HUB_INITIAL_ADMIN_PASSWORD", "").strip()
+            initial_password = resolve_initial_admin_password(required=False)
             force_sync = (os.environ.get("ND_HUB_FORCE_ADMIN_PASSWORD_SYNC", "0") or "0").strip().lower() in {
                 "1",
                 "true",
