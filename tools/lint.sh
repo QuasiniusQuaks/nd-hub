@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tools/lint.sh — zentrales Lint-Skript für nd-hub
-# Verwendet ruff. Bei Erfolg Exit 0, sonst Exit 1.
+# Spiegelt die CI-Ruff-Gates (Workflow ci.yml, Job lint). Bei Erfolg Exit 0, sonst Exit 1.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +13,17 @@ if ! command -v ruff >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "==> ruff check desktop-client/ ndhub-web/"
-ruff check desktop-client/ ndhub-web/
+echo "==> ruff check desktop-client/"
+ruff check desktop-client \
+    --config desktop-client/pyproject.toml \
+    --exclude "**/tests/**,**/.venv/**,**/__pycache__/**"
+
+echo "==> ruff check ndhub-web/"
+ruff check ndhub-web \
+    --config ndhub-web/pyproject.toml \
+    --exclude "**/tests/**,**/.venv/**,**/node_modules/**,**/__pycache__/**"
+
+echo "==> ruff check shared/"
+ruff check shared --config desktop-client/pyproject.toml
 
 echo "==> Lint OK"
